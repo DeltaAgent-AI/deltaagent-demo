@@ -386,8 +386,8 @@ function RiverMap({ gaugeVal, statusColor, log }) {
       });
 
       const vesselEl = document.createElement("div");
-      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
-      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);width:20px;height:20px;";
+      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
+      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);";
       const vesselPopup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
         .setHTML(`<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#3bbfb2;background:#0a0f0a;padding:6px 10px;border-radius:4px;border:1px solid #0f4547;">MV Delta Voyager<br/>LOA 185m · Draft 9.2m</div>`);
       vesselMarkerRef.current = new window.mapboxgl.Marker({ element: vesselEl })
@@ -412,8 +412,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
         const dLat = to[1] - from[1];
         const bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
         const el = vesselMarkerRef.current.getElement();
-        const svg = el.querySelector("svg");
-        if (svg) svg.style.transform = `rotate(${bearing}deg)`;
+        el.style.transform = `rotate(${bearing}deg)`;
 
         animFrameRef.current = requestAnimationFrame(animateVessel);
       }

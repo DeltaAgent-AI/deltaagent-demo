@@ -27,11 +27,6 @@ const LOCATIONS = [
   { name: "Southwest Pass",                 lng: -89.4073, lat: 28.9947, type: "waypoint" },
 ];
 
-// Gauge gets its own distinct color — white/cyan, not teal (teal is reserved for vessel)
-const GAUGE_COLOR  = "#e0fffc";
-const TERM_COLOR   = "#d97706";
-const WAY_COLOR    = "#4a7a75";
-
 // Exact Mississippi River coordinates from OSM/Overpass API
 const VESSEL_ROUTE = [
   [-91.572314, 30.735949],
@@ -377,7 +372,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
 
       LOCATIONS.forEach((loc) => {
         const el = document.createElement("div");
-        const dotColor = loc.type === "gauge" ? GAUGE_COLOR : loc.type === "terminal" ? TERM_COLOR : WAY_COLOR;
+        const dotColor = loc.type === "gauge" ? "#3bbfb2" : loc.type === "terminal" ? "#d97706" : "#4a7a75";
         el.style.cssText = `width:${loc.type==="gauge"?14:10}px;height:${loc.type==="gauge"?14:10}px;border-radius:50%;background:${dotColor};border:2px solid ${dotColor}44;box-shadow:0 0 ${loc.type==="gauge"?12:6}px ${dotColor}44;cursor:pointer;`;
         if (loc.type === "gauge") el.className = "gauge-marker";
         const popup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
@@ -386,35 +381,24 @@ function RiverMap({ gaugeVal, statusColor, log }) {
       });
 
       const vesselEl = document.createElement("div");
-      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
-      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);width:20px;height:20px;";
+      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
+      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);";
       const vesselPopup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
         .setHTML(`<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#3bbfb2;background:#0a0f0a;padding:6px 10px;border-radius:4px;border:1px solid #0f4547;">MV Delta Voyager<br/>LOA 185m · Draft 9.2m</div>`);
       vesselMarkerRef.current = new window.mapboxgl.Marker({ element: vesselEl })
         .setLngLat(VESSEL_ROUTE[0]).setPopup(vesselPopup).addTo(map);
 
-      let t = 0.52;
+      let t = 0.45;
       function animateVessel() {
         const route = VESSEL_ROUTE;
-        t += 0.00004;
-        if (t > 0.72) t = 0.40;
+        t += 0.00004; // slow and realistic
+        if (t > 0.72) t = 0.35; // loop only through visible Baton Rouge → NOLA section
         const total = route.length - 1;
         const st = t * total;
         const si = Math.min(Math.floor(st), total - 1);
         const lt = st - si;
         const from = route[si], to = route[si + 1];
-        const lng = from[0]+(to[0]-from[0])*lt;
-        const lat = from[1]+(to[1]-from[1])*lt;
-        vesselMarkerRef.current.setLngLat([lng, lat]);
-
-        // Calculate bearing for vessel rotation
-        const dLng = to[0] - from[0];
-        const dLat = to[1] - from[1];
-        const bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
-        const el = vesselMarkerRef.current.getElement();
-        const svg = el.querySelector("svg");
-        if (svg) svg.style.transform = `rotate(${bearing}deg)`;
-
+        vesselMarkerRef.current.setLngLat([from[0]+(to[0]-from[0])*lt, from[1]+(to[1]-from[1])*lt]);
         animFrameRef.current = requestAnimationFrame(animateVessel);
       }
       animateVessel();
@@ -426,9 +410,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
     if (!vesselMarkerRef.current) return;
     const el = vesselMarkerRef.current.getElement();
     const color = gaugeVal >= 8 ? "#dc2626" : gaugeVal >= 5.5 ? "#d97706" : "#3bbfb2";
-    const svg = el.querySelector("svg");
-    if (svg) svg.querySelector("polygon").setAttribute("fill", color);
-    else el.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="${color}" stroke="#0a0f0a" stroke-width="1"/></svg>`;
+    el.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="${color}" stroke="#0a0f0a" stroke-width="1"/></svg>`;
     el.style.filter = `drop-shadow(0 0 6px ${color})`;
   }, [gaugeVal]);
 
@@ -444,20 +426,9 @@ function RiverMap({ gaugeVal, statusColor, log }) {
           MISSISSIPPI RIVER CORRIDOR · BATON ROUGE → GULF
         </div>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-          {[
-            { color: GAUGE_COLOR, label: "Gauge Station", type: "dot" },
-            { color: TERM_COLOR,  label: "Terminal",       type: "dot" },
-            { color: WAY_COLOR,   label: "Waypoint",       type: "dot" },
-            { color: statusColor, label: "MV Delta Voyager", type: "arrow" },
-          ].map(({ color, label, type }) => (
+          {[{ color: C.teal, label: "Gauge Station" }, { color: C.amber, label: "Terminal" }, { color: C.muted, label: "Waypoint" }, { color: statusColor, label: "MV Delta Voyager" }].map(({ color, label }) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              {type === "arrow" ? (
-                <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
-                  <polygon points="5,0 10,12 5,8 0,12" fill={color} />
-                </svg>
-              ) : (
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
-              )}
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted }}>{label}</span>
             </div>
           ))}
@@ -493,7 +464,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
       </div>
 
       <style>{`
-        @keyframes gaugePulse { 0%{box-shadow:0 0 0 0 #e0fffcaa}70%{box-shadow:0 0 0 8px #e0fffc00}100%{box-shadow:0 0 0 0 #e0fffc00} }
+        @keyframes gaugePulse { 0%{box-shadow:0 0 0 0 #3bbfb266}70%{box-shadow:0 0 0 8px #3bbfb200}100%{box-shadow:0 0 0 0 #3bbfb200} }
         .gauge-marker { animation: gaugePulse 1.8s ease-out infinite; }
         .mapboxgl-popup-content{background:transparent!important;padding:0!important;box-shadow:none!important;}
         .mapboxgl-popup-tip{display:none!important;}

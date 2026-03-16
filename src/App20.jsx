@@ -27,191 +27,37 @@ const LOCATIONS = [
   { name: "Southwest Pass",                 lng: -89.4073, lat: 28.9947, type: "waypoint" },
 ];
 
-// Gauge gets its own distinct color — white/cyan, not teal (teal is reserved for vessel)
-const GAUGE_COLOR  = "#e0fffc";
-const TERM_COLOR   = "#d97706";
-const WAY_COLOR    = "#4a7a75";
-
-// Exact Mississippi River coordinates from OSM/Overpass API
+// Vessel route follows actual Mississippi River channel
+// Corrected based on navigation map — river runs ~29.95 lat through NOLA crescent
 const VESSEL_ROUTE = [
-  [-91.572314, 30.735949],
-  [-91.560362, 30.731781],
-  [-91.544432, 30.731592],
-  [-91.518699, 30.738759],
-  [-91.485513, 30.744558],
-  [-91.461744, 30.73682],
-  [-91.446346, 30.736473],
-  [-91.426558, 30.742567],
-  [-91.417002, 30.747293],
-  [-91.401744, 30.756098],
-  [-91.397001, 30.757499],
-  [-91.385322, 30.758936],
-  [-91.378929, 30.758153],
-  [-91.375116, 30.755974],
-  [-91.359877, 30.736129],
-  [-91.352158, 30.719238],
-  [-91.339118, 30.665129],
-  [-91.335329, 30.659841],
-  [-91.330429, 30.657295],
-  [-91.318027, 30.653801],
-  [-91.303904, 30.649379],
-  [-91.299506, 30.647486],
-  [-91.29365, 30.641217],
-  [-91.290851, 30.633944],
-  [-91.290699, 30.62811],
-  [-91.298722, 30.609415],
-  [-91.310622, 30.596301],
-  [-91.315473, 30.589513],
-  [-91.315209, 30.579521],
-  [-91.311736, 30.574024],
-  [-91.300846, 30.571649],
-  [-91.284252, 30.57178],
-  [-91.270967, 30.569969],
-  [-91.257194, 30.568272],
-  [-91.245238, 30.559781],
-  [-91.239591, 30.552574],
-  [-91.238755, 30.546937],
-  [-91.241449, 30.538867],
-  [-91.249227, 30.531394],
-  [-91.267473, 30.524023],
-  [-91.279573, 30.517663],
-  [-91.284106, 30.512571],
-  [-91.284002, 30.509087],
-  [-91.28032, 30.505766],
-  [-91.270354, 30.504289],
-  [-91.258063, 30.506559],
-  [-91.218438, 30.519948],
-  [-91.208728, 30.522909],
-  [-91.203568, 30.519555],
-  [-91.19973, 30.516154],
-  [-91.197214, 30.500779],
-  [-91.196434, 30.464004],
-  [-91.198951, 30.425851],
-  [-91.219631, 30.389736],
-  [-91.233164, 30.375882],
-  [-91.240988, 30.361825],
-  [-91.241313, 30.356721],
-  [-91.234712, 30.343509],
-  [-91.226065, 30.338556],
-  [-91.220426, 30.337844],
-  [-91.202228, 30.343768],
-  [-91.184807, 30.347264],
-  [-91.175116, 30.346173],
-  [-91.15792, 30.342012],
-  [-91.147866, 30.336505],
-  [-91.142654, 30.326176],
-  [-91.142162, 30.321661],
-  [-91.145807, 30.316735],
-  [-91.154938, 30.314022],
-  [-91.223799, 30.311239],
-  [-91.228877, 30.292032],
-  [-91.138923, 30.27658],
-  [-91.111115, 30.243997],
-  [-91.166248, 30.198029],
-  [-91.137472, 30.179427],
-  [-91.062753, 30.212657],
-  [-91.008587, 30.172737],
-  [-91.016808, 30.131964],
-  [-91.033523, 30.119751],
-  [-90.997674, 30.114505],
-  [-90.989264, 30.113638],
-  [-90.960059, 30.107285],
-  [-90.946396, 30.11171],
-  [-90.945716, 30.133219],
-  [-90.934351, 30.137192],
-  [-90.923967, 30.132212],
-  [-90.908961, 30.082177],
-  [-90.894974, 30.06467],
-  [-90.884296, 30.060832],
-  [-90.855809, 30.062805],
-  [-90.839802, 30.042623],
-  [-90.813687, 29.983156],
-  [-90.758796, 30.015616],
-  [-90.706322, 30.022944],
-  [-90.643901, 30.048164],
-  [-90.609874, 30.036323],
-  [-90.54849, 30.048164],
-  [-90.499417, 30.05216],
-  [-90.474295, 30.039543],
-  [-90.468126, 29.998865],
-  [-90.398022, 29.98139],
-  [-90.38041, 29.945246],
-  [-90.304663, 29.950876],
-  [-90.236952, 29.964357],
-  [-90.215469, 29.928261],
-  [-90.197626, 29.924205],
-  [-90.150381, 29.956214],
-  [-90.138977, 29.945987],
-  [-90.134018, 29.91309],
-  [-90.11577, 29.907753],
-  [-90.093452, 29.911966],
-  [-90.067524, 29.921211],
-  [-90.05933, 29.931006],
-  [-90.0581, 29.942431],
-  [-90.058428, 29.95657],
-  [-90.05118, 29.95943],
-  [-90.035188, 29.955617],
-  [-89.983208, 29.928354],
-  [-89.928664, 29.921982],
-  [-89.906168, 29.871149],
-  [-89.916228, 29.866193],
-  [-89.92954, 29.868535],
-  [-89.944579, 29.874726],
-  [-89.959713, 29.880998],
-  [-89.971097, 29.879156],
-  [-89.976204, 29.861854],
-  [-89.986177, 29.842703],
-  [-89.999206, 29.824245],
-  [-90.005579, 29.803386],
-  [-90.017394, 29.784368],
-  [-90.023327, 29.763899],
-  [-90.01812, 29.750449],
-  [-89.99984, 29.735682],
-  [-89.98696, 29.717592],
-  [-89.976083, 29.69801],
-  [-89.962924, 29.680095],
-  [-89.958472, 29.658582],
-  [-89.945259, 29.642209],
-  [-89.923193, 29.632074],
-  [-89.90284, 29.61937],
-  [-89.880352, 29.610243],
-  [-89.856383, 29.60487],
-  [-89.833966, 29.596792],
-  [-89.813957, 29.583643],
-  [-89.793288, 29.571551],
-  [-89.774999, 29.557181],
-  [-89.759198, 29.540462],
-  [-89.738125, 29.529638],
-  [-89.718604, 29.51659],
-  [-89.704028, 29.499206],
-  [-89.694454, 29.487285],
-  [-89.677278, 29.471827],
-  [-89.656137, 29.46096],
-  [-89.631772, 29.457823],
-  [-89.608292, 29.451602],
-  [-89.603738, 29.431562],
-  [-89.604947, 29.410096],
-  [-89.592524, 29.391887],
-  [-89.573472, 29.378],
-  [-89.55154, 29.368104],
-  [-89.527613, 29.362138],
-  [-89.505596, 29.351987],
-  [-89.483171, 29.342922],
-  [-89.464147, 29.355415],
-  [-89.442637, 29.361971],
-  [-89.420868, 29.352681],
-  [-89.401496, 29.339699],
-  [-89.385447, 29.32318],
-  [-89.37092, 29.305516],
-  [-89.356991, 29.287371],
-  [-89.346766, 29.27599],
-  [-89.32911, 29.261242],
-  [-89.310682, 29.246115],
-  [-89.295301, 29.229136],
-  [-89.283163, 29.210169],
-  [-89.272862, 29.193299],
-  [-89.263888, 29.177911],
-  [-89.254849, 29.157922],
+  [-91.1837, 30.4382], // Baton Rouge
+  [-91.0600, 30.3300],
+  [-90.9400, 30.2500],
+  [-90.8300, 30.1750],
+  [-90.7200, 30.1050],
+  [-90.5900, 30.0350],
+  [-90.4700, 29.9900],
+  [-90.3674, 29.9620], // Globalplex
+  [-90.2900, 29.9600],
+  [-90.2200, 29.9580],
+  [-90.1700, 29.9560],
+  [-90.1400, 29.9580], // Huey P Long Bridge
+  [-90.1112, 29.9699], // Carrollton Gauge — adjusted north
+  [-90.0880, 29.9760], // Audubon crescent peak
+  [-90.0650, 29.9720],
+  [-90.0450, 29.9600],
+  [-90.0250, 29.9450],
+  [-90.0050, 29.9280],
+  [-89.9800, 29.9100],
+  [-89.9500, 29.8800],
+  [-89.9100, 29.8400],
+  [-89.8700, 29.7900],
+  [-89.8200, 29.7300],
+  [-89.7600, 29.6500],
+  [-89.6800, 29.5500],
+  [-89.5800, 29.4200],
+  [-89.4800, 29.2500],
+  [-89.4073, 28.9947], // Southwest Pass
 ];
 
 
@@ -377,7 +223,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
 
       LOCATIONS.forEach((loc) => {
         const el = document.createElement("div");
-        const dotColor = loc.type === "gauge" ? GAUGE_COLOR : loc.type === "terminal" ? TERM_COLOR : WAY_COLOR;
+        const dotColor = loc.type === "gauge" ? "#3bbfb2" : loc.type === "terminal" ? "#d97706" : "#4a7a75";
         el.style.cssText = `width:${loc.type==="gauge"?14:10}px;height:${loc.type==="gauge"?14:10}px;border-radius:50%;background:${dotColor};border:2px solid ${dotColor}44;box-shadow:0 0 ${loc.type==="gauge"?12:6}px ${dotColor}44;cursor:pointer;`;
         if (loc.type === "gauge") el.className = "gauge-marker";
         const popup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
@@ -386,35 +232,25 @@ function RiverMap({ gaugeVal, statusColor, log }) {
       });
 
       const vesselEl = document.createElement("div");
-      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
-      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);width:20px;height:20px;";
+      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
+      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);";
       const vesselPopup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
         .setHTML(`<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#3bbfb2;background:#0a0f0a;padding:6px 10px;border-radius:4px;border:1px solid #0f4547;">MV Delta Voyager<br/>LOA 185m · Draft 9.2m</div>`);
       vesselMarkerRef.current = new window.mapboxgl.Marker({ element: vesselEl })
         .setLngLat(VESSEL_ROUTE[0]).setPopup(vesselPopup).addTo(map);
 
-      let t = 0.52;
+      let t = 0.25;
       function animateVessel() {
-        const route = VESSEL_ROUTE;
-        t += 0.00004;
-        if (t > 0.72) t = 0.40;
+        // Use real OSM river coords if available, fallback to hardcoded
+        const route = window._deltaAgentRiverCoords || VESSEL_ROUTE;
+        t += 0.0002;
+        if (t > 1) t = 0;
         const total = route.length - 1;
         const st = t * total;
         const si = Math.min(Math.floor(st), total - 1);
         const lt = st - si;
         const from = route[si], to = route[si + 1];
-        const lng = from[0]+(to[0]-from[0])*lt;
-        const lat = from[1]+(to[1]-from[1])*lt;
-        vesselMarkerRef.current.setLngLat([lng, lat]);
-
-        // Calculate bearing for vessel rotation
-        const dLng = to[0] - from[0];
-        const dLat = to[1] - from[1];
-        const bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
-        const el = vesselMarkerRef.current.getElement();
-        const svg = el.querySelector("svg");
-        if (svg) svg.style.transform = `rotate(${bearing}deg)`;
-
+        vesselMarkerRef.current.setLngLat([from[0]+(to[0]-from[0])*lt, from[1]+(to[1]-from[1])*lt]);
         animFrameRef.current = requestAnimationFrame(animateVessel);
       }
       animateVessel();
@@ -426,9 +262,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
     if (!vesselMarkerRef.current) return;
     const el = vesselMarkerRef.current.getElement();
     const color = gaugeVal >= 8 ? "#dc2626" : gaugeVal >= 5.5 ? "#d97706" : "#3bbfb2";
-    const svg = el.querySelector("svg");
-    if (svg) svg.querySelector("polygon").setAttribute("fill", color);
-    else el.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="${color}" stroke="#0a0f0a" stroke-width="1"/></svg>`;
+    el.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="${color}" stroke="#0a0f0a" stroke-width="1"/></svg>`;
     el.style.filter = `drop-shadow(0 0 6px ${color})`;
   }, [gaugeVal]);
 
@@ -444,20 +278,9 @@ function RiverMap({ gaugeVal, statusColor, log }) {
           MISSISSIPPI RIVER CORRIDOR · BATON ROUGE → GULF
         </div>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-          {[
-            { color: GAUGE_COLOR, label: "Gauge Station", type: "dot" },
-            { color: TERM_COLOR,  label: "Terminal",       type: "dot" },
-            { color: WAY_COLOR,   label: "Waypoint",       type: "dot" },
-            { color: statusColor, label: "MV Delta Voyager", type: "arrow" },
-          ].map(({ color, label, type }) => (
+          {[{ color: C.teal, label: "Gauge Station" }, { color: C.amber, label: "Terminal" }, { color: C.muted, label: "Waypoint" }, { color: statusColor, label: "MV Delta Voyager" }].map(({ color, label }) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              {type === "arrow" ? (
-                <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
-                  <polygon points="5,0 10,12 5,8 0,12" fill={color} />
-                </svg>
-              ) : (
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
-              )}
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted }}>{label}</span>
             </div>
           ))}
@@ -493,7 +316,7 @@ function RiverMap({ gaugeVal, statusColor, log }) {
       </div>
 
       <style>{`
-        @keyframes gaugePulse { 0%{box-shadow:0 0 0 0 #e0fffcaa}70%{box-shadow:0 0 0 8px #e0fffc00}100%{box-shadow:0 0 0 0 #e0fffc00} }
+        @keyframes gaugePulse { 0%{box-shadow:0 0 0 0 #3bbfb266}70%{box-shadow:0 0 0 8px #3bbfb200}100%{box-shadow:0 0 0 0 #3bbfb200} }
         .gauge-marker { animation: gaugePulse 1.8s ease-out infinite; }
         .mapboxgl-popup-content{background:transparent!important;padding:0!important;box-shadow:none!important;}
         .mapboxgl-popup-tip{display:none!important;}
