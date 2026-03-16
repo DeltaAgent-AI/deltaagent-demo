@@ -401,6 +401,43 @@ export default function DeltaAgentCommandCenter() {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: ${C.bg}; }
         ::-webkit-scrollbar-thumb { background: ${C.borderHi}; border-radius: 2px; }
+
+        .row1-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 16px;
+        }
+        .row2-grid {
+          display: grid;
+          grid-template-columns: 1fr 380px;
+          gap: 16px;
+        }
+        .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .nav-time { display: block; }
+        @media (max-width: 640px) {
+          .row1-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .row2-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .nav-time { display: none; }
+          .nav-right { gap: 8px; }
+          .page-padding { padding: 12px 14px !important; }
+          .log-height { height: 240px !important; }
+        }
+        @media (min-width: 641px) and (max-width: 1024px) {
+          .row1-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .row2-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
 
       <div
@@ -504,9 +541,10 @@ export default function DeltaAgentCommandCenter() {
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div className="nav-right">
               <Badge color={scenario.statusColor}>{scenario.status}</Badge>
               <div
+                className="nav-time"
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   fontSize: 11,
@@ -531,10 +569,10 @@ export default function DeltaAgentCommandCenter() {
             </div>
           </header>
 
-          <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="page-padding" style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* ── Row 1: Gauge + Agent Status + OODA ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+            <div className="row1-grid">
 
               {/* Carrollton Gauge */}
               <div
@@ -912,7 +950,7 @@ export default function DeltaAgentCommandCenter() {
             </div>
 
             {/* ── Row 2: Agent Log + Recommendation ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 16 }}>
+            <div className="row2-grid">
 
               {/* Agent Activity Log */}
               <div
@@ -958,6 +996,7 @@ export default function DeltaAgentCommandCenter() {
 
                 <div
                   ref={logRef}
+                  className="log-height"
                   style={{
                     height: 320,
                     overflowY: "auto",
