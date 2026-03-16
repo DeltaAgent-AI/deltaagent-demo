@@ -1300,7 +1300,7 @@ export default function DeltaAgentCommandCenter() {
                 gap: 8,
               }}
             >
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 <Badge color={C.teal}>TWIC-CLEARED FOUNDERS</Badge>
                 <Badge color={C.tealDim}>MTSA ALIGNED</Badge>
                 <Badge color={C.muted}>NEWLAB NEW ORLEANS</Badge>
