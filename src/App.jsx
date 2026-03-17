@@ -218,50 +218,109 @@ function buildFloodScenario(ft) {
   return { ft, status, statusColor, risk, riskColor, decisions, trend };
 }
 
-//    FOG SCENARIO                                                              
-// visibility in nautical miles. Pilot restriction < 0.5nm. Dense fog < 0.25nm.
+//    FOG SCENARIO - Lower Mississippi River specific
+// LMR fog phases based on Port Director operational protocols:
+// 1.0 - 2.0nm  = CAUTIONARY - tow-heads disappearing, VTS monitoring, tug standby
+// 0.5 - 1.0nm  = RESTRICTED - one-way traffic at bridges, pilot wait-and-see
+// 0.25 - 0.5nm = CRITICAL   - suspend mooring, anchor in place at straightaways
+// < 0.25nm     = ZERO-ZERO  - halt all movement, stop trucks and trains
+// "Visibility controls traffic flow. Water level controls infrastructure safety."
 function buildFogScenario(visNm) {
-  const dense    = visNm < 0.25;
-  const restrict = visNm < 0.5;
-  const status      = dense ? "CRITICAL" : restrict ? "ELEVATED" : "NOMINAL";
-  const statusColor = dense ? C.red : restrict ? C.amber : C.teal;
-  const risk        = dense ? "HIGH RISK" : restrict ? "ELEVATED RISK" : "NOMINAL";
-  const riskColor   = statusColor;
-  const decisions = dense ? [
+  const zeroZero   = visNm < 0.25;
+  const critical   = visNm >= 0.25 && visNm < 0.5;
+  const restricted = visNm >= 0.5  && visNm < 1.0;
+  const cautionary = visNm >= 1.0  && visNm < 2.0;
+
+  const status = zeroZero   ? "ZERO-ZERO"
+    : critical   ? "CRITICAL"
+    : restricted ? "RESTRICTED"
+    : cautionary ? "CAUTIONARY"
+    : "NOMINAL";
+
+  const statusColor = zeroZero   ? C.red
+    : critical   ? C.red
+    : restricted ? C.amber
+    : cautionary ? C.amber
+    : C.teal;
+
+  const risk = zeroZero   ? "CATASTROPHIC"
+    : critical   ? "HIGH RISK"
+    : restricted ? "ELEVATED RISK"
+    : cautionary ? "MONITOR"
+    : "NOMINAL";
+
+  const riskColor = statusColor;
+
+  const decisions = zeroZero ? [
+    {
+      id: "f1", severity: "critical",
+      disruptionType: "FOG", disruptionLabel: "ZERO-ZERO",
+      title: "HALT - Total Movement Shutdown",
+      reason: "KMSY visibility " + visNm.toFixed(2) + "nm - Zero-Zero conditions. Catastrophic collision risk. Every vessel stays put. Logistics domino imminent - 500+ trucks idling at terminal gates.",
+      costAvoided: 84000, costIfIgnored: 84000, advanceWarning: "IMMEDIATE",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Halt all vessel movement - every ship stays put per Coast Guard order", "Shut down truck gates - prevent land-side gridlock on surface streets", "Stop CN/KCS rail lines - prevent intermodal backup at terminal", "Order anchorage for all vessels currently in Kenner Bend straightaway", "Notify Port Director - logistics domino protocol activated"],
+    },
+    {
+      id: "f2", severity: "critical",
+      disruptionType: "FOG", disruptionLabel: "ALLISION RISK",
+      title: "PROHIBIT - No Vessel May Leave or Approach Wharves",
+      reason: "Sub-0.25nm visibility creates total disorientation risk. A 30-second radar or GPS outage could cause allision with bridge pier or levee grounding.",
+      costAvoided: 52000, costIfIgnored: 52000, advanceWarning: "IMMEDIATE",
+      agents: ["BM", "IS"],
+      actions: ["Prohibit all wharf approaches and departures - allision risk critical", "Notify all terminal berth crews - stand down immediately", "22 drayage trucks diverted - gate closure SMS dispatched via Twilio", "MTSA emergency log entry created - Coast Guard Sector NOLA notified"],
+    },
+  ] : critical ? [
     {
       id: "f1", severity: "critical",
       disruptionType: "FOG", disruptionLabel: "DENSE FOG",
-      title: "HOLD - Suspend All Vessel Movement",
-      reason: "Southwest Pass visibility " + visNm.toFixed(2) + "nm - below 0.25nm dense fog threshold. Coast Guard has issued navigation restriction. All inbound vessel movement suspended.",
-      costAvoided: 29000, costIfIgnored: 29000, advanceWarning: "2h 10m",
+      title: "SUSPEND - All Mooring Operations",
+      reason: "KMSY visibility " + visNm.toFixed(2) + "nm - dense fog threshold. Suspend all docking and undocking. Order ships in straightaways to find nearest anchorage immediately.",
+      costAvoided: 44000, costIfIgnored: 44000, advanceWarning: "30m",
       agents: ["RW", "BM", "IS"],
-      actions: ["All inbound vessels held at Southwest Pass anchorage", "Crane gang Berth 1 stood down - redeployed to Berth 3 maintenance", "22 drayage trucks notified: 3h delay window via Twilio SMS", "CN/KCS rail departure held pending visibility improvement"],
+      actions: ["Suspend all mooring operations - no vessel may leave or approach wharf", "Order vessels in Kenner Bend straightaway to nearest anchorage", "Pilot boarding suspended at Southwest Pass and Pilottown stations", "Crane gang stood down - berth crews on hold", "Drayage trucks notified - 2-4hr delay window via Twilio SMS"],
     },
     {
       id: "f2", severity: "warning",
-      disruptionType: "FOG", disruptionLabel: "PILOT ADVISORY",
-      title: "ADVISORY - Notify Pilot Station",
-      reason: "Visibility dropping at 0.1nm/hr. Pilot boarding window at risk within 45 minutes at current trend.",
-      costAvoided: 8400, costIfIgnored: 8400, advanceWarning: "45m",
-      agents: ["RW"],
-      actions: ["Pilot Station notified via SMS - boarding advisory issued", "Port Director alerted to potential berthing window shift"],
+      disruptionType: "FOG", disruptionLabel: "BRIDGE RESTRICTION",
+      title: "COORDINATE - One-Way Traffic at Bridges",
+      reason: "Dense fog makes two-way traffic under Huey P. Long and Crescent City Connection bridges catastrophically dangerous. One-way protocol must be maintained.",
+      costAvoided: 18000, costIfIgnored: 18000, advanceWarning: "45m",
+      agents: ["RW", "BM"],
+      actions: ["Maintain one-way traffic through Huey P. Long Bridge", "Maintain one-way traffic through Crescent City Connection", "Coordinate with Coast Guard VTS - bridge passage sequencing", "Notify all vessel agents - one-way protocol active"],
     },
-  ] : restrict ? [
+  ] : restricted ? [
     {
       id: "f1", severity: "warning",
-      disruptionType: "FOG", disruptionLabel: "VISIBILITY ALERT",
-      title: "DELAY - Hold Pilot Boarding 90 Min",
-      reason: "Southwest Pass visibility at " + visNm.toFixed(2) + "nm - below 0.5nm pilot boarding threshold. Standard 90-120 min delay protocol activated.",
-      costAvoided: 11200, costIfIgnored: 11200, advanceWarning: "1h 28m",
+      disruptionType: "FOG", disruptionLabel: "RESTRICTED VIS",
+      title: "INITIATE - One-Way Traffic at Dangerous Bends",
+      reason: "KMSY visibility " + visNm.toFixed(2) + "nm - restricted phase. Radar ghosting at sharp bends. Initiate one-way traffic through bridges. Pilots may stop boarding at Southwest Pass.",
+      costAvoided: 28000, costIfIgnored: 28000, advanceWarning: "1h 15m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Coordinate with Coast Guard - initiate one-way traffic at Huey P. Long and Crescent City Connection", "Pilot wait-and-see advisory - Southwest Pass and Pilottown stations", "Safe speed mandate issued to all vessels transiting bends", "Parking lot forming in Gulf - notify vessel agents of delay window", "Berth crew notified - crane gang on short-notice standby"],
+    },
+  ] : cautionary ? [
+    {
+      id: "f1", severity: "warning",
+      disruptionType: "FOG", disruptionLabel: "CAUTIONARY",
+      title: "ACTIVATE - VTS Monitoring and Tug Standby",
+      reason: "KMSY visibility " + visNm.toFixed(2) + "nm - cautionary phase. Tow-heads beginning to disappear. Reaction time compressed by 4-knot current. Activate VTS checkpoint monitoring.",
+      costAvoided: 14000, costIfIgnored: 14000, advanceWarning: "2h 00m",
       agents: ["RW", "BM"],
-      actions: ["Pilot boarding window delayed 90 min", "Berth crew notified - crane gang held on standby", "Truck gate ETA adjusted +90 min", "Port Director SMS dispatched"],
+      actions: ["Activate VTS checkpoint monitoring - 81-Mile Point and Algiers Point", "Alert assist tugs at Valero and PBF terminals - short-notice standby", "Ensure all vessels checking in at designated checkpoints via VHF Ch 16", "Monitor visibility trend - restricted phase approaching at 1.0nm"],
     },
   ] : [];
-  const trend = dense
-    ? [2.1, 1.8, 1.2, 0.8, 0.5, 0.3, 0.22, visNm]
-    : restrict
-    ? [2.4, 2.1, 1.6, 1.1, 0.8, 0.6, 0.52, visNm]
-    : [3.2, 3.5, 4.1, 5.0, 6.2, 7.8, 9.1, visNm];
+
+  const trend = zeroZero
+    ? [1.8, 1.2, 0.8, 0.5, 0.35, 0.28, 0.22, visNm]
+    : critical
+    ? [2.1, 1.6, 1.1, 0.8, 0.6, 0.45, 0.38, visNm]
+    : restricted
+    ? [2.8, 2.4, 2.0, 1.6, 1.2, 0.9, 0.7, visNm]
+    : cautionary
+    ? [4.2, 3.8, 3.2, 2.6, 2.2, 1.8, 1.4, visNm]
+    : [8.0, 8.5, 9.0, 9.2, 9.5, 9.8, 10.0, visNm];
+
   return { visNm, status, statusColor, risk, riskColor, decisions, trend };
 }
 
@@ -988,8 +1047,9 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>SW Pass Visibility   BURL1</div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
                     <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 9.95) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 0.3s ease" }} />
-                    <div style={{ position: "absolute", left: `${((10 - 0.5) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: C.amber, opacity: 0.6 }} />
-                    <div style={{ position: "absolute", left: `${((10 - 0.25) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: C.red, opacity: 0.6 }} />
+                    {[2.0, 1.0, 0.5, 0.25].map((t, i) => (
+                      <div key={i} style={{ position: "absolute", left: `${((10 - t) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: i < 2 ? C.amber : C.red, opacity: 0.6 }} />
+                    ))}
                   </div>
                   {/* Inverted slider: min=0.05(right/danger), max=10(left/clear), displayed reversed */}
                   <input type="range" min={0.05} max={10} step={0.05}
@@ -997,7 +1057,7 @@ export default function DeltaAgentDashboard() {
                     onChange={e => { const inv = parseFloat(e.target.value); const v = Math.max(0.05, 10 - inv + 0.05); setSimVis(parseFloat(v.toFixed(2))); setFogScenario(buildFogScenario(parseFloat(v.toFixed(2)))); }}
                     style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted }}>
-                    <span>10nm CLEAR</span><span style={{ color: C.amber }}>0.5</span><span style={{ color: C.red }}>DENSE</span>
+                    <span>10nm CLEAR</span><span style={{ color: C.amber }}>1.0</span><span style={{ color: C.amber }}>0.5</span><span style={{ color: C.red }}>0.25</span><span style={{ color: C.red }}>ZERO-ZERO</span>
                   </div>
                 </div>
 
