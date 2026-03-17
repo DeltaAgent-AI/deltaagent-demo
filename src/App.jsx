@@ -232,163 +232,152 @@ function SMSNotification({ decision, onClose }) {
   );
 }
 
-// ── Execution Ticker ──────────────────────────────────────────────────────────
-function ExecutionTicker({ decision, onComplete }) {
-  const [steps, setSteps] = useState([]);
-  const [elapsed, setElapsed] = useState(0);
-  const [done, setDone] = useState(false);
-  const startTime = useRef(Date.now());
 
-  const executionSteps = [
-    { delay: 300,  label: "SMS dispatched → Port Director",     detail: "+1 (504) 555-0147", icon: "📱" },
-    { delay: 600,  label: "SMS dispatched → Pilot Station",      detail: "+1 (504) 555-0293", icon: "📱" },
-    { delay: 950,  label: "CN/KCS Rail API — window updated",    detail: "08:45 → 10:15 CST", icon: "🚂" },
-    { delay: 1300, label: "Drayage fleet notified via Twilio",   detail: "22 trucks rerouted", icon: "🚛" },
-    { delay: 1700, label: "Berth schedule updated in TOS",       detail: "Navis N4 API call ✓", icon: "⚓" },
-    { delay: 2100, label: "Audit log entry created",             detail: "MTSA compliance record", icon: "📋" },
-  ];
+// ── Execution Ticker ──────────────────────────────────────────────────────────
+const STEPS_DURATION = 5500;
+const EXEC_STEPS = [
+  { label: "SMS dispatched → Port Director",   detail: "+1 (504) 555-0147",     icon: "📱" },
+  { label: "SMS dispatched → Pilot Station",    detail: "+1 (504) 555-0293",     icon: "📱" },
+  { label: "CN/KCS Rail API — window updated",  detail: "08:45 → 10:15 CST",    icon: "🚂" },
+  { label: "Drayage fleet notified via Twilio", detail: "22 trucks rerouted",    icon: "🚛" },
+  { label: "Berth schedule updated in TOS",     detail: "Navis N4 API call ✓",  icon: "⚓" },
+  { label: "Audit log entry created",           detail: "MTSA compliance record",icon: "📋" },
+];
+
+function ExecutionTicker({ decision }) {
+  const [firedCount, setFiredCount] = useState(0);
+  const [done, setDone]             = useState(false);
+  const [elapsed, setElapsed]       = useState("0.0");
+  const startRef                    = useRef(Date.now());
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsed(((Date.now() - startTime.current) / 1000).toFixed(1));
+    const clock = setInterval(() => {
+      setElapsed(((Date.now() - startRef.current) / 1000).toFixed(1));
     }, 100);
 
-    executionSteps.forEach((step, i) => {
+    EXEC_STEPS.forEach((_, i) => {
       setTimeout(() => {
-        setSteps(prev => [...prev, { ...step, ts: ((Date.now() - startTime.current) / 1000).toFixed(1) }]);
-        if (i === executionSteps.length - 1) {
-          setTimeout(() => { setDone(true); clearInterval(timer); }, 300);
+        setFiredCount(i + 1);
+        if (i === EXEC_STEPS.length - 1) {
+          setTimeout(() => { setDone(true); clearInterval(clock); }, 500);
         }
-      }, step.delay);
+      }, (i + 1) * 800);
     });
 
-    return () => clearInterval(timer);
+    return () => clearInterval(clock);
   }, []);
 
   return (
-    <div style={{
-      borderTop: `1px solid ${C.border}`,
-      background: C.panel,
-      padding: "16px 20px",
-      animation: "fadeSlideIn 0.3s ease",
-    }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+    <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {!done && <PulsingDot color={C.teal} size={8} />}
-          {done && <span style={{ color: C.teal, fontSize: 14 }}>✓</span>}
+          {done ? <span style={{ color: C.teal }}>✓</span> : <PulsingDot color={C.teal} size={8} />}
           <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>
-            {done ? "EXECUTION COMPLETE" : "EXECUTING…"}
+            {done ? "EXECUTION RECORD" : "EXECUTING…"}
           </span>
         </div>
-        <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>
-          {elapsed}s elapsed
-        </div>
+        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>{elapsed}s elapsed</span>
       </div>
 
-      {/* Steps */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-        {executionSteps.map((step, i) => {
-          const fired = steps.find((s, si) => si === i || s.label === step.label);
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+        {EXEC_STEPS.map((step, i) => {
+          const fired = i < firedCount;
           return (
             <div key={i} style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "8px 10px", borderRadius: 5,
-              background: fired ? `${C.teal}0a` : "transparent",
+              background: fired ? `${C.teal}0d` : "transparent",
               border: `1px solid ${fired ? C.teal + "33" : C.border}`,
-              transition: "all 0.3s ease",
-              opacity: fired ? 1 : 0.35,
+              opacity: fired ? 1 : 0.3,
+              transition: "all 0.4s ease",
             }}>
-              <span style={{ fontSize: 14, flexShrink: 0 }}>{step.icon}</span>
+              <span style={{ fontSize: 13, flexShrink: 0 }}>{step.icon}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, color: fired ? C.white : C.muted, fontWeight: fired ? 600 : 400 }}>
                   {step.label}
                 </div>
                 <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{step.detail}</div>
               </div>
-              <div style={{ fontFamily: C.mono, fontSize: 9, flexShrink: 0 }}>
-                {fired ? (
-                  <span style={{ color: C.teal }}>✓ {fired.ts}s</span>
-                ) : (
-                  <span style={{ color: C.mutedLo }}>—</span>
-                )}
-              </div>
+              <span style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, flexShrink: 0 }}>
+                {fired ? `✓ ${((i + 1) * 0.8).toFixed(1)}s` : "—"}
+              </span>
             </div>
           );
         })}
       </div>
 
-      {/* Summary */}
       {done && (
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 8, animation: "fadeSlideIn 0.4s ease",
-        }}>
-          <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22`, textAlign: "center" }}>
-            <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>COST AVOIDED</div>
-            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</div>
+        <div style={{ animation: "fadeSlideIn 0.5s ease" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+            {[
+              { label: "COST AVOIDED", value: `$${decision.costAvoided.toLocaleString()}`, color: C.green },
+              { label: "ELAPSED TIME", value: `${elapsed}s`,                               color: C.teal  },
+              { label: "ALERTS SENT",  value: "6",                                          color: C.teal  },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ padding: "10px 12px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}22`, textAlign: "center" }}>
+                <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>{label}</div>
+                <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color }}>{value}</div>
+              </div>
+            ))}
           </div>
-          <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.teal}10`, border: `1px solid ${C.teal}22`, textAlign: "center" }}>
-            <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>ELAPSED TIME</div>
-            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.teal }}>{elapsed}s</div>
-          </div>
-          <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.teal}10`, border: `1px solid ${C.teal}22`, textAlign: "center" }}>
-            <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>ALERTS SENT</div>
-            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.teal }}>6</div>
-          </div>
-        </div>
-      )}
-
-      {done && (
-        <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 5, background: `${C.muted}10`, border: `1px solid ${C.border}` }}>
-          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>
-            ⏱ Human review + confirmation: ~3 sec &nbsp;|&nbsp; Agent execution: {elapsed}s &nbsp;|&nbsp; vs. manual: ~45 min / 20 calls
+          <div style={{ padding: "8px 12px", borderRadius: 5, background: `${C.muted}0d`, border: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+              ⏱ Human review: ~3 sec &nbsp;|&nbsp; Agent execution: {elapsed}s &nbsp;|&nbsp; vs. manual: ~45 min / 20 calls
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-function DecisionCard({ decision, gaugeVal, onConfirm, onOverride }) {
+
+// ── Decision Card ─────────────────────────────────────────────────────────────
+function DecisionCard({ decision, onConfirm, onOverride }) {
+  const [state, setState]       = useState("pending"); // pending | executing | done | override
   const [expanded, setExpanded] = useState(false);
-  const [confirmed, setConfirmed] = useState(null);
 
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
 
   function handleConfirm() {
-    setConfirmed("confirmed");
-    onConfirm(decision);
+    setState("executing");
+    setTimeout(() => {
+      setState("done");
+      onConfirm(decision);
+    }, STEPS_DURATION);
   }
 
   function handleOverride() {
-    setConfirmed("override");
+    setState("override");
     onOverride(decision);
   }
 
+  const borderColor = state === "done" ? C.teal : severityColor;
+  const bgColor     = state === "done" ? C.tealFaint : severityBg;
+
   return (
     <div style={{
-      border: `1px solid ${severityColor}44`,
-      borderLeft: `3px solid ${severityColor}`,
+      border: `1px solid ${borderColor}44`,
+      borderLeft: `3px solid ${borderColor}`,
       borderRadius: 8,
-      background: severityBg,
+      background: bgColor,
       overflow: "hidden",
-      transition: "all 0.3s ease",
-    }}
-    className="decision-card"
-    >
-      {/* Card header */}
+      transition: "border-color 0.5s ease, background 0.5s ease",
+    }}>
       <div style={{ padding: "16px 20px" }}>
+        {/* Title row */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
-            <PulsingDot color={severityColor} size={10} />
+            {state === "done"
+              ? <span style={{ color: C.teal, fontSize: 16 }}>✓</span>
+              : <PulsingDot color={severityColor} size={10} />}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-              <Badge color={severityColor}>{decision.severity}</Badge>
-              {decision.agents.map(a => (
-                <Badge key={a} color={C.muted} small>{a}</Badge>
-              ))}
+              <Badge color={state === "done" ? C.teal : severityColor}>
+                {state === "done" ? "CONFIRMED" : decision.severity}
+              </Badge>
+              {decision.agents.map(a => <Badge key={a} color={C.muted} small>{a}</Badge>)}
               <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>
                 ⏱ {decision.advanceWarning} advance warning
               </span>
@@ -402,144 +391,70 @@ function DecisionCard({ decision, gaugeVal, onConfirm, onOverride }) {
           </div>
         </div>
 
-        {/* Cost impact — the headline */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 8,
-          marginBottom: 14,
-        }}>
-          <div style={{
-            background: `${C.green}15`,
-            border: `1px solid ${C.green}33`,
-            borderRadius: 6,
-            padding: "10px 14px",
-          }}>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>
-              EST. COST AVOIDED
-            </div>
-            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.green, letterSpacing: "-0.02em" }}>
-              ${decision.costAvoided.toLocaleString()}
-            </div>
+        {/* Cost cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}33`, borderRadius: 6, padding: "10px 14px" }}>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>EST. COST AVOIDED</div>
+            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</div>
           </div>
-          <div style={{
-            background: `${C.red}10`,
-            border: `1px solid ${C.red}22`,
-            borderRadius: 6,
-            padding: "10px 14px",
-          }}>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>
-              COST IF IGNORED
-            </div>
-            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.red, letterSpacing: "-0.02em" }}>
-              ${decision.costIfIgnored.toLocaleString()}
-            </div>
+          <div style={{ background: `${C.red}10`, border: `1px solid ${C.red}22`, borderRadius: 6, padding: "10px 14px" }}>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>COST IF IGNORED</div>
+            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.red }}>${decision.costIfIgnored.toLocaleString()}</div>
           </div>
         </div>
 
-        {/* Action buttons or confirmation state */}
-        {confirmed === "override" ? (
-          <div style={{
-            padding: "12px 16px", borderRadius: 6,
-            border: `1px solid ${C.amber}44`,
-            background: `${C.amber}10`,
-            display: "flex", alignItems: "center", gap: 10,
-          }}>
-            <PulsingDot color={C.amber} />
-            <div>
-              <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.amber, letterSpacing: "0.06em" }}>
-                ⚠ OVERRIDE LOGGED — Manual action required
-              </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                Decision recorded for MTSA audit trail
-              </div>
-            </div>
-          </div>
-        ) : confirmed === null ? (
+        {/* Buttons / state */}
+        {state === "pending" && (
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleConfirm} style={{
-              flex: 1, padding: "11px 0", borderRadius: 6,
-              border: `1px solid ${C.teal}`,
-              background: `${C.teal}20`,
-              color: C.teal,
-              fontFamily: C.mono, fontSize: 12, fontWeight: 700,
-              letterSpacing: "0.08em", cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}>
+            <button onClick={handleConfirm} style={{ flex: 1, padding: "11px 0", borderRadius: 6, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
               ✓ CONFIRM &amp; DISPATCH
             </button>
-            <button onClick={handleOverride} style={{
-              flex: 1, padding: "11px 0", borderRadius: 6,
-              border: `1px solid ${C.amber}`,
-              background: `${C.amber}10`,
-              color: C.amber,
-              fontFamily: C.mono, fontSize: 12, fontWeight: 700,
-              letterSpacing: "0.08em", cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}>
+            <button onClick={handleOverride} style={{ flex: 1, padding: "11px 0", borderRadius: 6, border: `1px solid ${C.amber}`, background: `${C.amber}10`, color: C.amber, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
               ⚠ OVERRIDE
             </button>
-            <button onClick={() => setExpanded(!expanded)} style={{
-              padding: "11px 16px", borderRadius: 6,
-              border: `1px solid ${C.border}`,
-              background: "transparent",
-              color: C.muted,
-              fontFamily: C.mono, fontSize: 11,
-              cursor: "pointer",
-            }}>
+            <button onClick={() => setExpanded(!expanded)} style={{ padding: "11px 16px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 11, cursor: "pointer" }}>
               {expanded ? "▲" : "▼"}
             </button>
           </div>
-        ) : null}
+        )}
+        {state === "executing" && (
+          <div style={{ padding: "10px 14px", borderRadius: 6, background: `${C.teal}10`, border: `1px solid ${C.teal}33`, display: "flex", alignItems: "center", gap: 8 }}>
+            <PulsingDot color={C.teal} size={8} />
+            <span style={{ fontFamily: C.mono, fontSize: 11, color: C.teal, fontWeight: 700 }}>DISPATCHING ALERTS…</span>
+          </div>
+        )}
+        {state === "override" && (
+          <div style={{ padding: "12px 16px", borderRadius: 6, border: `1px solid ${C.amber}44`, background: `${C.amber}10`, display: "flex", alignItems: "center", gap: 10 }}>
+            <PulsingDot color={C.amber} />
+            <div>
+              <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.amber }}>⚠ OVERRIDE LOGGED — Manual action required</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Decision recorded for MTSA audit trail</div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Execution ticker — shows after confirm */}
-      {confirmed === "confirmed" && (
-        <ExecutionTicker decision={decision} />
-      )}
-
-      {/* Expanded details */}
-      {expanded && (
-        <div style={{
-          borderTop: `1px solid ${C.border}`,
-          padding: "14px 20px",
-          background: `${C.panel}`,
-          animation: "fadeSlideIn 0.25s ease",
-        }}>
-          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 10 }}>
-            AGENT ACTIONS QUEUED
-          </div>
+      {/* Expanded agent actions — only when pending */}
+      {expanded && state === "pending" && (
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: "14px 20px", background: C.panel, animation: "fadeSlideIn 0.25s ease" }}>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 10 }}>AGENT ACTIONS QUEUED</div>
           {decision.actions.map((action, i) => (
-            <div key={i} style={{
-              display: "flex", gap: 10, alignItems: "flex-start",
-              marginBottom: 8, paddingBottom: 8,
-              borderBottom: i < decision.actions.length - 1 ? `1px solid ${C.border}` : "none",
-            }}>
-              <div style={{ fontFamily: C.mono, fontSize: 10, color: severityColor, marginTop: 1, flexShrink: 0 }}>
-                {String(i + 1).padStart(2, "0")}
-              </div>
+            <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8, paddingBottom: 8, borderBottom: i < decision.actions.length - 1 ? `1px solid ${C.border}` : "none" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 10, color: severityColor, flexShrink: 0 }}>{String(i + 1).padStart(2, "0")}</div>
               <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5 }}>{action}</div>
             </div>
           ))}
-
-          {/* OODA mini */}
-          <div style={{ marginTop: 12, display: "flex", gap: 6 }}>
-            {["OBSERVE", "ORIENT", "DECIDE", "ACT"].map((phase, i) => (
-              <div key={phase} style={{
-                flex: 1, padding: "6px 8px", borderRadius: 4,
-                background: `${severityColor}15`,
-                border: `1px solid ${severityColor}33`,
-                textAlign: "center",
-              }}>
-                <div style={{ fontFamily: C.mono, fontSize: 8, color: severityColor, fontWeight: 700 }}>{phase}</div>
-              </div>
-            ))}
-          </div>
         </div>
+      )}
+
+      {/* Execution ticker */}
+      {(state === "executing" || state === "done") && (
+        <ExecutionTicker decision={decision} />
       )}
     </div>
   );
 }
+
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function DeltaAgentDashboard() {
@@ -550,7 +465,14 @@ export default function DeltaAgentDashboard() {
   const [time, setTime]               = useState(new Date());
   const [smsQueue, setSmsQueue]       = useState([]);
   const [activeTab, setActiveTab]     = useState("inbox");
-  const [agentLog, setAgentLog]       = useState([]);
+  const [confirmedIds, setConfirmedIds] = useState(new Set());
+  const [overriddenIds, setOverriddenIds] = useState(new Set());
+  const [agentLog, setAgentLog]       = useState([
+    { time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft · Nominal · No action required", severity: "ok" },
+    { time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager · ETA Southwest Pass 04:20 CST", severity: "ok" },
+    { time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged · Yard 3 · On schedule", severity: "ok" },
+    { time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal · Crane gang confirmed", severity: "ok" },
+  ]);
 
   // Clock
   useEffect(() => {
@@ -580,20 +502,22 @@ export default function DeltaAgentDashboard() {
   }, []);
 
   function handleConfirm(decision) {
+    setConfirmedIds(prev => new Set([...prev, decision.id]));
     setSmsQueue(q => [...q, { ...decision, ft: simGauge, id: Date.now() }]);
     setAgentLog(prev => [{
       time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
       action: `CONFIRMED: ${decision.title}`,
-      cost: `$${decision.costAvoided.toLocaleString()} cost avoidance logged`,
+      cost: `$${decision.costAvoided.toLocaleString()} cost avoidance logged · 6 alerts dispatched`,
       severity: decision.severity,
     }, ...prev]);
   }
 
   function handleOverride(decision) {
+    setOverriddenIds(prev => new Set([...prev, decision.id]));
     setAgentLog(prev => [{
       time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
       action: `OVERRIDE: ${decision.title}`,
-      cost: "Manual action required",
+      cost: "Manual action required · Decision logged for audit trail",
       severity: "warning",
     }, ...prev]);
   }
@@ -602,8 +526,8 @@ export default function DeltaAgentDashboard() {
     setSmsQueue(q => q.filter(s => s.id !== id));
   }
 
-  const pendingCount = scenario.decisions.length;
-  const totalSavings = scenario.decisions.reduce((sum, d) => sum + d.costAvoided, 0);
+  const pendingCount  = scenario.decisions.length;
+  const totalSavings  = scenario.decisions.reduce((sum, d) => sum + d.costAvoided, 0);
   const trendDir = scenario.trend[scenario.trend.length - 1] > scenario.trend[scenario.trend.length - 2] ? "↑" : scenario.trend[scenario.trend.length - 1] < scenario.trend[scenario.trend.length - 2] ? "↓" : "→";
   const trendColor = trendDir === "↑" ? C.amber : trendDir === "↓" ? C.teal : C.muted;
 
@@ -724,7 +648,7 @@ export default function DeltaAgentDashboard() {
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR</div>
                   <input type="range" min={1} max={10} step={0.1} value={simGauge}
-                    onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setScenario(buildScenario(v)); }}
+                    onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setScenario(buildScenario(v)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }}
                     style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }}
                   />
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
@@ -814,9 +738,9 @@ export default function DeltaAgentDashboard() {
                   }}>
                     <div style={{ fontSize: 32, opacity: 0.3 }}>✓</div>
                     <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em" }}>INBOX CLEAR</div>
-                    <div style={{ fontSize: 13 }}>All agent recommendations confirmed. No pending decisions.</div>
+                    <div style={{ fontSize: 13 }}>No pending decisions. All systems nominal.</div>
                     <div style={{ fontSize: 12, color: C.mutedLo, marginTop: 4 }}>
-                      Drag the scenario slider above to simulate river stage events
+                      Drag the scenario simulator to simulate river stage events
                     </div>
                   </div>
                 ) : (
@@ -824,7 +748,6 @@ export default function DeltaAgentDashboard() {
                     <DecisionCard
                       key={d.id}
                       decision={d}
-                      gaugeVal={simGauge}
                       onConfirm={handleConfirm}
                       onOverride={handleOverride}
                     />
