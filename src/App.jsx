@@ -26,11 +26,11 @@ const C = {
 const NOAA_URL = "/api/noaa";
 
 // NDBC BURL1 - Southwest Pass, LA (28.906N 89.429W)
-// Provides wind speed, visibility, wave height - real C-MAN station
-const NDBC_FOG_URL = "https://www.ndbc.noaa.gov/data/realtime2/BURL1.txt";
+// Proxied via /api/fog to avoid CORS
+const NDBC_FOG_URL = "/api/fog";
 
-// NHC active storms JSON - only populated Jun-Nov hurricane season
-const NHC_URL = "https://www.nhc.noaa.gov/CurrentStorms.json";
+// NHC active storms - proxied via /api/hurricane
+const NHC_URL = "/api/hurricane";
 
 //    DISRUPTION TYPE DEFINITIONS                                              
 const DISRUPTION_TYPES = [
@@ -706,12 +706,12 @@ export default function DeltaAgentDashboard() {
   }, []);
 
   useEffect(() => {
-    fetch("https://www.ndbc.noaa.gov/data/realtime2/BURL1.txt").then(r => r.text()).then(txt => {
-      const lines = txt.split("\n").filter(l => !l.startsWith("#") && l.trim());
-      if (lines.length >= 1) {
-        const parts = lines[0].trim().split(/\s+/);
-        const vis = parseFloat(parts[16]);
-        if (!isNaN(vis) && vis > 0) { setFogData(vis); setSimVis(vis); setFogScenario(buildFogScenario(vis)); }
+    fetch(NDBC_FOG_URL).then(r => r.json()).then(d => {
+      const vis = d?.vis;
+      if (vis !== null && !isNaN(vis) && vis > 0) {
+        setFogData(vis);
+        setSimVis(vis);
+        setFogScenario(buildFogScenario(vis));
       }
     }).catch(() => {});
   }, []);
