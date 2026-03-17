@@ -1,30 +1,37 @@
 export default async function handler(req, res) {
-  // NWS AHPS gauge NORL1 - New Orleans (Carrollton)
-  // This is the same data source as weather.gov and Corps of Engineers
-  // Returns the official river stage in feet matching public reports
-  const url = "https://water.weather.gov/ahps2/hydrograph_to_xml.php?gage=norl1&output=tabular";
-  
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cache-Control", "s-maxage=300");
+
   try {
+    // NWPS API - official NWS gauge NORL1 (New Orleans/Carrollton)
+    // This matches water.noaa.gov and the Corps of Engineers readings
+    const url = "https://api.water.noaa.gov/nwps/v1/gauges/norl1/stageflow";
     const response = await fetch(url);
-    const text = await response.text();
-    
-    // Parse the observed stage from the tabular HTML
-    // Format: rows with date/time and stage value
-    const match = text.match(/<td[^>]*>(\d+\.\d+)<\/td>/);
-    if (match) {
-      const stage = parseFloat(match[1]);
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Cache-Control", "s-maxage=300");
-      res.json({ data: [{ v: stage.toFixed(2), t: new Date().toISOString() }] });
-    } else {
-      // Fallback to NOAA with manual offset
-      const noaaUrl = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?station=8761927&product=water_level&datum=STND&time_zone=lst_ldt&units=english&format=json&range=2";
-      const noaaResp = await fetch(noaaUrl);
-      const noaaData = await noaaResp.json();
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.json(noaaData);
+    const json = await response.json();
+
+    // NWPS returns observed array with stage values
+    const observed = json?.observed?.data;
+    if (observed && observed.length > 0) {
+      const latest = observed[observed.length - 1];
+      const stage = parseFloat(latest.primary);
+      if (!isNaN(stage)) {
+        // Return in same format as NOAA CO-OPS so App.jsx doesnt need to change
+        return res.json({
+          data: [{ v: stage.toFixed(2), t: latest.valid }]
+        });
+      }
     }
-  } catch(e) {
-    res.status(500).json({ error: e.message });
+
+    // Fallback: NOAA CO-OPS STND datum
+    const fallback = await fetch(
+      "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
+      "?station=8761927&product=water_level&datum=STND" +
+      "&time_zone=lst_ldt&units=english&format=json&range=2"
+    );
+    const fallbackData = await fallback.json();
+    return res.json(fallbackData);
+
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 }
