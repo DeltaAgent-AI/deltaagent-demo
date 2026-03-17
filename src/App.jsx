@@ -43,49 +43,178 @@ const DISRUPTION_TYPES = [
   { type: "MAINTENANCE",  label: "Scheduled",        color: "#4a7a75", live: false },
 ];
 
-//    FLOOD / WATER LEVEL SCENARIO                                             
+// -- FLOOD / HIGH WATER SCENARIO ---------------------------------------------
+// Carrollton Gauge operational thresholds (Lower Mississippi specific):
+// Below 4ft  = LOW WATER - saltwater wedge, draft restrictions
+// 4 - 8ft    = NOMINAL operational range
+// 8ft        = ALGIERS POINT restriction triggers - vessel size limits at bend
+// 8 - 11ft   = ELEVATED - Algiers Point restrictions active
+// 11ft       = HIGH WATER PROCLAMATION - daylight mooring, barge fleeting
+// 11 - 13ft  = ELEVATED+ - High Water Proclamation active
+// 13ft       = HUEY P. LONG BRIDGE clearance restriction triggers
+// 13 - 15ft  = WARNING - bridge clearance restricted, standby tugs
+// 15 - 17ft  = CRITICAL - mandatory tugs, construction halt
+// 17ft+      = FLOOD STAGE - Bonnet Carre coordination
 function buildFloodScenario(ft) {
-  const rising   = ft > 5.5;
-  const critical = ft > 8.0;
-  const status      = critical ? "CRITICAL" : rising ? "ELEVATED" : "NOMINAL";
-  const statusColor = critical ? C.red : rising ? C.amber : C.teal;
-  const risk        = critical ? "HIGH RISK" : rising ? "ELEVATED RISK" : "NOMINAL";
-  const riskColor   = critical ? C.red : rising ? C.amber : C.teal;
-  const decisions = critical ? [
+  const floodStage  = ft >= 17;
+  const critical    = ft >= 15 && ft < 17;
+  const bridgeWarn  = ft >= 13 && ft < 15;
+  const hwProclaim  = ft >= 11 && ft < 13;
+  const algiers     = ft >= 8  && ft < 11;
+  const lowWater    = ft < 4;
+
+  const status = floodStage ? "FLOOD STAGE"
+    : critical   ? "CRITICAL"
+    : bridgeWarn ? "CRITICAL"
+    : hwProclaim ? "ELEVATED"
+    : algiers    ? "ELEVATED"
+    : lowWater   ? "LOW WATER"
+    : "NOMINAL";
+
+  const statusColor = (floodStage || critical || bridgeWarn) ? C.red
+    : (hwProclaim || algiers) ? C.amber
+    : lowWater ? "#93c5fd"
+    : C.teal;
+
+  const risk = floodStage ? "FLOOD STAGE"
+    : (critical || bridgeWarn) ? "HIGH RISK"
+    : (hwProclaim || algiers)  ? "ELEVATED RISK"
+    : lowWater ? "LOW WATER RISK"
+    : "NOMINAL";
+
+  const riskColor = statusColor;
+
+  const decisions = floodStage ? [
+    {
+      id: "d1", severity: "critical",
+      disruptionType: "FLOOD", disruptionLabel: "FLOOD STAGE",
+      title: "COORDINATE - Bonnet Carre Spillway Protocol",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - official flood stage reached. Coordinate with Army Corps regarding Bonnet Carre Spillway opening. Navigation hazardous for all vessel classes.",
+      costAvoided: 96000, costIfIgnored: 96000, advanceWarning: "6h 00m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Notify Army Corps - Bonnet Carre Spillway opening review initiated", "Issue Navigation Safety Notice to all inbound vessels", "Coordinate with Coast Guard Sector NOLA - full navigation advisory", "Alert all terminal operators - emergency mooring protocols activated", "Monitor saltwater wedge at Southwest Pass"],
+    },
+    {
+      id: "d2", severity: "critical",
+      disruptionType: "FLOOD", disruptionLabel: "LEVEE PROTECTION",
+      title: "HALT - All Construction Within 1500ft of Levee",
+      reason: "At " + ft.toFixed(1) + "ft soil saturation puts critical pressure on levees. All construction activity within 1,500 feet must halt immediately per Corps protocol.",
+      costAvoided: 54000, costIfIgnored: 54000, advanceWarning: "2h 00m",
+      agents: ["RW", "BM"],
+      actions: ["Halt all construction within 1,500ft of levee - regulatory requirement", "Notify all contractors via emergency SMS dispatch", "Deploy Levee District monitoring crew", "Log MTSA and Corps compliance record"],
+    },
+  ] : critical ? [
     {
       id: "d1", severity: "critical",
       disruptionType: "FLOOD", disruptionLabel: "HIGH WATER",
-      title: "HOLD - Delay Berthing 6 Hours",
-      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft exceeds Algiers Point vessel restriction threshold. MV Delta Voyager draft (9.2m) incompatible with current stage.",
-      costAvoided: 38000, costIfIgnored: 38000, advanceWarning: "4h 23m",
+      title: "MANDATE - Standby Tugs at All Berths",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft. Extreme river currents at Algiers Point and Carrollton Bend. Coast Guard mandate requires standby assist tugs for all deep-draft vessels.",
+      costAvoided: 48000, costIfIgnored: 48000, advanceWarning: "3h 45m",
       agents: ["RW", "BM", "IS"],
-      actions: ["MV Delta Voyager re-queued at Southwest Pass anchorage", "22 drayage trucks rerouted to Globalplex", "CN/KCS rail departure window held pending stage drop", "SMS alert dispatched to Port Director + Pilot Station"],
+      actions: ["Deploy standby tugs to Berths 1-4 via Crescent Towing", "Notify all deep-draft vessel masters - tug assist mandatory at Algiers Point", "Restrict barge fleeting - breakaway prevention protocol activated", "SMS dispatch to Port Director + Coast Guard Sector NOLA"],
     },
     {
       id: "d2", severity: "warning",
-      disruptionType: "FLOOD", disruptionLabel: "STAGE TREND",
-      title: "STANDBY - Monitor Stage Trend",
-      reason: "River stage rising 0.3ft/hr. If trend continues, secondary berth conflict projected at Berth 4 within 90 minutes.",
-      costAvoided: 12000, costIfIgnored: 12000, advanceWarning: "1h 31m",
+      disruptionType: "FLOOD", disruptionLabel: "CONSTRUCTION HALT",
+      title: "PREPARE - Halt Construction Near Levees",
+      reason: "Stage at " + ft.toFixed(1) + "ft and rising toward flood stage. Soil saturation risk escalating. Pre-position halt orders for all sites within 1,500ft of levee.",
+      costAvoided: 22000, costIfIgnored: 22000, advanceWarning: "2h 10m",
       agents: ["RW"],
-      actions: ["Berth 4 flagged for precautionary hold", "Crane gang notified of possible schedule shift"],
+      actions: ["Pre-position halt orders for levee-adjacent construction sites", "Notify Levee District monitoring teams", "Flag for Port Director review - halt imminent"],
     },
-  ] : rising ? [
+  ] : bridgeWarn ? [
+    {
+      id: "d1", severity: "critical",
+      disruptionType: "FLOOD", disruptionLabel: "BRIDGE CLEARANCE",
+      title: "RESTRICT - Huey P. Long Bridge Clearance",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft triggers Huey P. Long Bridge air draft restriction. Tall vessels and loaded barges must be re-routed or rescheduled.",
+      costAvoided: 38000, costIfIgnored: 38000, advanceWarning: "3h 00m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Issue Huey P. Long Bridge clearance restriction notice", "Notify all vessels with air draft above restriction threshold", "Re-sequence affected vessels to wait for stage drop", "Coordinate with CN/KCS rail - bridge traffic impacts intermodal timing", "SMS dispatch to Port Director + affected vessel agents"],
+    },
+    {
+      id: "d2", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "STANDBY TUGS",
+      title: "PREPARE - Standby Tugs at Upper Berths",
+      reason: "Stage at " + ft.toFixed(1) + "ft. River current at Algiers Point and Carrollton Bend increasing. Pre-position standby tugs before mandatory tug assist threshold is reached.",
+      costAvoided: 18000, costIfIgnored: 18000, advanceWarning: "2h 30m",
+      agents: ["RW", "BM"],
+      actions: ["Pre-position Crescent Towing standby tugs at upper berths", "Notify vessel masters - tug assist advisory issued", "Monitor current speed at Algiers Point - mandatory assist approaching"],
+    },
+  ] : hwProclaim ? [
     {
       id: "d1", severity: "warning",
-      disruptionType: "FLOOD", disruptionLabel: "HIGH WATER",
-      title: "RE-SEQUENCE - Swap Berth 2 to Berth 4",
-      reason: "Stage rising trend detected. Draft margin for Berth 2 shrinking. Berth 4 preferred at current " + ft.toFixed(1) + "ft stage.",
-      costAvoided: 14200, costIfIgnored: 14200, advanceWarning: "2h 11m",
+      disruptionType: "FLOOD", disruptionLabel: "HIGH WATER PROCLAMATION",
+      title: "ACTIVATE - High Water Proclamation",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - above 11ft threshold. High Water Proclamation required. Switch to daylight-only mooring for all deep-draft vessels. Huey P. Long Bridge restriction approaching.",
+      costAvoided: 28000, costIfIgnored: 28000, advanceWarning: "2h 30m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Issue High Water Proclamation - daylight-only mooring for deep-draft vessels", "Restrict barge fleeting - single-cut tows only above Carrollton", "Notify all vessel masters and agents via SMS + VHF Ch 16", "Monitor Huey P. Long Bridge clearance - restriction threshold at 13ft", "CN/KCS rail windows adjusted for potential cargo delays"],
+    },
+    {
+      id: "d2", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "BARGE RESTRICTION",
+      title: "RESTRICT - Barge Fleeting at Carrollton Bend",
+      reason: "Current speed increasing at Carrollton Bend above 11ft. Restrict large barge tows to prevent breakaways that could impact bridges and vessels.",
+      costAvoided: 14200, costIfIgnored: 14200, advanceWarning: "1h 45m",
       agents: ["RW", "BM"],
-      actions: ["Berth assignment updated: Berth 2 to Berth 4", "CN rail departure window shifted 08:45 to 10:15", "Truck gate ETA adjusted +90 min", "Crane gang reassigned to Berth 4"],
+      actions: ["Restrict barge tow size at Carrollton Bend - single-cut only", "Notify all fleeting areas upstream", "Alert Huey P. Long and Greater New Orleans Bridge tenders - increased debris"],
+    },
+  ] : algiers ? [
+    {
+      id: "d1", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "ALGIERS POINT",
+      title: "RESTRICT - Algiers Point Vessel Size Limit",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - Algiers Point restriction threshold reached. River current at the bend now limits deep-draft vessel maneuverability. Vessel size restrictions now active.",
+      costAvoided: 22000, costIfIgnored: 22000, advanceWarning: "2h 15m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Activate Algiers Point vessel size restriction protocol", "Notify Crescent River Port Pilots - current advisory for the bend", "Restrict deep-draft inbound vessels - tug assist required at Algiers Point", "Re-sequence vessel queue - smaller drafts prioritized through the bend", "SMS dispatch to all vessel agents with Algiers Point restriction notice"],
+    },
+    {
+      id: "d2", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "DREDGING PRIORITY",
+      title: "SCHEDULE - Priority Dredging at Critical Berths",
+      reason: "Rising stage at " + ft.toFixed(1) + "ft increasing siltation risk at berths. Schedule dredging priority to maintain 50ft draft for Post-Panamax vessels before channel shoaling occurs.",
+      costAvoided: 16000, costIfIgnored: 16000, advanceWarning: "24h",
+      agents: ["BM", "IS"],
+      actions: ["Schedule priority dredging at Berths 2 and 4 - Post-Panamax draft maintenance", "Coordinate with dredging contractors - Weeks Marine and Great Lakes Dredge", "Issue berth depth advisory to vessel agents", "Flag for Port Director review - dredging authorization required"],
+    },
+  ] : lowWater ? [
+    {
+      id: "d1", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "SALTWATER WEDGE",
+      title: "MONITOR - Saltwater Intrusion Risk",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - below 4ft threshold. River flow too weak to push back Gulf saltwater. Saltwater wedge creeping toward New Orleans industrial intakes.",
+      costAvoided: 32000, costIfIgnored: 32000, advanceWarning: "48h",
+      agents: ["RW", "IS"],
+      actions: ["Monitor saltwater wedge position at Southwest Pass - hourly readings", "Alert industrial water intake operators - potential salinity increase", "Coordinate with Army Corps regarding underwater sill deployment", "Notify terminal operators - machinery corrosion risk if salt reaches intakes"],
+    },
+    {
+      id: "d2", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "DRAFT RESTRICTION",
+      title: "ISSUE - Draft Restrictions for Inbound Vessels",
+      reason: "Low water at " + ft.toFixed(1) + "ft reduces controlling draft. Vessels may only load to 45ft draft instead of 50ft - costing millions in lost cargo revenue per ship.",
+      costAvoided: 18000, costIfIgnored: 18000, advanceWarning: "24h",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Issue draft restriction notices to all inbound vessels and agents", "Notify shipping lines - maximum draft reduced to 45ft at Southwest Pass", "Coordinate with dredging contractors - priority berths identified", "Update Port NOLA bulletin - draft restriction effective immediately"],
     },
   ] : [];
-  const trend = critical
-    ? [3.1, 4.2, 5.5, 6.8, 7.4, 8.0, 8.2, ft]
-    : rising
-    ? [3.8, 4.1, 4.4, 4.8, 5.1, 5.4, 5.6, ft]
-    : [4.6, 4.5, 4.4, 4.3, 4.4, 4.5, 4.6, ft];
+
+
+  const trend = floodStage
+    ? [12.1, 13.4, 14.8, 15.6, 16.2, 16.8, 17.1, ft]
+    : critical
+    ? [10.2, 11.4, 12.8, 13.5, 14.1, 14.6, 14.9, ft]
+    : bridgeWarn
+    ? [8.4, 9.2, 10.1, 11.0, 11.8, 12.4, 12.8, ft]
+    : hwProclaim
+    ? [7.2, 7.8, 8.4, 9.1, 9.8, 10.4, 10.8, ft]
+    : algiers
+    ? [5.8, 6.2, 6.8, 7.2, 7.6, 7.9, 8.1, ft]
+    : lowWater
+    ? [6.2, 5.4, 4.8, 4.2, 3.8, 3.4, 3.1, ft]
+    : [6.4, 6.1, 5.8, 5.5, 5.8, 6.1, 6.3, ft];
+
   return { ft, status, statusColor, risk, riskColor, decisions, trend };
 }
 
@@ -268,15 +397,15 @@ function Sparkline({ data, color, width = 80, height = 28 }) {
   );
 }
 
-function GaugeBar({ value, max = 12 }) {
+function GaugeBar({ value, max = 20 }) {
   const pct = Math.min((value / max) * 100, 100);
-  const color = value >= 8 ? C.red : value >= 5.5 ? C.amber : C.teal;
+  const color = value >= 15 ? C.red : value >= 13 ? C.red : value >= 8 ? C.amber : value < 4 ? "#93c5fd" : C.teal;
   return (
     <div style={{ width: "100%", marginTop: 8 }}>
       <div style={{ height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative" }}>
         <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${pct}%`, background: color, transition: "width 1.2s ease, background 0.6s ease", boxShadow: `0 0 6px ${color}66` }} />
-        {[5.5, 8].map((t, i) => (
-          <div key={i} style={{ position: "absolute", left: `${(t / max) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.5 }} />
+        {[4, 8, 11, 13, 15, 17].map((t, i) => (
+          <div key={i} style={{ position: "absolute", left: `${(t / max) * 100}%`, top: 0, height: "100%", width: 1, background: i < 1 ? "#93c5fd" : i < 3 ? C.amber : C.red, opacity: 0.6 }} />
         ))}
       </div>
     </div>
@@ -838,11 +967,11 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: floodScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simGauge.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>ft</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Carrollton Gauge   8761927</div>
                   <GaugeBar value={simGauge} />
-                  <input type="range" min={1} max={10} step={0.1} value={simGauge}
+                  <input type="range" min={0} max={20} step={0.1} value={simGauge}
                     onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); }}
                     style={{ width: "100%", accentColor: C.teal, cursor: "pointer", marginTop: 6 }} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted }}>
-                    <span>1ft</span><span style={{ color: C.amber }}>5.5</span><span style={{ color: C.red }}>8.0</span><span>10ft</span>
+                    <span style={{ color: "#93c5fd" }}>LOW</span><span style={{ color: C.amber }}>8 AP</span><span style={{ color: C.amber }}>11</span><span style={{ color: C.red }}>13 HPL</span><span style={{ color: C.red }}>17+</span>
                   </div>
                 </div>
 
