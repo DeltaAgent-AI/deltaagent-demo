@@ -23,10 +23,7 @@ const C = {
 };
 
 //    DATA SOURCES                                                             
-const NOAA_URL =
-  "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
-  "?station=8761927&product=water_level&datum=MLLW" +
-  "&time_zone=lst_ldt&units=english&format=json&range=2";
+const NOAA_URL = "/api/noaa";
 
 // NDBC BURL1 - Southwest Pass, LA (28.906N 89.429W)
 // Provides wind speed, visibility, wave height - real C-MAN station
@@ -784,7 +781,7 @@ export default function DeltaAgentDashboard() {
       ))}
       {overrideQueue.map(ov => (
         <OverrideNotification key={ov.id} decision={ov} onClose={() => setOverrideQueue(q => q.filter(o => o.id !== ov.id))}
-          onClick={() => setActiveTab("inbox")} />
+          onClick={() => { setOverrideQueue(q => q.filter(o => o.id !== ov.id)); setActiveTab("inbox"); }} />
       ))}
 
       <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative", overflow: "hidden" }}>
@@ -861,7 +858,8 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: fogScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simVis.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>nm</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>SW Pass Visibility   BURL1</div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min((simVis / 10) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 1.2s ease" }} />
+                    {/* Fill from RIGHT - more fill = less visibility = more danger */}
+                    <div style={{ position: "absolute", right: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 10) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 1.2s ease" }} />
                     {[0.25, 0.5].map((t, i) => <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.red : C.amber, opacity: 0.6 }} />)}
                   </div>
                   <input type="range" min={0.05} max={10} step={0.05} value={simVis}
@@ -907,12 +905,13 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: stormScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simStormDist}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>mi</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Storm Distance   NHC Track   Cat {simStormCat}</div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 1000) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 1.2s ease" }} />
+                    {/* Fill from RIGHT - storm closer = more fill = more danger */}
+                    <div style={{ position: "absolute", right: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 1000) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 1.2s ease" }} />
                     {[400, 200].map((t, i) => <div key={i} style={{ position: "absolute", left: `${((1000 - t) / 1000) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />)}
                   </div>
                   <input type="range" min={50} max={1000} step={10} value={simStormDist}
                     onChange={e => { const v = parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
-                    style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
+                    style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer", direction: "rtl" }} />
                   <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
                     {[0,1,2,3,4,5].map(cat => (
                       <button key={cat} onClick={() => { setSimStormCat(cat); setStormScenario(buildHurricaneScenario(simStormDist, cat)); }} style={{ flex: 1, padding: "2px 0", borderRadius: 2, border: `1px solid ${simStormCat === cat ? "#a78bfa" : C.border}`, background: simStormCat === cat ? "#a78bfa22" : "transparent", color: simStormCat === cat ? "#a78bfa" : C.muted, fontFamily: C.mono, fontSize: 7, cursor: "pointer" }}>
@@ -974,22 +973,36 @@ export default function DeltaAgentDashboard() {
 
               <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                 <div>
-                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>NEXT INBOUND VESSEL</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.white, marginBottom: 4 }}>MV Delta Voyager</div>
-                  <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, marginBottom: 4 }}>
-                    {simVis < 0.5 ? "HELD AT ANCHORAGE   SW Pass" : "LOA 185m   Draft 9.2m   ETA 04:20 CST"}
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 12 }}>CORRIDOR SUMMARY</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>ACTIVE THREATS</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: hasCritical ? C.red : hasElevated ? C.amber : C.teal }}>
+                        {[floodScenario, fogScenario, iceScenario, stormScenario].filter(s => s.status !== "NOMINAL").length} / 4
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>PENDING DECISIONS</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.muted }}>{pendingCount}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>POTENTIAL SAVINGS</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: pendingSavings > 0 ? C.green : C.muted }}>
+                        {pendingSavings > 0 ? `$${pendingSavings.toLocaleString()}` : "--"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>NEXT VESSEL</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: simVis < 0.5 ? C.amber : C.white }}>
+                        {simVis < 0.5 ? "HELD AT ANCHORAGE" : "MV Delta Voyager"}
+                      </span>
+                    </div>
                   </div>
-                  <Badge color={corridorStatusColor} small>{hasCritical ? "HIGH RISK" : hasElevated ? "ELEVATED RISK" : "NOMINAL"}</Badge>
                 </div>
-                {totalSavings > 0 && (
+                {confirmedSavings > 0 && (
                   <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22` }}>
-                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 2, letterSpacing: "0.08em" }}>SAVINGS TODAY</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, color: C.green }}>${totalSavings.toLocaleString()}</div>
-                    {confirmedSavings > 0 && (
-                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.teal, marginTop: 3 }}>
-                          ${confirmedSavings.toLocaleString()} confirmed{pendingSavings > 0 ? `   $${pendingSavings.toLocaleString()} pending` : ""}
-                      </div>
-                    )}
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 2, letterSpacing: "0.08em" }}>CONFIRMED SAVINGS</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, color: C.green }}>${confirmedSavings.toLocaleString()}</div>
                   </div>
                 )}
               </div>
