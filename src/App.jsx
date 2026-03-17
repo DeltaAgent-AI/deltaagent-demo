@@ -833,7 +833,7 @@ export default function DeltaAgentDashboard() {
                       <PulsingDot color={floodScenario.statusColor} size={6} />
                       <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: floodScenario.statusColor, letterSpacing: "0.08em" }}>FLOOD</span>
                     </div>
-                    {gaugeData ? <Badge color={C.teal} small>LIVE</Badge> : <Badge color={C.muted} small>SIM</Badge>}
+                    {gaugeData ? <Badge color={C.teal} small>LIVE</Badge> : <Badge color={C.muted} small>STANDBY</Badge>}
                   </div>
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: floodScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simGauge.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>ft</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Carrollton Gauge   8761927</div>
@@ -853,7 +853,7 @@ export default function DeltaAgentDashboard() {
                       <PulsingDot color={fogScenario.statusColor} size={6} />
                       <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: fogScenario.statusColor, letterSpacing: "0.08em" }}>FOG</span>
                     </div>
-                    {fogData ? <Badge color={C.teal} small>LIVE</Badge> : <Badge color={C.muted} small>SIM</Badge>}
+                    {fogData ? <Badge color={C.teal} small>LIVE</Badge> : <Badge color={C.muted} small>STANDBY</Badge>}
                   </div>
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: fogScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simVis.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>nm</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>SW Pass Visibility   BURL1</div>
@@ -879,7 +879,7 @@ export default function DeltaAgentDashboard() {
                       <PulsingDot color={iceScenario.statusColor} size={6} />
                       <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: iceScenario.statusColor, letterSpacing: "0.08em" }}>ICE</span>
                     </div>
-                    <Badge color={C.muted} small>SIM</Badge>
+                    <Badge color={C.muted} small>STANDBY</Badge>
                   </div>
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: iceScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simIce.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>/10</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Corps Ice Index   Ohio/UMR</div>
@@ -902,7 +902,7 @@ export default function DeltaAgentDashboard() {
                       <PulsingDot color={stormScenario.statusColor} size={6} />
                       <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: stormScenario.statusColor, letterSpacing: "0.08em" }}>HURRICANE</span>
                     </div>
-                    {nhcData ? <Badge color={C.red} small>LIVE</Badge> : <Badge color={C.muted} small>SIM</Badge>}
+                    {nhcData ? <Badge color={C.red} small>LIVE</Badge> : <Badge color={C.muted} small>STANDBY</Badge>}
                   </div>
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: stormScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simStormDist}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>mi</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Storm Distance   NHC Track   Cat {simStormCat}</div>
@@ -1159,7 +1159,7 @@ export default function DeltaAgentDashboard() {
                         <div style={{ fontSize: 12, color: C.white }}>{label}</div>
                         <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{detail}</div>
                       </div>
-                      <Badge color={ok ? C.teal : C.amber} small>{ok ? "ONLINE" : "SIM"}</Badge>
+                      <Badge color={ok ? C.teal : C.amber} small> {ok ? "ONLINE" : "STANDBY"}</Badge>
                     </div>
                   ))}
                 </div>
