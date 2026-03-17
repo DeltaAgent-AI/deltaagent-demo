@@ -17,7 +17,7 @@ const C = {
 };
 
 // ── Mapbox ────────────────────────────────────────────────────────────────────
-const MAPBOX_TOKEN = "pk.eyJ1IjoiZGVsdGFhZ2VudCIsImEiOiJjbW10c2RwOGwyMXJ5MnNvcjF0YzJwdjFiIn0._coAIpznvhpvhglY8mQiYQ";
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const LOCATIONS = [
   { name: "Carrollton Gauge · 8761927",    lng: -90.1112, lat: 29.9499, type: "gauge"    },
