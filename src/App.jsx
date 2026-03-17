@@ -700,7 +700,7 @@ export default function DeltaAgentDashboard() {
       const readings = d?.data;
       if (readings?.length) {
         const latest = parseFloat(readings[readings.length - 1].v);
-        if (!isNaN(latest)) { setGaugeData(latest); setSimGauge(latest); setFloodScenario(buildFloodScenario(latest)); }
+        if (!isNaN(latest)) { const v = Math.max(0, latest); setGaugeData(v); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); }
       }
     }).catch(() => {});
   }, []);
@@ -846,7 +846,7 @@ export default function DeltaAgentDashboard() {
                   </div>
                 </div>
 
-                {/* FOG */}
+                {/* FOG - simFogIndex: 0=clear(10nm), 10=dense(0.05nm). Drag right = more fog = danger */}
                 <div style={{ background: `${fogScenario.statusColor}08`, border: `1px solid ${fogScenario.statusColor}33`, borderRadius: 6, padding: "10px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -858,15 +858,17 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: fogScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simVis.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>nm</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>SW Pass Visibility   BURL1</div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                    {/* Fill from RIGHT - more fill = less visibility = more danger */}
-                    <div style={{ position: "absolute", right: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 10) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 1.2s ease" }} />
-                    {[0.25, 0.5].map((t, i) => <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.red : C.amber, opacity: 0.6 }} />)}
+                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 9.95) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 0.3s ease" }} />
+                    <div style={{ position: "absolute", left: `${((10 - 0.5) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: C.amber, opacity: 0.6 }} />
+                    <div style={{ position: "absolute", left: `${((10 - 0.25) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: C.red, opacity: 0.6 }} />
                   </div>
-                  <input type="range" min={0.05} max={10} step={0.05} value={simVis}
-                    onChange={e => { const v = parseFloat(e.target.value); setSimVis(v); setFogScenario(buildFogScenario(v)); }}
-                    style={{ width: "100%", accentColor: C.teal, cursor: "pointer", direction: "rtl" }} />
+                  {/* Inverted slider: min=0.05(right/danger), max=10(left/clear), displayed reversed */}
+                  <input type="range" min={0.05} max={10} step={0.05}
+                    value={10 - simVis + 0.05}
+                    onChange={e => { const inv = parseFloat(e.target.value); const v = Math.max(0.05, 10 - inv + 0.05); setSimVis(parseFloat(v.toFixed(2))); setFogScenario(buildFogScenario(parseFloat(v.toFixed(2)))); }}
+                    style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted }}>
-                    <span style={{ color: C.red }}>DENSE</span><span style={{ color: C.amber }}>0.5</span><span>10nm</span>
+                    <span>10nm CLEAR</span><span style={{ color: C.amber }}>0.5</span><span style={{ color: C.red }}>DENSE</span>
                   </div>
                 </div>
 
@@ -893,7 +895,7 @@ export default function DeltaAgentDashboard() {
                   </div>
                 </div>
 
-                {/* HURRICANE */}
+                {/* HURRICANE - drag right = storm closer = danger. Display shows distance decreasing */}
                 <div style={{ background: `${stormScenario.statusColor}08`, border: `1px solid ${stormScenario.statusColor}33`, borderRadius: 6, padding: "10px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -905,13 +907,18 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: stormScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simStormDist}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>mi</span></div>
                   <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Storm Distance   NHC Track   Cat {simStormCat}</div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                    {/* Fill from RIGHT - storm closer = more fill = more danger */}
-                    <div style={{ position: "absolute", right: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 1000) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 1.2s ease" }} />
-                    {[400, 200].map((t, i) => <div key={i} style={{ position: "absolute", left: `${((1000 - t) / 1000) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />)}
+                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 950) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 0.3s ease" }} />
+                    <div style={{ position: "absolute", left: `${((1000 - 400) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.amber, opacity: 0.6 }} />
+                    <div style={{ position: "absolute", left: `${((1000 - 200) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.red, opacity: 0.6 }} />
                   </div>
-                  <input type="range" min={50} max={1000} step={10} value={simStormDist}
-                    onChange={e => { const v = parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
-                    style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer", direction: "rtl" }} />
+                  {/* Inverted: slider value = 1000-dist so dragging right decreases distance */}
+                  <input type="range" min={0} max={950} step={10}
+                    value={1000 - simStormDist}
+                    onChange={e => { const v = 1000 - parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
+                    style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted }}>
+                    <span>1000mi CLEAR</span><span style={{ color: C.amber }}>400</span><span style={{ color: C.red }}>IMMINENT</span>
+                  </div>
                   <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
                     {[0,1,2,3,4,5].map(cat => (
                       <button key={cat} onClick={() => { setSimStormCat(cat); setStormScenario(buildHurricaneScenario(simStormDist, cat)); }} style={{ flex: 1, padding: "2px 0", borderRadius: 2, border: `1px solid ${simStormCat === cat ? "#a78bfa" : C.border}`, background: simStormCat === cat ? "#a78bfa22" : "transparent", color: simStormCat === cat ? "#a78bfa" : C.muted, fontFamily: C.mono, fontSize: 7, cursor: "pointer" }}>
