@@ -3,794 +3,920 @@ import { useState, useEffect, useRef } from "react";
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const C = {
   bg:        "#040404",
-  panel:     "#0a0f0a",
+  panel:     "#08100e",
+  panelHi:   "#0d1a17",
   border:    "#0f2a1e",
-  borderHi:  "#0f4547",
+  borderHi:  "#1a4a38",
   teal:      "#3bbfb2",
   tealDim:   "#1d6b65",
-  tealFaint: "#0d3330",
+  tealFaint: "#0d2e2b",
   amber:     "#d97706",
+  amberFaint:"#1f1200",
   red:       "#dc2626",
+  redFaint:  "#1f0808",
+  green:     "#16a34a",
+  greenFaint:"#0a1f0f",
   white:     "#f0faf9",
   muted:     "#4a7a75",
   mutedLo:   "#1e3835",
+  mono:      "'JetBrains Mono', monospace",
+  sans:      "'Plus Jakarta Sans', sans-serif",
 };
-
-// ── Mapbox ────────────────────────────────────────────────────────────────────
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-
-const LOCATIONS = [
-  { name: "Carrollton Gauge · 8761927",    lng: -90.1112, lat: 29.9499, type: "gauge"    },
-  { name: "Napoleon Ave Wharf",             lng: -90.0856, lat: 29.9154, type: "terminal" },
-  { name: "Algiers Point",                  lng: -90.0534, lat: 29.9271, type: "waypoint" },
-  { name: "Globalplex / Assoc. Terminals",  lng: -90.3674, lat: 29.9554, type: "terminal" },
-  { name: "Southwest Pass",                 lng: -89.4073, lat: 28.9947, type: "waypoint" },
-];
-
-// Gauge gets its own distinct color — white/cyan, not teal (teal is reserved for vessel)
-const GAUGE_COLOR  = "#e0fffc";
-const TERM_COLOR   = "#d97706";
-const WAY_COLOR    = "#4a7a75";
-
-// Exact Mississippi River coordinates from OSM/Overpass API
-const VESSEL_ROUTE = [
-  [-91.572314, 30.735949],
-  [-91.560362, 30.731781],
-  [-91.544432, 30.731592],
-  [-91.518699, 30.738759],
-  [-91.485513, 30.744558],
-  [-91.461744, 30.73682],
-  [-91.446346, 30.736473],
-  [-91.426558, 30.742567],
-  [-91.417002, 30.747293],
-  [-91.401744, 30.756098],
-  [-91.397001, 30.757499],
-  [-91.385322, 30.758936],
-  [-91.378929, 30.758153],
-  [-91.375116, 30.755974],
-  [-91.359877, 30.736129],
-  [-91.352158, 30.719238],
-  [-91.339118, 30.665129],
-  [-91.335329, 30.659841],
-  [-91.330429, 30.657295],
-  [-91.318027, 30.653801],
-  [-91.303904, 30.649379],
-  [-91.299506, 30.647486],
-  [-91.29365, 30.641217],
-  [-91.290851, 30.633944],
-  [-91.290699, 30.62811],
-  [-91.298722, 30.609415],
-  [-91.310622, 30.596301],
-  [-91.315473, 30.589513],
-  [-91.315209, 30.579521],
-  [-91.311736, 30.574024],
-  [-91.300846, 30.571649],
-  [-91.284252, 30.57178],
-  [-91.270967, 30.569969],
-  [-91.257194, 30.568272],
-  [-91.245238, 30.559781],
-  [-91.239591, 30.552574],
-  [-91.238755, 30.546937],
-  [-91.241449, 30.538867],
-  [-91.249227, 30.531394],
-  [-91.267473, 30.524023],
-  [-91.279573, 30.517663],
-  [-91.284106, 30.512571],
-  [-91.284002, 30.509087],
-  [-91.28032, 30.505766],
-  [-91.270354, 30.504289],
-  [-91.258063, 30.506559],
-  [-91.218438, 30.519948],
-  [-91.208728, 30.522909],
-  [-91.203568, 30.519555],
-  [-91.19973, 30.516154],
-  [-91.197214, 30.500779],
-  [-91.196434, 30.464004],
-  [-91.198951, 30.425851],
-  [-91.219631, 30.389736],
-  [-91.233164, 30.375882],
-  [-91.240988, 30.361825],
-  [-91.241313, 30.356721],
-  [-91.234712, 30.343509],
-  [-91.226065, 30.338556],
-  [-91.220426, 30.337844],
-  [-91.202228, 30.343768],
-  [-91.184807, 30.347264],
-  [-91.175116, 30.346173],
-  [-91.15792, 30.342012],
-  [-91.147866, 30.336505],
-  [-91.142654, 30.326176],
-  [-91.142162, 30.321661],
-  [-91.145807, 30.316735],
-  [-91.154938, 30.314022],
-  [-91.223799, 30.311239],
-  [-91.228877, 30.292032],
-  [-91.138923, 30.27658],
-  [-91.111115, 30.243997],
-  [-91.166248, 30.198029],
-  [-91.137472, 30.179427],
-  [-91.062753, 30.212657],
-  [-91.008587, 30.172737],
-  [-91.016808, 30.131964],
-  [-91.033523, 30.119751],
-  [-90.997674, 30.114505],
-  [-90.989264, 30.113638],
-  [-90.960059, 30.107285],
-  [-90.946396, 30.11171],
-  [-90.945716, 30.133219],
-  [-90.934351, 30.137192],
-  [-90.923967, 30.132212],
-  [-90.908961, 30.082177],
-  [-90.894974, 30.06467],
-  [-90.884296, 30.060832],
-  [-90.855809, 30.062805],
-  [-90.839802, 30.042623],
-  [-90.813687, 29.983156],
-  [-90.758796, 30.015616],
-  [-90.706322, 30.022944],
-  [-90.643901, 30.048164],
-  [-90.609874, 30.036323],
-  [-90.54849, 30.048164],
-  [-90.499417, 30.05216],
-  [-90.474295, 30.039543],
-  [-90.468126, 29.998865],
-  [-90.398022, 29.98139],
-  [-90.38041, 29.945246],
-  [-90.304663, 29.950876],
-  [-90.236952, 29.964357],
-  [-90.215469, 29.928261],
-  [-90.197626, 29.924205],
-  [-90.150381, 29.956214],
-  [-90.138977, 29.945987],
-  [-90.134018, 29.91309],
-  [-90.11577, 29.907753],
-  [-90.093452, 29.911966],
-  [-90.067524, 29.921211],
-  [-90.05933, 29.931006],
-  [-90.0581, 29.942431],
-  [-90.058428, 29.95657],
-  [-90.05118, 29.95943],
-  [-90.035188, 29.955617],
-  [-89.983208, 29.928354],
-  [-89.928664, 29.921982],
-  [-89.906168, 29.871149],
-  [-89.916228, 29.866193],
-  [-89.92954, 29.868535],
-  [-89.944579, 29.874726],
-  [-89.959713, 29.880998],
-  [-89.971097, 29.879156],
-  [-89.976204, 29.861854],
-  [-89.986177, 29.842703],
-  [-89.999206, 29.824245],
-  [-90.005579, 29.803386],
-  [-90.017394, 29.784368],
-  [-90.023327, 29.763899],
-  [-90.01812, 29.750449],
-  [-89.99984, 29.735682],
-  [-89.98696, 29.717592],
-  [-89.976083, 29.69801],
-  [-89.962924, 29.680095],
-  [-89.958472, 29.658582],
-  [-89.945259, 29.642209],
-  [-89.923193, 29.632074],
-  [-89.90284, 29.61937],
-  [-89.880352, 29.610243],
-  [-89.856383, 29.60487],
-  [-89.833966, 29.596792],
-  [-89.813957, 29.583643],
-  [-89.793288, 29.571551],
-  [-89.774999, 29.557181],
-  [-89.759198, 29.540462],
-  [-89.738125, 29.529638],
-  [-89.718604, 29.51659],
-  [-89.704028, 29.499206],
-  [-89.694454, 29.487285],
-  [-89.677278, 29.471827],
-  [-89.656137, 29.46096],
-  [-89.631772, 29.457823],
-  [-89.608292, 29.451602],
-  [-89.603738, 29.431562],
-  [-89.604947, 29.410096],
-  [-89.592524, 29.391887],
-  [-89.573472, 29.378],
-  [-89.55154, 29.368104],
-  [-89.527613, 29.362138],
-  [-89.505596, 29.351987],
-  [-89.483171, 29.342922],
-  [-89.464147, 29.355415],
-  [-89.442637, 29.361971],
-  [-89.420868, 29.352681],
-  [-89.401496, 29.339699],
-  [-89.385447, 29.32318],
-  [-89.37092, 29.305516],
-  [-89.356991, 29.287371],
-  [-89.346766, 29.27599],
-  [-89.32911, 29.261242],
-  [-89.310682, 29.246115],
-  [-89.295301, 29.229136],
-  [-89.283163, 29.210169],
-  [-89.272862, 29.193299],
-  [-89.263888, 29.177911],
-  [-89.254849, 29.157922],
-];
-
-
 
 // ── NOAA ──────────────────────────────────────────────────────────────────────
 const NOAA_URL =
   "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
   "?station=8761927&product=water_level&datum=MLLW" +
-  "&time_zone=lst_ldt&units=english&format=json&range=1";
-
-// ── Agents ────────────────────────────────────────────────────────────────────
-const AGENTS = [
-  { id: "rw", code: "RW", name: "River Warden",    role: "Environmental Monitor", color: C.teal    },
-  { id: "bm", code: "BM", name: "Berth Master",    role: "Dock Scheduler",        color: C.amber   },
-  { id: "is", code: "IS", name: "Intermodal Sync", role: "Rail & Truck Coord.",   color: "#a78bfa" },
-];
+  "&time_zone=lst_ldt&units=english&format=json&range=2";
 
 // ── Scenario engine ───────────────────────────────────────────────────────────
-function buildScenario(gaugeVal) {
-  const ft = gaugeVal ?? 4.4;
+function buildScenario(ft) {
   const rising   = ft > 5.5;
   const critical = ft > 8.0;
   const status      = critical ? "CRITICAL" : rising ? "ELEVATED" : "NOMINAL";
   const statusColor = critical ? C.red      : rising ? C.amber    : C.teal;
+  const risk        = critical ? "HIGH RISK" : rising ? "ELEVATED RISK" : "NOMINAL";
+  const riskColor   = critical ? C.red : rising ? C.amber : C.teal;
 
-  const events = [
-    { id: 1, agent: "rw", phase: "OBSERVE", delay: 0,
-      text: `Carrollton Gauge (8761927) reads ${ft.toFixed(1)} ft — ${critical ? "exceeds Algiers Point vessel restriction threshold." : rising ? "rising trend detected over last 2 hours." : "nominal for Napoleon Ave Wharf operations."}` },
-    { id: 2, agent: "rw", phase: "OBSERVE", delay: 1400,
-      text: `AIS feed: MV Delta Voyager (LOA 185m, draft 9.2m) inbound — ETA Southwest Pass 04:20 CST. Current: 3.1 knots.` },
-    { id: 3, agent: "bm", phase: "ORIENT", delay: 2900,
-      text: `Cross-referencing draft against gauge. ${critical ? "9.2m draft incompatible with current river stage. Berth 2 (Napoleon Ave) at risk." : rising ? "Draft margin shrinking — Berth 4 preferred over Berth 2 at current stage." : "Berth 2 (Napoleon Ave Wharf) nominal. Crane availability: 3 of 3."}` },
-    { id: 4, agent: "bm", phase: "ORIENT", delay: 4600,
-      text: `Simulating 1,024 berth sequences… Optimal plan identified: ${critical ? "HOLD — delay berthing 6 hrs pending stage drop." : rising ? "Re-sequence: Berth 4 → Berth 2. Net gain: $14,200 in avoided idle crane time." : "No re-sequencing required. Berth 2 confirmed optimal. Crane gang notified."}` },
-    { id: 5, agent: "is", phase: "DECIDE", delay: 6200,
-      text: `CN/KCS rail status: 14 intermodal cars staged at NOPB Yard 3. Truck gate queue: 22 units. ${critical ? "Issuing standby order — gate delay 6 hrs. Drayage rerouted to Globalplex." : rising ? "Adjusting truck gate ETA +90 min. CN rail departure window shifted 08:45 → 10:15." : "Rail hand-off confirmed. Gate opens 06:00 CST. Zero bottleneck projected."}` },
-    { id: 6, agent: "rw", phase: "DECIDE", delay: 7800,
-      text: `Weather window: Fog advisory lifted at Southwest Pass. Wind 8 kts SE. ${critical ? "Hurricane prep protocol flagged — monitoring 72-hr NWS cone." : "No adverse conditions in 48-hr window. Tidal influence: minor."}` },
-  ];
+  const decisions = critical ? [
+    {
+      id: "d1",
+      severity: "critical",
+      title: "HOLD — Delay Berthing 6 Hours",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft exceeds Algiers Point vessel restriction threshold. MV Delta Voyager draft (9.2m) incompatible with current stage.",
+      costAvoided: 38000,
+      costIfIgnored: 38000,
+      advanceWarning: "4h 23m",
+      agents: ["RW", "BM", "IS"],
+      actions: [
+        "MV Delta Voyager re-queued at Southwest Pass anchorage",
+        "22 drayage trucks rerouted to Globalplex — gate delay 6 hrs",
+        "CN/KCS rail departure window held pending stage drop",
+        "SMS alert dispatched to Port Director + Pilot Station",
+      ],
+      confirmed: null,
+    },
+    {
+      id: "d2",
+      severity: "warning",
+      title: "STANDBY — Monitor Stage Trend",
+      reason: "River stage rising 0.3ft/hr. If trend continues, secondary berth conflict projected at Berth 4 within 90 minutes.",
+      costAvoided: 12000,
+      costIfIgnored: 12000,
+      advanceWarning: "1h 31m",
+      agents: ["RW"],
+      actions: [
+        "Berth 4 flagged for precautionary hold",
+        "Crane gang notified of possible schedule shift",
+      ],
+      confirmed: null,
+    },
+  ] : rising ? [
+    {
+      id: "d1",
+      severity: "warning",
+      title: "RE-SEQUENCE — Swap Berth 2 → Berth 4",
+      reason: "Stage rising trend detected. Draft margin for Berth 2 shrinking. Berth 4 preferred at current " + ft.toFixed(1) + "ft stage.",
+      costAvoided: 14200,
+      costIfIgnored: 14200,
+      advanceWarning: "2h 11m",
+      agents: ["RW", "BM"],
+      actions: [
+        "Berth assignment updated: Berth 2 → Berth 4",
+        "CN rail departure window shifted 08:45 → 10:15",
+        "Truck gate ETA adjusted +90 min",
+        "Crane gang reassigned to Berth 4",
+      ],
+      confirmed: null,
+    },
+  ] : [];
 
-  const recommendation = critical
-    ? { label: "HOLD — Delay Berthing 6 Hours",       detail: "River stage exceeds Algiers Point restriction. MV Delta Voyager re-queued at Southwest Pass anchorage. Drayage rerouted. Estimated cost avoidance: $38,000.", severity: "critical" }
+  // Gauge sparkline trend (mock last 8 readings)
+  const trend = critical
+    ? [3.1, 4.2, 5.5, 6.8, 7.4, 8.0, 8.2, ft]
     : rising
-    ? { label: "RE-SEQUENCE — Swap Berth 2 → Berth 4", detail: "Stage trend warrants precautionary swap. CN/KCS rail window adjusted +90 min. Gate open 06:00. Net savings: $14,200 in idle crane + fuel.",           severity: "warning"  }
-    : { label: "NOMINAL — No Action Required",          detail: "All systems optimal. MV Delta Voyager cleared for Berth 2, Napoleon Ave Wharf. Crane gang and NOPB rail confirmed. Gate opens 06:00 CST.",             severity: "ok"       };
+    ? [3.8, 4.1, 4.4, 4.8, 5.1, 5.4, 5.6, ft]
+    : [4.6, 4.5, 4.4, 4.3, 4.4, 4.5, 4.6, ft];
 
-  return { ft, status, statusColor, events, recommendation };
+  return { ft, status, statusColor, risk, riskColor, decisions, trend };
 }
 
 // ── Small components ──────────────────────────────────────────────────────────
-function Badge({ color, children }) {
+function Badge({ color, children, small }) {
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "2px 8px", borderRadius: 3,
-      border: `1px solid ${color}55`, background: `${color}15`, color,
-      fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
-      fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+      display: "inline-flex", alignItems: "center",
+      padding: small ? "1px 6px" : "2px 8px",
+      borderRadius: 3,
+      border: `1px solid ${color}55`,
+      background: `${color}15`,
+      color,
+      fontFamily: C.mono,
+      fontSize: small ? 9 : 10,
+      fontWeight: 700,
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
     }}>{children}</span>
   );
 }
 
-function PulsingDot({ color }) {
+function PulsingDot({ color, size = 8 }) {
   return (
-    <span style={{ position: "relative", display: "inline-flex", width: 10, height: 10 }}>
-      <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: color, opacity: 0.4, animation: "ping 1.4s cubic-bezier(0,0,0.2,1) infinite" }} />
-      <span style={{ position: "relative", width: 10, height: 10, borderRadius: "50%", background: color }} />
+    <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
+      <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: color, opacity: 0.35, animation: "ping 1.6s ease-in-out infinite" }} />
+      <span style={{ position: "relative", width: size, height: size, borderRadius: "50%", background: color }} />
     </span>
   );
 }
 
-function GaugeBar({ value, max = 12, thresholds = [5.5, 8] }) {
-  const pct   = Math.min((value / max) * 100, 100);
-  const color = value >= thresholds[1] ? C.red : value >= thresholds[0] ? C.amber : C.teal;
+function Sparkline({ data, color, width = 80, height = 28 }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * height;
+    return `${x},${y}`;
+  }).join(" ");
   return (
-    <div style={{ width: "100%" }}>
-      <div style={{ height: 6, background: C.mutedLo, borderRadius: 3, overflow: "hidden", position: "relative" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 1.2s ease, background 0.6s ease", boxShadow: `0 0 8px ${color}88` }} />
-        {thresholds.map((t, i) => (
-          <div key={i} style={{ position: "absolute", left: `${(t / max) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />
+    <svg width={width} height={height} style={{ overflow: "visible" }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity="0.8" />
+      <circle cx={pts.split(" ").pop().split(",")[0]} cy={pts.split(" ").pop().split(",")[1]} r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+function GaugeBar({ value, max = 12 }) {
+  const pct = Math.min((value / max) * 100, 100);
+  const color = value >= 8 ? C.red : value >= 5.5 ? C.amber : C.teal;
+  return (
+    <div style={{ width: "100%", marginTop: 8 }}>
+      <div style={{ height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative" }}>
+        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${pct}%`, background: color, transition: "width 1.2s ease, background 0.6s ease", boxShadow: `0 0 6px ${color}66` }} />
+        {[5.5, 8].map((t, i) => (
+          <div key={i} style={{ position: "absolute", left: `${(t / max) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.5 }} />
         ))}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted }}>
-        <span>0 ft</span><span style={{ color: C.amber }}>5.5 ▲</span><span style={{ color: C.red }}>8.0 ▲</span><span>12 ft</span>
       </div>
     </div>
   );
 }
 
-// ── River Map ─────────────────────────────────────────────────────────────────
-function RiverMap({ gaugeVal, statusColor, log }) {
-  const mapRef           = useRef(null);
-  const mapInstanceRef   = useRef(null);
-  const vesselMarkerRef  = useRef(null);
-  const animFrameRef     = useRef(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-
+// ── SMS Notification Modal ────────────────────────────────────────────────────
+function SMSNotification({ decision, onClose }) {
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
-    if (window.mapboxgl) { initMap(); return; }
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css";
-    document.head.appendChild(link);
-    const script = document.createElement("script");
-    script.src = "https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js";
-    script.onload = initMap;
-    document.head.appendChild(script);
+    setTimeout(() => setVisible(true), 50);
+    setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 4000);
   }, []);
 
-  function initMap() {
-    if (!mapRef.current || mapInstanceRef.current) return;
-    window.mapboxgl.accessToken = MAPBOX_TOKEN;
-    const map = new window.mapboxgl.Map({
-      container: mapRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
-      center: [-90.1, 29.92],
-      zoom: 8.2,
-      interactive: true,
-    });
-    mapInstanceRef.current = map;
-    map.on("load", () => {
-      // Fetch actual Mississippi River centerline from OSM
-      fetch("https://nominatim.openstreetmap.org/search?q=Mississippi+River&format=geojson&polygon_geojson=1&limit=1")
-        .then(r => r.json())
-        .then(data => {
-          if (data?.features?.[0]) {
-            const feature = data.features[0];
-            map.addSource("corridor", { type: "geojson", data: feature });
-            map.addLayer({
-              id: "corridor-line", type: "line", source: "corridor",
-              layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#3bbfb2", "line-width": 3, "line-opacity": 0.8 },
-            });
+  const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" });
 
-            // Extract coordinates and use them for vessel route
-            let coords = null;
-            if (feature.geometry.type === "LineString") {
-              coords = feature.geometry.coordinates;
-            } else if (feature.geometry.type === "MultiLineString") {
-              // Find the longest segment (the main channel)
-              coords = feature.geometry.coordinates.reduce((a, b) => a.length > b.length ? a : b);
-            } else if (feature.geometry.type === "Polygon") {
-              coords = feature.geometry.coordinates[0];
-            } else if (feature.geometry.type === "MultiPolygon") {
-              coords = feature.geometry.coordinates[0][0];
-            }
+  return (
+    <div style={{
+      position: "fixed", top: 20, right: 20, zIndex: 1000,
+      transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      transform: visible ? "translateX(0) scale(1)" : "translateX(120%) scale(0.8)",
+      opacity: visible ? 1 : 0,
+    }}>
+      <div style={{
+        width: 300,
+        background: "#1a1a1a",
+        borderRadius: 16,
+        padding: "12px 16px",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)",
+        fontFamily: C.sans,
+      }}>
+        {/* Phone header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #0f4547, #3bbfb2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <polygon points="8,2 14,14 8,10 2,14" fill="white" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>DeltaAgent AI</div>
+            <div style={{ fontSize: 10, color: "#888" }}>now · {time} CST</div>
+          </div>
+          <div style={{ marginLeft: "auto", fontSize: 10, color: "#888" }}>⚠️ ALERT</div>
+        </div>
 
-            if (coords && coords.length > 1) {
-              // Filter to just the Louisiana section (lng between -91.5 and -89.0, lat between 28.5 and 31.0)
-              const filtered = coords.filter(([lng, lat]) =>
-                lng >= -91.5 && lng <= -89.0 && lat >= 28.5 && lat <= 31.0
-              );
-              if (filtered.length > 1) {
-                // Sort from Baton Rouge (west) to Gulf (east/south)
-                const sorted = filtered.sort((a, b) => b[0] - a[0]);
-                // Override the vessel route with real coordinates
-                window._deltaAgentRiverCoords = sorted;
-              }
-            }
-          }
-        })
-        .catch(() => {});
+        {/* Message */}
+        <div style={{
+          background: "#2a2a2a",
+          borderRadius: 12,
+          borderTopLeftRadius: 4,
+          padding: "10px 12px",
+          fontSize: 12,
+          color: "#f0f0f0",
+          lineHeight: 1.5,
+        }}>
+          <div style={{ fontWeight: 700, color: decision.severity === "critical" ? "#dc2626" : "#d97706", marginBottom: 4 }}>
+            ⚠ {decision.title}
+          </div>
+          <div style={{ color: "#ccc", fontSize: 11 }}>
+            Gauge: {decision.ft?.toFixed(1) || "8.4"}ft · Est. cost avoidance: ${decision.costAvoided?.toLocaleString()}
+          </div>
+          <div style={{ color: "#888", fontSize: 10, marginTop: 4 }}>
+            Action confirmed by {decision.confirmedBy || "Jordan Liuzza"} — executing now.
+          </div>
+        </div>
 
-      LOCATIONS.forEach((loc) => {
-        const el = document.createElement("div");
-        const dotColor = loc.type === "gauge" ? GAUGE_COLOR : loc.type === "terminal" ? TERM_COLOR : WAY_COLOR;
-        el.style.cssText = `width:${loc.type==="gauge"?14:10}px;height:${loc.type==="gauge"?14:10}px;border-radius:50%;background:${dotColor};border:2px solid ${dotColor}44;box-shadow:0 0 ${loc.type==="gauge"?12:6}px ${dotColor}44;cursor:pointer;`;
-        if (loc.type === "gauge") el.className = "gauge-marker";
-        const popup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
-          .setHTML(`<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#3bbfb2;background:#0a0f0a;padding:6px 10px;border-radius:4px;border:1px solid #0f4547;">${loc.name}</div>`);
-        new window.mapboxgl.Marker({ element: el }).setLngLat([loc.lng, loc.lat]).setPopup(popup).addTo(map);
-      });
+        {/* Recipient */}
+        <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 10, color: "#555" }}>Sent to: Port Director · Pilot Station · CN/KCS</div>
+          <div style={{ fontSize: 10, color: "#3bbfb2" }}>✓ Delivered</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      const vesselEl = document.createElement("div");
-      vesselEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;"><polygon points="10,2 18,18 10,14 2,18" fill="#3bbfb2" stroke="#0a0f0a" stroke-width="1"/></svg>`;
-      vesselEl.style.cssText = "cursor:pointer;filter:drop-shadow(0 0 6px #3bbfb2);width:20px;height:20px;";
-      const vesselPopup = new window.mapboxgl.Popup({ offset: 15, closeButton: false })
-        .setHTML(`<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#3bbfb2;background:#0a0f0a;padding:6px 10px;border-radius:4px;border:1px solid #0f4547;">MV Delta Voyager<br/>LOA 185m · Draft 9.2m</div>`);
-      vesselMarkerRef.current = new window.mapboxgl.Marker({ element: vesselEl })
-        .setLngLat(VESSEL_ROUTE[0]).setPopup(vesselPopup).addTo(map);
+// ── Execution Ticker ──────────────────────────────────────────────────────────
+function ExecutionTicker({ decision, onComplete }) {
+  const [steps, setSteps] = useState([]);
+  const [elapsed, setElapsed] = useState(0);
+  const [done, setDone] = useState(false);
+  const startTime = useRef(Date.now());
 
-      let t = 0.52;
-      function animateVessel() {
-        const route = VESSEL_ROUTE;
-        t += 0.00004;
-        if (t > 0.72) t = 0.40;
-        const total = route.length - 1;
-        const st = t * total;
-        const si = Math.min(Math.floor(st), total - 1);
-        const lt = st - si;
-        const from = route[si], to = route[si + 1];
-        const lng = from[0]+(to[0]-from[0])*lt;
-        const lat = from[1]+(to[1]-from[1])*lt;
-        vesselMarkerRef.current.setLngLat([lng, lat]);
-
-        // Calculate bearing for vessel rotation
-        const dLng = to[0] - from[0];
-        const dLat = to[1] - from[1];
-        const bearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
-        const el = vesselMarkerRef.current.getElement();
-        const svg = el.querySelector("svg");
-        if (svg) svg.style.transform = `rotate(${bearing}deg)`;
-
-        animFrameRef.current = requestAnimationFrame(animateVessel);
-      }
-      animateVessel();
-      setMapLoaded(true);
-    });
-  }
+  const executionSteps = [
+    { delay: 300,  label: "SMS dispatched → Port Director",     detail: "+1 (504) 555-0147", icon: "📱" },
+    { delay: 600,  label: "SMS dispatched → Pilot Station",      detail: "+1 (504) 555-0293", icon: "📱" },
+    { delay: 950,  label: "CN/KCS Rail API — window updated",    detail: "08:45 → 10:15 CST", icon: "🚂" },
+    { delay: 1300, label: "Drayage fleet notified via Twilio",   detail: "22 trucks rerouted", icon: "🚛" },
+    { delay: 1700, label: "Berth schedule updated in TOS",       detail: "Navis N4 API call ✓", icon: "⚓" },
+    { delay: 2100, label: "Audit log entry created",             detail: "MTSA compliance record", icon: "📋" },
+  ];
 
   useEffect(() => {
-    if (!vesselMarkerRef.current) return;
-    const el = vesselMarkerRef.current.getElement();
-    const color = gaugeVal >= 8 ? "#dc2626" : gaugeVal >= 5.5 ? "#d97706" : "#3bbfb2";
-    const svg = el.querySelector("svg");
-    if (svg) svg.querySelector("polygon").setAttribute("fill", color);
-    else el.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,18 10,14 2,18" fill="${color}" stroke="#0a0f0a" stroke-width="1"/></svg>`;
-    el.style.filter = `drop-shadow(0 0 6px ${color})`;
-  }, [gaugeVal]);
+    const timer = setInterval(() => {
+      setElapsed(((Date.now() - startTime.current) / 1000).toFixed(1));
+    }, 100);
 
-  useEffect(() => () => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    if (mapInstanceRef.current) mapInstanceRef.current.remove();
+    executionSteps.forEach((step, i) => {
+      setTimeout(() => {
+        setSteps(prev => [...prev, { ...step, ts: ((Date.now() - startTime.current) / 1000).toFixed(1) }]);
+        if (i === executionSteps.length - 1) {
+          setTimeout(() => { setDone(true); clearInterval(timer); }, 300);
+        }
+      }, step.delay);
+    });
+
+    return () => clearInterval(timer);
   }, []);
 
   return (
-    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-      <div style={{ padding: "12px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em" }}>
-          MISSISSIPPI RIVER CORRIDOR · BATON ROUGE → GULF
+    <div style={{
+      borderTop: `1px solid ${C.border}`,
+      background: C.panel,
+      padding: "16px 20px",
+      animation: "fadeSlideIn 0.3s ease",
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {!done && <PulsingDot color={C.teal} size={8} />}
+          {done && <span style={{ color: C.teal, fontSize: 14 }}>✓</span>}
+          <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>
+            {done ? "EXECUTION COMPLETE" : "EXECUTING…"}
+          </span>
         </div>
-        <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-          {[
-            { color: GAUGE_COLOR, label: "Gauge Station", type: "dot" },
-            { color: TERM_COLOR,  label: "Terminal",       type: "dot" },
-            { color: WAY_COLOR,   label: "Waypoint",       type: "dot" },
-            { color: statusColor, label: "MV Delta Voyager", type: "arrow" },
-          ].map(({ color, label, type }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              {type === "arrow" ? (
-                <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
-                  <polygon points="5,0 10,12 5,8 0,12" fill={color} />
-                </svg>
-              ) : (
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: color }} />
-              )}
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted }}>{label}</span>
+        <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>
+          {elapsed}s elapsed
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+        {executionSteps.map((step, i) => {
+          const fired = steps.find((s, si) => si === i || s.label === step.label);
+          return (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 10px", borderRadius: 5,
+              background: fired ? `${C.teal}0a` : "transparent",
+              border: `1px solid ${fired ? C.teal + "33" : C.border}`,
+              transition: "all 0.3s ease",
+              opacity: fired ? 1 : 0.35,
+            }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{step.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: fired ? C.white : C.muted, fontWeight: fired ? 600 : 400 }}>
+                  {step.label}
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{step.detail}</div>
+              </div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, flexShrink: 0 }}>
+                {fired ? (
+                  <span style={{ color: C.teal }}>✓ {fired.ts}s</span>
+                ) : (
+                  <span style={{ color: C.mutedLo }}>—</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Summary */}
+      {done && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 8, animation: "fadeSlideIn 0.4s ease",
+        }}>
+          <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22`, textAlign: "center" }}>
+            <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>COST AVOIDED</div>
+            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</div>
+          </div>
+          <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.teal}10`, border: `1px solid ${C.teal}22`, textAlign: "center" }}>
+            <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>ELAPSED TIME</div>
+            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.teal }}>{elapsed}s</div>
+          </div>
+          <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.teal}10`, border: `1px solid ${C.teal}22`, textAlign: "center" }}>
+            <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>ALERTS SENT</div>
+            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.teal }}>6</div>
+          </div>
+        </div>
+      )}
+
+      {done && (
+        <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 5, background: `${C.muted}10`, border: `1px solid ${C.border}` }}>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>
+            ⏱ Human review + confirmation: ~3 sec &nbsp;|&nbsp; Agent execution: {elapsed}s &nbsp;|&nbsp; vs. manual: ~45 min / 20 calls
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function DecisionCard({ decision, gaugeVal, onConfirm, onOverride }) {
+  const [expanded, setExpanded] = useState(false);
+  const [confirmed, setConfirmed] = useState(null);
+
+  const severityColor = decision.severity === "critical" ? C.red : C.amber;
+  const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
+
+  function handleConfirm() {
+    setConfirmed("confirmed");
+    onConfirm(decision);
+  }
+
+  function handleOverride() {
+    setConfirmed("override");
+    onOverride(decision);
+  }
+
+  return (
+    <div style={{
+      border: `1px solid ${severityColor}44`,
+      borderLeft: `3px solid ${severityColor}`,
+      borderRadius: 8,
+      background: severityBg,
+      overflow: "hidden",
+      transition: "all 0.3s ease",
+    }}
+    className="decision-card"
+    >
+      {/* Card header */}
+      <div style={{ padding: "16px 20px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+          <div style={{ flexShrink: 0, paddingTop: 2 }}>
+            <PulsingDot color={severityColor} size={10} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+              <Badge color={severityColor}>{decision.severity}</Badge>
+              {decision.agents.map(a => (
+                <Badge key={a} color={C.muted} small>{a}</Badge>
+              ))}
+              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginLeft: "auto" }}>
+                ⏱ {decision.advanceWarning} advance warning
+              </span>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>
+              {decision.title}
+            </div>
+            <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.55 }}>
+              {decision.reason}
+            </div>
+          </div>
+        </div>
+
+        {/* Cost impact — the headline */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 8,
+          marginBottom: 14,
+        }}>
+          <div style={{
+            background: `${C.green}15`,
+            border: `1px solid ${C.green}33`,
+            borderRadius: 6,
+            padding: "10px 14px",
+          }}>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>
+              EST. COST AVOIDED
+            </div>
+            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.green, letterSpacing: "-0.02em" }}>
+              ${decision.costAvoided.toLocaleString()}
+            </div>
+          </div>
+          <div style={{
+            background: `${C.red}10`,
+            border: `1px solid ${C.red}22`,
+            borderRadius: 6,
+            padding: "10px 14px",
+          }}>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>
+              COST IF IGNORED
+            </div>
+            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.red, letterSpacing: "-0.02em" }}>
+              ${decision.costIfIgnored.toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons or confirmation state */}
+        {confirmed === "override" ? (
+          <div style={{
+            padding: "12px 16px", borderRadius: 6,
+            border: `1px solid ${C.amber}44`,
+            background: `${C.amber}10`,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <PulsingDot color={C.amber} />
+            <div>
+              <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.amber, letterSpacing: "0.06em" }}>
+                ⚠ OVERRIDE LOGGED — Manual action required
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                Decision recorded for MTSA audit trail
+              </div>
+            </div>
+          </div>
+        ) : confirmed === null ? (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleConfirm} style={{
+              flex: 1, padding: "11px 0", borderRadius: 6,
+              border: `1px solid ${C.teal}`,
+              background: `${C.teal}20`,
+              color: C.teal,
+              fontFamily: C.mono, fontSize: 12, fontWeight: 700,
+              letterSpacing: "0.08em", cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}>
+              ✓ CONFIRM &amp; DISPATCH
+            </button>
+            <button onClick={handleOverride} style={{
+              flex: 1, padding: "11px 0", borderRadius: 6,
+              border: `1px solid ${C.amber}`,
+              background: `${C.amber}10`,
+              color: C.amber,
+              fontFamily: C.mono, fontSize: 12, fontWeight: 700,
+              letterSpacing: "0.08em", cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}>
+              ⚠ OVERRIDE
+            </button>
+            <button onClick={() => setExpanded(!expanded)} style={{
+              padding: "11px 16px", borderRadius: 6,
+              border: `1px solid ${C.border}`,
+              background: "transparent",
+              color: C.muted,
+              fontFamily: C.mono, fontSize: 11,
+              cursor: "pointer",
+            }}>
+              {expanded ? "▲" : "▼"}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Execution ticker — shows after confirm */}
+      {confirmed === "confirmed" && (
+        <ExecutionTicker decision={decision} />
+      )}
+
+      {/* Expanded details */}
+      {expanded && (
+        <div style={{
+          borderTop: `1px solid ${C.border}`,
+          padding: "14px 20px",
+          background: `${C.panel}`,
+          animation: "fadeSlideIn 0.25s ease",
+        }}>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 10 }}>
+            AGENT ACTIONS QUEUED
+          </div>
+          {decision.actions.map((action, i) => (
+            <div key={i} style={{
+              display: "flex", gap: 10, alignItems: "flex-start",
+              marginBottom: 8, paddingBottom: 8,
+              borderBottom: i < decision.actions.length - 1 ? `1px solid ${C.border}` : "none",
+            }}>
+              <div style={{ fontFamily: C.mono, fontSize: 10, color: severityColor, marginTop: 1, flexShrink: 0 }}>
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5 }}>{action}</div>
             </div>
           ))}
-        </div>
-      </div>
 
-      <div style={{ position: "relative", height: 280 }}>
-        <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-        {!mapLoaded && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: C.panel, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.muted, letterSpacing: "0.1em" }}>
-            LOADING CORRIDOR MAP…
-          </div>
-        )}
-        {/* Agent overlay — top of map to avoid Mapbox attribution */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, background: "linear-gradient(to bottom, #040404f0 0%, #040404aa 70%, transparent 100%)", padding: "10px 16px 20px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginRight: 4 }}>AGENTS</span>
-          {AGENTS.map((ag) => {
-            const active = log.some(l => l.agent === ag.id);
-            return (
-              <div key={ag.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 4, border: `1px solid ${active ? ag.color + "66" : C.border}`, background: active ? `${ag.color}15` : `${C.panel}cc`, transition: "all 0.4s ease" }}>
-                <div style={{ width: 18, height: 18, borderRadius: 3, background: `${ag.color}20`, border: `1px solid ${ag.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700, color: ag.color }}>{ag.code}</div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: active ? C.white : C.muted }}>{ag.name}</span>
-                {active ? <PulsingDot color={ag.color} /> : <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.mutedLo }} />}
+          {/* OODA mini */}
+          <div style={{ marginTop: 12, display: "flex", gap: 6 }}>
+            {["OBSERVE", "ORIENT", "DECIDE", "ACT"].map((phase, i) => (
+              <div key={phase} style={{
+                flex: 1, padding: "6px 8px", borderRadius: 4,
+                background: `${severityColor}15`,
+                border: `1px solid ${severityColor}33`,
+                textAlign: "center",
+              }}>
+                <div style={{ fontFamily: C.mono, fontSize: 8, color: severityColor, fontWeight: 700 }}>{phase}</div>
               </div>
-            );
-          })}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 4, border: `1px solid ${C.tealDim}`, background: C.tealFaint, marginLeft: "auto" }}>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted }}>AIS</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: C.white }}>MV Delta Voyager</span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.muted }}>LOA 185m · 9.2m draft</span>
+            ))}
           </div>
         </div>
-      </div>
-
-      <style>{`
-        @keyframes gaugePulse { 0%{box-shadow:0 0 0 0 #e0fffcaa}70%{box-shadow:0 0 0 8px #e0fffc00}100%{box-shadow:0 0 0 0 #e0fffc00} }
-        .gauge-marker { animation: gaugePulse 1.8s ease-out infinite; }
-        .mapboxgl-popup-content{background:transparent!important;padding:0!important;box-shadow:none!important;}
-        .mapboxgl-popup-tip{display:none!important;}
-      `}</style>
+      )}
     </div>
   );
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
-export default function DeltaAgentCommandCenter() {
-  const [gaugeData, setGaugeData]   = useState(null);
-  const [gaugeError, setGaugeError] = useState(false);
-  const [simGauge, setSimGauge]     = useState(4.4);
-  const [scenario, setScenario]     = useState(() => buildScenario(4.4));
-  const [log, setLog]               = useState([]);
-  const [running, setRunning]       = useState(false);
-  const [done, setDone]             = useState(false);
-  const [recVisible, setRecVisible] = useState(false);
-  const [confirmed, setConfirmed]   = useState(null);
-  const [time, setTime]             = useState(new Date());
-  const [oodaStep, setOodaStep]     = useState(-1);
-  const logRef                      = useRef(null);
-  const timersRef                   = useRef([]);
+export default function DeltaAgentDashboard() {
+  const [gaugeData, setGaugeData]     = useState(null);
+  const [gaugeError, setGaugeError]   = useState(false);
+  const [simGauge, setSimGauge]       = useState(4.4);
+  const [scenario, setScenario]       = useState(() => buildScenario(4.4));
+  const [time, setTime]               = useState(new Date());
+  const [smsQueue, setSmsQueue]       = useState([]);
+  const [activeTab, setActiveTab]     = useState("inbox");
+  const [agentLog, setAgentLog]       = useState([]);
 
-  useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t); }, []);
-
+  // Clock
   useEffect(() => {
-    fetch(NOAA_URL).then(r => r.json()).then(d => {
-      const readings = d?.data;
-      if (readings?.length) {
-        const latest = parseFloat(readings[readings.length - 1].v);
-        if (!isNaN(latest)) { setGaugeData(latest); setSimGauge(latest); setScenario(buildScenario(latest)); }
-      }
-    }).catch(() => setGaugeError(true));
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [log]);
+  // NOAA fetch
+  useEffect(() => {
+    fetch(NOAA_URL)
+      .then(r => r.json())
+      .then(d => {
+        const readings = d?.data;
+        if (readings?.length) {
+          const latest = parseFloat(readings[readings.length - 1].v);
+          if (!isNaN(latest)) {
+            setGaugeData(latest);
+            setSimGauge(latest);
+            setScenario(buildScenario(latest));
+            // Build trend from last 8 readings
+            const trend = readings.slice(-8).map(r => parseFloat(r.v)).filter(v => !isNaN(v));
+            setScenario(buildScenario(latest));
+          }
+        }
+      })
+      .catch(() => setGaugeError(true));
+  }, []);
 
-  function runLoop() {
-    if (running) return;
-    setRunning(true); setDone(false); setLog([]);
-    setRecVisible(false); setConfirmed(null); setOodaStep(-1);
-    timersRef.current.forEach(clearTimeout); timersRef.current = [];
-    const sc = buildScenario(simGauge);
-    setScenario(sc);
-    const phaseOrder = ["OBSERVE", "ORIENT", "DECIDE", "ACT"];
-    sc.events.forEach(ev => {
-      const t = setTimeout(() => {
-        setLog(prev => [...prev, ev]);
-        setOodaStep(prev => Math.max(prev, phaseOrder.indexOf(ev.phase)));
-      }, ev.delay);
-      timersRef.current.push(t);
-    });
-    const last = sc.events[sc.events.length - 1].delay;
-    timersRef.current.push(setTimeout(() => { setOodaStep(3); setRecVisible(true); }, last + 1200));
-    timersRef.current.push(setTimeout(() => { setRunning(false); setDone(true); }, last + 1400));
+  function handleConfirm(decision) {
+    setSmsQueue(q => [...q, { ...decision, ft: simGauge, id: Date.now() }]);
+    setAgentLog(prev => [{
+      time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
+      action: `CONFIRMED: ${decision.title}`,
+      cost: `$${decision.costAvoided.toLocaleString()} cost avoidance logged`,
+      severity: decision.severity,
+    }, ...prev]);
   }
 
-  function resetLoop() {
-    timersRef.current.forEach(clearTimeout);
-    setLog([]); setRunning(false); setDone(false);
-    setRecVisible(false); setConfirmed(null); setOodaStep(-1);
+  function handleOverride(decision) {
+    setAgentLog(prev => [{
+      time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
+      action: `OVERRIDE: ${decision.title}`,
+      cost: "Manual action required",
+      severity: "warning",
+    }, ...prev]);
   }
 
-  const oodaPhases = ["OBSERVE", "ORIENT", "DECIDE", "ACT"];
-  const recColors  = { ok: C.teal, warning: C.amber, critical: C.red };
-  const recColor   = recColors[scenario.recommendation.severity];
+  function removeSms(id) {
+    setSmsQueue(q => q.filter(s => s.id !== id));
+  }
+
+  const pendingCount = scenario.decisions.length;
+  const totalSavings = scenario.decisions.reduce((sum, d) => sum + d.costAvoided, 0);
+  const trendDir = scenario.trend[scenario.trend.length - 1] > scenario.trend[scenario.trend.length - 2] ? "↑" : scenario.trend[scenario.trend.length - 1] < scenario.trend[scenario.trend.length - 2] ? "↓" : "→";
+  const trendColor = trendDir === "↑" ? C.amber : trendDir === "↓" ? C.teal : C.muted;
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;}
-        body{background:${C.bg};}
-        @keyframes ping{75%,100%{transform:scale(2);opacity:0;}}
-        @keyframes fadeSlideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-        @keyframes scanline{0%{transform:translateY(-100%);}100%{transform:translateY(100vh);}}
-        .log-entry{animation:fadeSlideIn 0.35s ease forwards;}
-        .rec-card{animation:fadeSlideIn 0.5s ease forwards;}
-        ::-webkit-scrollbar{width:4px;}
-        ::-webkit-scrollbar-track{background:${C.bg};}
-        ::-webkit-scrollbar-thumb{background:${C.borderHi};border-radius:2px;}
-        .row1-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-        .row3-grid{display:grid;grid-template-columns:1fr 1fr 260px;gap:12px;}
-        @media(max-width:900px){
-          .row1-grid{grid-template-columns:1fr!important;}
-          .row3-grid{grid-template-columns:1fr!important;}
-          .hide-mobile{display:none!important;}
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: ${C.bg}; }
+        @keyframes ping { 75%,100% { transform: scale(2.2); opacity: 0; } }
+        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
+        @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } }
+        .decision-card { animation: fadeSlideIn 0.4s ease forwards; }
+        .decision-card:hover { filter: brightness(1.05); }
+        button:hover { filter: brightness(1.15); }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: ${C.borderHi}; border-radius: 2px; }
+        @media (max-width: 640px) {
+          .hero-grid { grid-template-columns: 1fr !important; }
+          .bottom-grid { grid-template-columns: 1fr !important; }
+          .hide-sm { display: none !important; }
         }
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: "'Plus Jakarta Sans', sans-serif", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "fixed", inset: 0, backgroundImage: `linear-gradient(${C.border}55 1px,transparent 1px),linear-gradient(90deg,${C.border}55 1px,transparent 1px)`, backgroundSize: "40px 40px", pointerEvents: "none", zIndex: 0 }} />
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 120, background: `linear-gradient(to bottom,transparent,${C.teal}06,transparent)`, pointerEvents: "none", zIndex: 1, animation: "scanline 8s linear infinite" }} />
+      {/* SMS notifications */}
+      {smsQueue.map(sms => (
+        <SMSNotification key={sms.id} decision={sms} onClose={() => removeSms(sms.id)} />
+      ))}
+
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative", overflow: "hidden" }}>
+
+        {/* Grid overlay */}
+        <div style={{ position: "fixed", inset: 0, backgroundImage: `linear-gradient(${C.border}44 1px, transparent 1px), linear-gradient(90deg, ${C.border}44 1px, transparent 1px)`, backgroundSize: "40px 40px", pointerEvents: "none", zIndex: 0, opacity: 0.6 }} />
+
+        {/* Scanline */}
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 100, background: `linear-gradient(to bottom, transparent, ${C.teal}05, transparent)`, pointerEvents: "none", zIndex: 1, animation: "scanline 10s linear infinite" }} />
 
         <div style={{ position: "relative", zIndex: 2, paddingBottom: 40 }}>
 
-          {/* NAV */}
-          <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 28px", borderBottom: `1px solid ${C.border}`, background: `${C.panel}ee`, backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 50 }}>
+          {/* ── NAV ── */}
+          <header style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 28px",
+            borderBottom: `1px solid ${C.border}`,
+            background: `${C.panel}f0`,
+            backdropFilter: "blur(16px)",
+            position: "sticky", top: 0, zIndex: 50,
+          }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
                 <polygon points="16,3 30,28 2,28" fill="none" stroke={C.teal} strokeWidth="2" strokeLinejoin="round"/>
                 <line x1="9" y1="28" x2="23" y2="28" stroke={C.teal} strokeWidth="2" strokeLinecap="round"/>
                 <circle cx="16" cy="18" r="2.5" fill={C.teal}/>
               </svg>
               <div>
-                <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 15, letterSpacing: "0.05em", color: C.white }}>DELTAAGENT<span style={{ color: C.teal }}> AI</span></div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>COMMAND CENTER · BETA</div>
+                <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em" }}>
+                  DELTAAGENT<span style={{ color: C.teal }}> AI</span>
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>
+                  OPERATIONS COMMAND · BETA
+                </div>
               </div>
             </div>
+
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {pendingCount > 0 && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "4px 10px", borderRadius: 20,
+                  background: `${C.red}20`,
+                  border: `1px solid ${C.red}44`,
+                  animation: "pulseGlow 2s ease-in-out infinite",
+                }}>
+                  <PulsingDot color={C.red} size={6} />
+                  <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.red, letterSpacing: "0.06em" }}>
+                    {pendingCount} PENDING
+                  </span>
+                </div>
+              )}
               <Badge color={scenario.statusColor}>{scenario.status}</Badge>
-              <div className="hide-mobile" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>
+              <div className="hide-sm" style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>
                 {time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" })} CST
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <PulsingDot color={C.teal} />
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.teal }}>LIVE</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <PulsingDot color={C.teal} size={7} />
+                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal }}>LIVE</span>
               </div>
             </div>
           </header>
 
-          <div style={{ padding: "16px 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-            {/* ROW 1: Gauge + OODA */}
-            <div className="row1-grid">
+            {/* ── HERO ROW: Three stat cards ── */}
+            <div className="hero-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
 
-              {/* Gauge */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 20px" }}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>CARROLLTON GAUGE · 8761927</span>
-                  {gaugeData ? <Badge color={C.teal}>NOAA LIVE</Badge> : <Badge color={C.muted}>SIMULATED</Badge>}
-                </div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 48, fontWeight: 700, color: scenario.statusColor, lineHeight: 1, marginBottom: 4, textShadow: `0 0 24px ${scenario.statusColor}55` }}>
-                  {simGauge.toFixed(1)}<span style={{ fontSize: 16, color: C.muted, marginLeft: 4 }}>ft</span>
-                </div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, marginBottom: 10 }}>
-                  {gaugeData ? `Live reading · ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "America/Chicago" })} CST` : "Simulated · adjust slider below"}
+              {/* Gauge card */}
+              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 4 }}>CARROLLTON GAUGE · 8761927</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 36, fontWeight: 700, color: scenario.statusColor, textShadow: `0 0 20px ${scenario.statusColor}44`, lineHeight: 1 }}>
+                        {simGauge.toFixed(1)}
+                      </span>
+                      <span style={{ fontFamily: C.mono, fontSize: 13, color: C.muted }}>ft</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 16, color: trendColor, fontWeight: 700 }}>{trendDir}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                    {gaugeData ? <Badge color={C.teal} small>NOAA LIVE</Badge> : <Badge color={C.muted} small>SIMULATED</Badge>}
+                    <Sparkline data={scenario.trend} color={scenario.statusColor} />
+                  </div>
                 </div>
                 <GaugeBar value={simGauge} />
+                {/* Scenario slider */}
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted, marginBottom: 6, letterSpacing: "0.08em" }}>
-                    SCENARIO SIMULATOR — drag to simulate river stage events
-                  </div>
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR</div>
                   <input type="range" min={1} max={10} step={0.1} value={simGauge}
-                    onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setScenario(buildScenario(v)); resetLoop(); }}
+                    onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setScenario(buildScenario(v)); }}
                     style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }}
                   />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted, marginTop: 2 }}>
-                    <span>1 ft</span><span style={{ color: C.amber }}>5.5 ELEVATED</span><span style={{ color: C.red }}>8.0 CRITICAL</span><span>10 ft</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
+                    <span>1ft</span><span style={{ color: C.amber }}>5.5 ELEVATED</span><span style={{ color: C.red }}>8.0 CRITICAL</span><span>10ft</span>
                   </div>
                 </div>
               </div>
 
-              {/* OODA */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 20px" }}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em", marginBottom: 12 }}>OODA LOOP · CURRENT CYCLE</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-                  {oodaPhases.map((phase, i) => {
-                    const active   = oodaStep === i;
-                    const complete = oodaStep > i;
-                    const color    = complete || active ? C.teal : C.muted;
-                    return (
-                      <div key={phase} style={{ padding: "12px 14px", borderRadius: 6, border: `1px solid ${active ? C.teal+"88" : complete ? C.tealDim : C.border}`, background: complete ? `${C.teal}0d` : active ? `${C.teal}15` : "transparent", transition: "all 0.4s ease" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <div style={{ width: 24, height: 24, borderRadius: "50%", border: `2px solid ${active ? C.teal : complete ? C.tealDim : C.border}`, background: complete ? C.tealDim : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color, boxShadow: active ? `0 0 10px ${C.teal}55` : "none", transition: "all 0.4s ease" }}>
-                            {complete ? "✓" : phase[0]}
-                          </div>
-                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color, letterSpacing: "0.08em" }}>{phase}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
-                          {phase === "OBSERVE" && "NOAA · AIS · NOPB data"}
-                          {phase === "ORIENT"  && "River-Logic analysis"}
-                          {phase === "DECIDE"  && "1,024 simulations run"}
-                          {phase === "ACT"     && "SMS · API · Dashboard"}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {/* Decisions pending card */}
+              <div style={{
+                background: pendingCount > 0 ? `${C.red}08` : C.panel,
+                border: `1px solid ${pendingCount > 0 ? C.red + "44" : C.border}`,
+                borderRadius: 8, padding: "16px 20px",
+                display: "flex", flexDirection: "column", justifyContent: "space-between",
+              }}>
+                <div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>DECISIONS AWAITING</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontFamily: C.mono, fontSize: 52, fontWeight: 700, color: pendingCount > 0 ? C.red : C.muted, lineHeight: 1, textShadow: pendingCount > 0 ? `0 0 30px ${C.red}44` : "none" }}>
+                      {pendingCount}
+                    </span>
+                    <span style={{ fontFamily: C.mono, fontSize: 12, color: C.muted }}>
+                      {pendingCount === 1 ? "decision" : "decisions"}
+                    </span>
+                  </div>
                 </div>
-                <button onClick={running ? undefined : runLoop} style={{ width: "100%", padding: "11px 0", borderRadius: 6, border: `1px solid ${running ? C.tealDim : C.teal}`, background: running ? C.tealFaint : `${C.teal}22`, color: running ? C.muted : C.teal, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", cursor: running ? "not-allowed" : "pointer", transition: "all 0.2s ease" }}>
-                  {running ? "▶ RUNNING CYCLE…" : done ? "↺ RUN NEW CYCLE" : "▶ RUN OODA CYCLE"}
-                </button>
-                {done && (
-                  <button onClick={resetLoop} style={{ width: "100%", marginTop: 8, padding: "8px 0", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "0.08em", cursor: "pointer" }}>RESET</button>
+                <div>
+                  {pendingCount > 0 ? (
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+                      {scenario.decisions[0].advanceWarning} advance warning on highest priority item
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: C.muted }}>All systems nominal — no action required</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Next vessel + savings card */}
+              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>NEXT INBOUND VESSEL</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.white, marginBottom: 4 }}>MV Delta Voyager</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, marginBottom: 4 }}>LOA 185m · Draft 9.2m · ETA 04:20 CST</div>
+                  <Badge color={scenario.riskColor} small>{scenario.risk}</Badge>
+                </div>
+                {totalSavings > 0 && (
+                  <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22` }}>
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 2, letterSpacing: "0.08em" }}>POTENTIAL SAVINGS TODAY</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, color: C.green }}>${totalSavings.toLocaleString()}</div>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* ROW 2: River Map */}
-            <RiverMap gaugeVal={simGauge} statusColor={scenario.statusColor} log={log} />
-
-            {/* ROW 3: Log + Recommendation + System Status */}
-            <div className="row3-grid">
-
-              {/* Agent Log */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em" }}>AGENT ACTIVITY LOG</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {running && <PulsingDot color={C.teal} />}
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted }}>{log.length} EVENTS</span>
-                  </div>
-                </div>
-                <div ref={logRef} style={{ height: 200, overflowY: "auto", padding: "12px 16px" }}>
-                  {log.length === 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, gap: 8 }}>
-                      <div style={{ fontSize: 28, opacity: 0.3 }}>◈</div>
-                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.08em" }}>AWAITING CYCLE INITIATION</div>
-                      <div style={{ fontSize: 12 }}>Press RUN OODA CYCLE to activate agents</div>
-                    </div>
-                  )}
-                  {log.map(entry => {
-                    const ag = AGENTS.find(a => a.id === entry.agent);
-                    return (
-                      <div key={entry.id} className="log-entry" style={{ display: "flex", gap: 10, marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
-                        <div style={{ flexShrink: 0, paddingTop: 2 }}>
-                          <div style={{ width: 26, height: 26, borderRadius: 4, background: `${ag.color}18`, border: `1px solid ${ag.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, color: ag.color }}>{ag.code}</div>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: ag.color }}>{ag.name}</span>
-                            <Badge color={ag.color}>{entry.phase}</Badge>
-                          </div>
-                          <div style={{ fontSize: 12, color: "#c0d8d6", lineHeight: 1.55 }}>{entry.text}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* AI Recommendation */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em" }}>AI RECOMMENDATION</div>
-                <div style={{ padding: "16px 18px" }}>
-                  {!recVisible ? (
-                    <div style={{ color: C.muted, fontSize: 12, textAlign: "center", padding: "40px 0" }}>
-                      <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3 }}>⊡</div>
-                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>PENDING ANALYSIS</div>
-                    </div>
-                  ) : (
-                    <div className="rec-card">
-                      <div style={{ padding: "12px 14px", borderRadius: 6, border: `1px solid ${recColor}44`, background: `${recColor}10`, marginBottom: 14 }}>
-                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: recColor, letterSpacing: "0.08em", marginBottom: 6 }}>
-                          {scenario.recommendation.severity.toUpperCase()} · AGENT CONSENSUS
-                        </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: C.white, marginBottom: 8 }}>{scenario.recommendation.label}</div>
-                        <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5 }}>{scenario.recommendation.detail}</div>
-                      </div>
-                      {confirmed ? (
-                        <div style={{ padding: "10px 14px", borderRadius: 6, border: `1px solid ${confirmed==="confirmed"?C.teal:C.amber}44`, background: `${confirmed==="confirmed"?C.teal:C.amber}10`, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: confirmed==="confirmed"?C.teal:C.amber, textAlign: "center", letterSpacing: "0.06em" }}>
-                          {confirmed === "confirmed" ? "✓ CONFIRMED — Executing via SMS + API" : "⚠ OVERRIDE LOGGED — Manual action required"}
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={() => setConfirmed("confirmed")} style={{ flex: 1, padding: "10px 0", borderRadius: 6, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>✓ CONFIRM</button>
-                          <button onClick={() => setConfirmed("override")} style={{ flex: 1, padding: "10px 0", borderRadius: 6, border: `1px solid ${C.amber}`, background: `${C.amber}10`, color: C.amber, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>⚠ OVERRIDE</button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* System Status */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 18px" }}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>SYSTEM STATUS</div>
-                {[
-                  { label: "NOAA Feed",           ok: !gaugeError },
-                  { label: "AIS Vessel Track",     ok: true },
-                  { label: "Agent Orchestrator",   ok: true },
-                  { label: "SMS Gateway (Twilio)", ok: true },
-                  { label: "NOPB Rail API",        ok: true },
-                ].map(({ label, ok }) => (
-                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, color: C.muted }}>{label}</span>
-                    <Badge color={ok ? C.teal : C.amber}>{ok ? "ONLINE" : "SIM"}</Badge>
-                  </div>
-                ))}
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.muted, letterSpacing: "0.1em", marginBottom: 10 }}>AIS · INBOUND VESSEL</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 2 }}>MV Delta Voyager</div>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted }}>LOA 185m · Draft 9.2m</div>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted, marginTop: 2 }}>ETA Southwest Pass 04:20 CST</div>
-                </div>
-              </div>
+            {/* ── TABS ── */}
+            <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}` }}>
+              {[
+                { id: "inbox", label: `DECISION INBOX${pendingCount > 0 ? ` (${pendingCount})` : ""}` },
+                { id: "log",   label: "AGENT LOG" },
+                { id: "status", label: "SYSTEM STATUS" },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                  padding: "10px 18px",
+                  border: "none",
+                  borderBottom: activeTab === tab.id ? `2px solid ${C.teal}` : "2px solid transparent",
+                  background: "transparent",
+                  color: activeTab === tab.id ? C.teal : C.muted,
+                  fontFamily: C.mono, fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.08em", cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  marginBottom: -1,
+                }}>
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* FOOTER */}
+            {/* ── INBOX TAB ── */}
+            {activeTab === "inbox" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {scenario.decisions.length === 0 ? (
+                  <div style={{
+                    background: C.panel, border: `1px solid ${C.border}`,
+                    borderRadius: 8, padding: "48px 24px",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+                    color: C.muted, textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: 32, opacity: 0.3 }}>✓</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em" }}>INBOX CLEAR</div>
+                    <div style={{ fontSize: 13 }}>All agent recommendations confirmed. No pending decisions.</div>
+                    <div style={{ fontSize: 12, color: C.mutedLo, marginTop: 4 }}>
+                      Drag the scenario slider above to simulate river stage events
+                    </div>
+                  </div>
+                ) : (
+                  scenario.decisions.map(d => (
+                    <DecisionCard
+                      key={d.id}
+                      decision={d}
+                      gaugeVal={simGauge}
+                      onConfirm={handleConfirm}
+                      onOverride={handleOverride}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* ── AGENT LOG TAB ── */}
+            {activeTab === "log" && (
+              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+                {agentLog.length === 0 ? (
+                  <div style={{ padding: "48px 24px", textAlign: "center", color: C.muted }}>
+                    <div style={{ fontFamily: C.mono, fontSize: 11, letterSpacing: "0.08em", marginBottom: 8 }}>NO ACTIVITY YET</div>
+                    <div style={{ fontSize: 12 }}>Confirmed and overridden decisions will appear here</div>
+                  </div>
+                ) : (
+                  agentLog.map((entry, i) => (
+                    <div key={i} style={{
+                      display: "flex", gap: 16, alignItems: "flex-start",
+                      padding: "14px 20px",
+                      borderBottom: i < agentLog.length - 1 ? `1px solid ${C.border}` : "none",
+                      animation: i === 0 ? "fadeSlideIn 0.3s ease" : "none",
+                    }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, flexShrink: 0, paddingTop: 2 }}>{entry.time}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: entry.severity === "critical" ? C.red : entry.severity === "warning" ? C.amber : C.teal, marginBottom: 2 }}>
+                          {entry.action}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{entry.cost}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* ── SYSTEM STATUS TAB ── */}
+            {activeTab === "status" && (
+              <div className="bottom-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
+                  {[
+                    { label: "NOAA Carrollton Gauge", ok: !gaugeError, detail: gaugeData ? `${gaugeData.toFixed(2)}ft live` : "simulated" },
+                    { label: "AIS Vessel Track", ok: true, detail: "MV Delta Voyager inbound" },
+                    { label: "NOPB Rail API", ok: true, detail: "14 cars staged · Yard 3" },
+                    { label: "SMS Gateway (Twilio)", ok: true, detail: "Ready to dispatch" },
+                    { label: "Agent Orchestrator", ok: true, detail: "3 agents active" },
+                  ].map(({ label, ok, detail }) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: C.white }}>{label}</div>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{detail}</div>
+                      </div>
+                      <Badge color={ok ? C.teal : C.amber} small>{ok ? "ONLINE" : "SIM"}</Badge>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>AGENT NETWORK</div>
+                  {[
+                    { code: "RW", name: "River Warden", role: "Environmental Monitor", color: C.teal, status: "Monitoring gauge · 15min cycle" },
+                    { code: "BM", name: "Berth Master", role: "Dock Scheduler", color: C.amber, status: "Berth sequence optimized" },
+                    { code: "IS", name: "Intermodal Sync", role: "Rail & Truck Coord.", color: "#a78bfa", status: "Rail handoff confirmed" },
+                  ].map(ag => (
+                    <div key={ag.code} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 12px", borderRadius: 6,
+                      border: `1px solid ${ag.color}22`,
+                      background: `${ag.color}08`,
+                      marginBottom: 8,
+                    }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: `${ag.color}20`, border: `1px solid ${ag.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: ag.color, flexShrink: 0 }}>{ag.code}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.white }}>{ag.name}</div>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{ag.status}</div>
+                      </div>
+                      <PulsingDot color={ag.color} size={7} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── FOOTER ── */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTop: `1px solid ${C.border}`, flexWrap: "wrap", gap: 8 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 <Badge color={C.teal}>TWIC-CLEARED FOUNDERS</Badge>
                 <Badge color={C.tealDim}>MTSA ALIGNED</Badge>
                 <Badge color={C.muted}>NEWLAB NEW ORLEANS</Badge>
               </div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted }}>© 2026 DELTAAGENT AI, LLC · deltaagent.ai · BETA</div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>© 2026 DELTAAGENT AI, LLC · deltaagent.ai · BETA</div>
             </div>
 
           </div>
