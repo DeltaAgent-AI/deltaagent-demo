@@ -22,22 +22,43 @@ const C = {
   sans:      "'Plus Jakarta Sans', sans-serif",
 };
 
+// ── DATA SOURCES ────────────────────────────────────────────────────────────
 const NOAA_URL =
   "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
   "?station=8761927&product=water_level&datum=MLLW" +
   "&time_zone=lst_ldt&units=english&format=json&range=2";
 
-function buildScenario(ft) {
+// NDBC BURL1 — Southwest Pass, LA (28.906N 89.429W)
+// Provides wind speed, visibility, wave height — real C-MAN station
+const NDBC_FOG_URL = "https://www.ndbc.noaa.gov/data/realtime2/BURL1.txt";
+
+// NHC active storms JSON — only populated Jun-Nov hurricane season
+const NHC_URL = "https://www.nhc.noaa.gov/CurrentStorms.json";
+
+// ── DISRUPTION TYPE DEFINITIONS ─────────────────────────────────────────────
+const DISRUPTION_TYPES = [
+  { type: "FLOOD",          label: "High Water",        color: "#dc2626", live: true  },
+  { type: "WATER LEVEL",    label: "Water Level",       color: "#d97706", live: true  },
+  { type: "FOG",            label: "Fog / Visibility",  color: "#3bbfb2", live: true  },
+  { type: "SNOW & ICE",     label: "Snow & Ice",        color: "#93c5fd", live: true  },
+  { type: "SEVERE WEATHER", label: "Hurricane / Storm", color: "#a78bfa", live: true  },
+  { type: "DROUGHT",        label: "Drought",           color: "#d97706", live: false },
+  { type: "SYS FAILURE",    label: "System Failure",    color: "#4a7a75", live: false },
+  { type: "MAINTENANCE",    label: "Maintenance",       color: "#4a7a75", live: false },
+];
+
+// ── FLOOD / WATER LEVEL SCENARIO ────────────────────────────────────────────
+function buildFloodScenario(ft) {
   const rising   = ft > 5.5;
   const critical = ft > 8.0;
   const status      = critical ? "CRITICAL" : rising ? "ELEVATED" : "NOMINAL";
   const statusColor = critical ? C.red : rising ? C.amber : C.teal;
   const risk        = critical ? "HIGH RISK" : rising ? "ELEVATED RISK" : "NOMINAL";
   const riskColor   = critical ? C.red : rising ? C.amber : C.teal;
-
   const decisions = critical ? [
     {
       id: "d1", severity: "critical",
+      disruptionType: "FLOOD", disruptionLabel: "HIGH WATER",
       title: "HOLD — Delay Berthing 6 Hours",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft exceeds Algiers Point vessel restriction threshold. MV Delta Voyager draft (9.2m) incompatible with current stage.",
       costAvoided: 38000, costIfIgnored: 38000, advanceWarning: "4h 23m",
@@ -46,6 +67,7 @@ function buildScenario(ft) {
     },
     {
       id: "d2", severity: "warning",
+      disruptionType: "WATER LEVEL", disruptionLabel: "STAGE TREND",
       title: "STANDBY — Monitor Stage Trend",
       reason: "River stage rising 0.3ft/hr. If trend continues, secondary berth conflict projected at Berth 4 within 90 minutes.",
       costAvoided: 12000, costIfIgnored: 12000, advanceWarning: "1h 31m",
@@ -55,6 +77,7 @@ function buildScenario(ft) {
   ] : rising ? [
     {
       id: "d1", severity: "warning",
+      disruptionType: "FLOOD", disruptionLabel: "HIGH WATER",
       title: "RE-SEQUENCE — Swap Berth 2 to Berth 4",
       reason: "Stage rising trend detected. Draft margin for Berth 2 shrinking. Berth 4 preferred at current " + ft.toFixed(1) + "ft stage.",
       costAvoided: 14200, costIfIgnored: 14200, advanceWarning: "2h 11m",
@@ -62,14 +85,157 @@ function buildScenario(ft) {
       actions: ["Berth assignment updated: Berth 2 to Berth 4", "CN rail departure window shifted 08:45 to 10:15", "Truck gate ETA adjusted +90 min", "Crane gang reassigned to Berth 4"],
     },
   ] : [];
-
   const trend = critical
     ? [3.1, 4.2, 5.5, 6.8, 7.4, 8.0, 8.2, ft]
     : rising
     ? [3.8, 4.1, 4.4, 4.8, 5.1, 5.4, 5.6, ft]
     : [4.6, 4.5, 4.4, 4.3, 4.4, 4.5, 4.6, ft];
-
   return { ft, status, statusColor, risk, riskColor, decisions, trend };
+}
+
+// ── FOG SCENARIO ─────────────────────────────────────────────────────────────
+// visibility in nautical miles. Pilot restriction < 0.5nm. Dense fog < 0.25nm.
+function buildFogScenario(visNm) {
+  const dense    = visNm < 0.25;
+  const restrict = visNm < 0.5;
+  const status      = dense ? "CRITICAL" : restrict ? "ELEVATED" : "NOMINAL";
+  const statusColor = dense ? C.red : restrict ? C.amber : C.teal;
+  const risk        = dense ? "HIGH RISK" : restrict ? "ELEVATED RISK" : "NOMINAL";
+  const riskColor   = statusColor;
+  const decisions = dense ? [
+    {
+      id: "f1", severity: "critical",
+      disruptionType: "FOG", disruptionLabel: "DENSE FOG",
+      title: "HOLD — Suspend All Vessel Movement",
+      reason: "Southwest Pass visibility " + visNm.toFixed(2) + "nm — below 0.25nm dense fog threshold. Coast Guard has issued navigation restriction. All inbound vessel movement suspended.",
+      costAvoided: 29000, costIfIgnored: 29000, advanceWarning: "2h 10m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["All inbound vessels held at Southwest Pass anchorage", "Crane gang Berth 1 stood down — redeployed to Berth 3 maintenance", "22 drayage trucks notified: 3h delay window via Twilio SMS", "CN/KCS rail departure held pending visibility improvement"],
+    },
+    {
+      id: "f2", severity: "warning",
+      disruptionType: "FOG", disruptionLabel: "PILOT ADVISORY",
+      title: "ADVISORY — Notify Pilot Station",
+      reason: "Visibility dropping at 0.1nm/hr. Pilot boarding window at risk within 45 minutes at current trend.",
+      costAvoided: 8400, costIfIgnored: 8400, advanceWarning: "45m",
+      agents: ["RW"],
+      actions: ["Pilot Station notified via SMS — boarding advisory issued", "Port Director alerted to potential berthing window shift"],
+    },
+  ] : restrict ? [
+    {
+      id: "f1", severity: "warning",
+      disruptionType: "FOG", disruptionLabel: "VISIBILITY ALERT",
+      title: "DELAY — Hold Pilot Boarding 90 Min",
+      reason: "Southwest Pass visibility at " + visNm.toFixed(2) + "nm — below 0.5nm pilot boarding threshold. Standard 90-120 min delay protocol activated.",
+      costAvoided: 11200, costIfIgnored: 11200, advanceWarning: "1h 28m",
+      agents: ["RW", "BM"],
+      actions: ["Pilot boarding window delayed 90 min", "Berth crew notified — crane gang held on standby", "Truck gate ETA adjusted +90 min", "Port Director SMS dispatched"],
+    },
+  ] : [];
+  const trend = dense
+    ? [2.1, 1.8, 1.2, 0.8, 0.5, 0.3, 0.22, visNm]
+    : restrict
+    ? [2.4, 2.1, 1.6, 1.1, 0.8, 0.6, 0.52, visNm]
+    : [3.2, 3.5, 4.1, 5.0, 6.2, 7.8, 9.1, visNm];
+  return { visNm, status, statusColor, risk, riskColor, decisions, trend };
+}
+
+// ── ICE SCENARIO ─────────────────────────────────────────────────────────────
+// iceIndex 0-10: severity of upstream ice restriction on Ohio/Upper Mississippi
+// Affects barge tow arrival times and draft capacity
+function buildIceScenario(iceIndex) {
+  const severe   = iceIndex >= 7;
+  const moderate = iceIndex >= 4;
+  const status      = severe ? "CRITICAL" : moderate ? "ELEVATED" : "NOMINAL";
+  const statusColor = severe ? C.red : moderate ? C.amber : C.teal;
+  const risk        = severe ? "HIGH RISK" : moderate ? "ELEVATED RISK" : "NOMINAL";
+  const riskColor   = statusColor;
+  const delayDays   = severe ? Math.round(iceIndex * 3.2) : moderate ? Math.round(iceIndex * 1.8) : 0;
+  const decisions = severe ? [
+    {
+      id: "i1", severity: "critical",
+      disruptionType: "SNOW & ICE", disruptionLabel: "ICE RESTRICTION",
+      title: "RESEQUENCE — Upstream Ice Delay " + delayDays + " Days",
+      reason: "Corps of Engineers ice restriction index " + iceIndex.toFixed(1) + "/10 on Ohio River above Cairo, IL. Barge tow delays of " + delayDays + "+ days projected. Terminal inventory and rail schedule must be resequenced.",
+      costAvoided: 44000, costIfIgnored: 44000, advanceWarning: "72h",
+      agents: ["RW", "BM", "IS"],
+      actions: ["14 barge tows flagged for " + delayDays + "-day delay — ETA revised", "CN/KCS rail departure windows shifted to compensate upstream delay", "Terminal inventory resequenced — priority cargo identified", "Port Director and commodity traders notified via SMS"],
+    },
+    {
+      id: "i2", severity: "warning",
+      disruptionType: "SNOW & ICE", disruptionLabel: "DRAFT REDUCTION",
+      title: "ADVISORY — Reduce Barge Draft Capacity",
+      reason: "Ice floe activity reducing navigable channel width at Locks 52/53. Barge tows must reduce to single-cut configuration below Cairo.",
+      costAvoided: 16000, costIfIgnored: 16000, advanceWarning: "48h",
+      agents: ["RW", "IS"],
+      actions: ["Barge operators notified: single-cut restriction below Cairo, IL", "Commodity load plans adjusted for reduced draft capacity", "Arrival window extended +48h for affected tows"],
+    },
+  ] : moderate ? [
+    {
+      id: "i1", severity: "warning",
+      disruptionType: "SNOW & ICE", disruptionLabel: "ICE ADVISORY",
+      title: "MONITOR — Upstream Ice Advisory Active",
+      reason: "Ice restriction index " + iceIndex.toFixed(1) + "/10. Upper Mississippi navigation slowing. Estimated " + delayDays + "-day ripple delay to Lower Mississippi arrivals.",
+      costAvoided: 18500, costIfIgnored: 18500, advanceWarning: "36h",
+      agents: ["RW", "IS"],
+      actions: ["Upstream barge ETAs revised +2 days", "Rail and drayage schedules pre-adjusted", "Terminal inventory reviewed for buffer stock"],
+    },
+  ] : [];
+  const trend = severe
+    ? [1.2, 2.4, 3.8, 5.1, 6.4, 7.2, 7.8, iceIndex]
+    : moderate
+    ? [0.8, 1.4, 2.1, 2.8, 3.4, 3.9, 4.2, iceIndex]
+    : [0.2, 0.3, 0.4, 0.3, 0.2, 0.3, 0.2, iceIndex];
+  return { iceIndex, status, statusColor, risk, riskColor, decisions, trend };
+}
+
+// ── HURRICANE SCENARIO ────────────────────────────────────────────────────────
+// distanceMiles: distance of storm center from mouth of Mississippi
+// category: 0-5 (0 = tropical storm)
+function buildHurricaneScenario(distanceMiles, category) {
+  const imminent  = distanceMiles < 200;
+  const watch     = distanceMiles < 400;
+  const status      = imminent ? "CRITICAL" : watch ? "ELEVATED" : "NOMINAL";
+  const statusColor = imminent ? C.red : watch ? C.amber : C.teal;
+  const risk        = imminent ? "HIGH RISK" : watch ? "ELEVATED RISK" : "NOMINAL";
+  const riskColor   = statusColor;
+  const catLabel    = category === 0 ? "Tropical Storm" : "Category " + category;
+  const decisions = imminent ? [
+    {
+      id: "h1", severity: "critical",
+      disruptionType: "SEVERE WEATHER", disruptionLabel: "HURRICANE",
+      title: "EVACUATE — Clear All Berths Within 24h",
+      reason: catLabel + " " + distanceMiles + " miles from Southwest Pass. NHC forecast landfall within 18-24h. All vessels must depart or seek shelter. Port closure imminent.",
+      costAvoided: 112000, costIfIgnored: 112000, advanceWarning: "18h",
+      agents: ["RW", "BM", "IS"],
+      actions: ["All inbound vessels diverted to Mobile, AL or Pascagoula, MS anchorage", "All berths cleared — vessels at dock given 6h departure window", "CN/KCS rail traffic halted — cars staged at inland yards", "Port Director, Coast Guard Sector NOLA, and FEMA notified", "Emergency operation mode activated — MTSA hurricane protocol"],
+    },
+    {
+      id: "h2", severity: "critical",
+      disruptionType: "SEVERE WEATHER", disruptionLabel: "STORM SURGE",
+      title: "SECURE — Storm Surge Protocol Activated",
+      reason: "NHC surge forecast " + (category * 4 + 6) + "-" + (category * 4 + 10) + "ft above normal at Southwest Pass. Terminal equipment must be secured.",
+      costAvoided: 68000, costIfIgnored: 68000, advanceWarning: "12h",
+      agents: ["BM"],
+      actions: ["Crane booms lowered and secured at all berths", "Terminal cargo covered and tie-downs verified", "Equipment moved to elevated staging areas", "Berth infrastructure flood checklist completed"],
+    },
+  ] : watch ? [
+    {
+      id: "h1", severity: "warning",
+      disruptionType: "SEVERE WEATHER", disruptionLabel: "HURRICANE WATCH",
+      title: "PREPARE — Hurricane Watch Protocol",
+      reason: catLabel + " tracking toward Gulf Coast — " + distanceMiles + " miles out. 48-72h window for preparation. Vessel sequencing must begin now.",
+      costAvoided: 54000, costIfIgnored: 54000, advanceWarning: "48h",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Inbound vessel queue reviewed — priority cargo expedited", "Berth clearance schedule drafted for potential port closure", "CN/KCS rail pre-positioned for rapid clearance", "Port Director briefed — contingency plan activated"],
+    },
+  ] : [];
+  const trend = imminent
+    ? [800, 650, 500, 380, 290, 220, 205, distanceMiles]
+    : watch
+    ? [900, 820, 720, 600, 500, 430, 410, distanceMiles]
+    : [1200, 1100, 980, 850, 700, 550, 420, distanceMiles];
+  return { distanceMiles, category, status, statusColor, risk, riskColor, decisions, trend };
 }
 
 function Badge({ color, children, small }) {
@@ -302,6 +468,11 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
               <Badge color={state === "done" ? C.teal : severityColor}>{state === "done" ? "CONFIRMED" : decision.severity}</Badge>
+              {decision.disruptionType && (
+                <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: C.muted, background: `${C.muted}15`, border: `1px solid ${C.muted}33`, borderRadius: 3, padding: "1px 6px", letterSpacing: "0.06em" }}>
+                  {decision.disruptionType} &middot; {decision.disruptionLabel}
+                </span>
+              )}
               {decision.agents.map(a => <Badge key={a} color={C.muted} small>{a}</Badge>)}
               <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700 }}>⏱ {decision.advanceWarning} advance warning</span>
             </div>
@@ -416,10 +587,32 @@ function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) 
 }
 
 export default function DeltaAgentDashboard() {
-  const [gaugeData, setGaugeData]             = useState(null);
-  const [gaugeError, setGaugeError]           = useState(false);
-  const [simGauge, setSimGauge]               = useState(4.4);
-  const [scenario, setScenario]               = useState(() => buildScenario(4.4));
+  // ── active disruption type ──
+  const [activeDisruption, setActiveDisruption] = useState("FLOOD");
+
+  // ── FLOOD state ──
+  const [gaugeData, setGaugeData]   = useState(null);
+  const [gaugeError, setGaugeError] = useState(false);
+  const [simGauge, setSimGauge]     = useState(4.4);
+  const [scenario, setScenario]     = useState(() => buildFloodScenario(4.4));
+
+  // ── FOG state ──
+  const [fogData, setFogData]     = useState(null);
+  const [fogError, setFogError]   = useState(false);
+  const [simVis, setSimVis]       = useState(3.0);
+  const [fogScenario, setFogScenario] = useState(() => buildFogScenario(3.0));
+
+  // ── ICE state ──
+  const [simIce, setSimIce]       = useState(1.0);
+  const [iceScenario, setIceScenario] = useState(() => buildIceScenario(1.0));
+
+  // ── HURRICANE state ──
+  const [nhcData, setNhcData]       = useState(null);
+  const [simStormDist, setSimStormDist] = useState(800);
+  const [simStormCat, setSimStormCat]   = useState(2);
+  const [stormScenario, setStormScenario] = useState(() => buildHurricaneScenario(800, 2));
+
+  // ── shared UI state ──
   const [time, setTime]                       = useState(new Date());
   const [smsQueue, setSmsQueue]               = useState([]);
   const [overrideQueue, setOverrideQueue]     = useState([]);
@@ -436,11 +629,18 @@ export default function DeltaAgentDashboard() {
     { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed",       cost: "Berth 2 nominal · Crane gang confirmed",           severity: "ok" },
   ]);
 
+  // get active scenario based on disruption type
+  const activeScenario = activeDisruption === "FOG" ? fogScenario
+    : activeDisruption === "SNOW & ICE" ? iceScenario
+    : activeDisruption === "SEVERE WEATHER" ? stormScenario
+    : scenario;
+
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
+  // fetch NOAA gauge
   useEffect(() => {
     fetch(NOAA_URL)
       .then(r => r.json())
@@ -448,10 +648,44 @@ export default function DeltaAgentDashboard() {
         const readings = d?.data;
         if (readings?.length) {
           const latest = parseFloat(readings[readings.length - 1].v);
-          if (!isNaN(latest)) { setGaugeData(latest); setSimGauge(latest); setScenario(buildScenario(latest)); }
+          if (!isNaN(latest)) { setGaugeData(latest); setSimGauge(latest); setScenario(buildFloodScenario(latest)); }
         }
       })
       .catch(() => setGaugeError(true));
+  }, []);
+
+  // fetch NDBC BURL1 fog/visibility — plain text format
+  useEffect(() => {
+    fetch("https://www.ndbc.noaa.gov/data/realtime2/BURL1.txt")
+      .then(r => r.text())
+      .then(txt => {
+        const lines = txt.split("\n").filter(l => !l.startsWith("#") && l.trim());
+        if (lines.length >= 1) {
+          // NDBC format: YY MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS PTDY TIDE
+          const parts = lines[0].trim().split(/\s+/);
+          // VIS is column index 16 (0-based), in nautical miles
+          const vis = parseFloat(parts[16]);
+          if (!isNaN(vis) && vis > 0) {
+            setFogData(vis);
+            setSimVis(vis);
+            setFogScenario(buildFogScenario(vis));
+          }
+        }
+      })
+      .catch(() => setFogError(true));
+  }, []);
+
+  // NHC storms — only active in hurricane season
+  useEffect(() => {
+    fetch(NHC_URL)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.activeStorms?.length) {
+          // find closest storm to Gulf of Mexico (approx center 25N, 90W)
+          setNhcData(d.activeStorms[0]);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -462,6 +696,15 @@ export default function DeltaAgentDashboard() {
       setScrollToDecisionId(null);
     }, 150);
   }, [scrollToDecisionId, activeTab]);
+
+  // reset confirmed/overridden when switching disruption type
+  function switchDisruption(type) {
+    if (!DISRUPTION_TYPES.find(d => d.type === type)?.live) return;
+    setActiveDisruption(type);
+    setConfirmedIds(new Set());
+    setOverriddenIds(new Set());
+    setActiveTab("inbox");
+  }
 
   function handleConfirm(decision) {
     const logId = `log-${decision.id}-${Date.now()}`;
@@ -497,13 +740,15 @@ export default function DeltaAgentDashboard() {
 
   function removeSms(id) { setSmsQueue(q => q.filter(s => s.id !== id)); }
 
-  const pendingCount     = scenario.decisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id)).length;
-  const confirmedSavings = scenario.decisions.filter(d => confirmedIds.has(d.id)).reduce((s, d) => s + d.costAvoided, 0);
-  const pendingSavings   = scenario.decisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id)).reduce((s, d) => s + d.costAvoided, 0);
+  const pendingCount     = activeScenario.decisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id)).length;
+  const confirmedSavings = activeScenario.decisions.filter(d => confirmedIds.has(d.id)).reduce((s, d) => s + d.costAvoided, 0);
+  const pendingSavings   = activeScenario.decisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id)).reduce((s, d) => s + d.costAvoided, 0);
   const totalSavings     = confirmedSavings + pendingSavings;
   const sessionTotal     = sessionSavings.reduce((s, x) => s + x.amount, 0);
-  const trendDir         = scenario.trend[scenario.trend.length - 1] > scenario.trend[scenario.trend.length - 2] ? "up" : scenario.trend[scenario.trend.length - 1] < scenario.trend[scenario.trend.length - 2] ? "dn" : "st";
-  const trendChar        = trendDir === "up" ? "↑" : trendDir === "dn" ? "↓" : "→";
+  const trendDir         = activeScenario.trend[activeScenario.trend.length - 1] > activeScenario.trend[activeScenario.trend.length - 2] ? "up" : activeScenario.trend[activeScenario.trend.length - 1] < activeScenario.trend[activeScenario.trend.length - 2] ? "dn" : "st";
+  const trendChar        = activeDisruption === "FOG" || activeDisruption === "SEVERE WEATHER"
+    ? (trendDir === "up" ? "↓" : trendDir === "dn" ? "↑" : "→")  // inverted: lower vis/distance = worse
+    : (trendDir === "up" ? "↑" : trendDir === "dn" ? "↓" : "→");
   const trendColor       = trendDir === "up" ? C.amber : trendDir === "dn" ? C.teal : C.muted;
 
   return (
@@ -550,10 +795,10 @@ export default function DeltaAgentDashboard() {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div onClick={() => pendingCount > 0 && setActiveTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${scenario.statusColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? scenario.statusColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default", transition: "all 0.3s ease" }}>
-                <PulsingDot color={pendingCount > 0 ? scenario.statusColor : C.teal} size={7} />
-                <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: pendingCount > 0 ? scenario.statusColor : C.teal, letterSpacing: "0.08em" }}>
-                  {pendingCount > 0 ? `${scenario.status} · ${pendingCount} PENDING` : scenario.status}
+              <div onClick={() => pendingCount > 0 && setActiveTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${activeScenario.statusColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? activeScenario.statusColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default", transition: "all 0.3s ease" }}>
+                <PulsingDot color={pendingCount > 0 ? activeScenario.statusColor : C.teal} size={7} />
+                <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: pendingCount > 0 ? activeScenario.statusColor : C.teal, letterSpacing: "0.08em" }}>
+                  {pendingCount > 0 ? `${activeScenario.status} · ${pendingCount} PENDING` : activeScenario.status}
                 </span>
               </div>
               <div className="hide-sm" style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>
@@ -571,28 +816,137 @@ export default function DeltaAgentDashboard() {
               <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <div>
-                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 4 }}>CARROLLTON GAUGE · 8761927</div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 36, fontWeight: 700, color: scenario.statusColor, textShadow: `0 0 20px ${scenario.statusColor}44`, lineHeight: 1 }}>{simGauge.toFixed(1)}</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 13, color: C.muted }}>ft</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 16, color: trendColor, fontWeight: 700 }}>{trendChar}</span>
-                    </div>
+                    {activeDisruption === "FOG" ? (
+                      <>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 4 }}>SW PASS VISIBILITY · BURL1</div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 36, fontWeight: 700, color: activeScenario.statusColor, textShadow: `0 0 20px ${activeScenario.statusColor}44`, lineHeight: 1 }}>{simVis.toFixed(1)}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 13, color: C.muted }}>nm</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 16, color: trendColor, fontWeight: 700 }}>{trendChar}</span>
+                        </div>
+                      </>
+                    ) : activeDisruption === "SNOW & ICE" ? (
+                      <>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 4 }}>ICE RESTRICTION INDEX · CORPS</div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 36, fontWeight: 700, color: activeScenario.statusColor, textShadow: `0 0 20px ${activeScenario.statusColor}44`, lineHeight: 1 }}>{simIce.toFixed(1)}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 13, color: C.muted }}>/10</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 16, color: trendColor, fontWeight: 700 }}>{trendChar}</span>
+                        </div>
+                      </>
+                    ) : activeDisruption === "SEVERE WEATHER" ? (
+                      <>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 4 }}>STORM DISTANCE · NHC TRACK</div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 36, fontWeight: 700, color: activeScenario.statusColor, textShadow: `0 0 20px ${activeScenario.statusColor}44`, lineHeight: 1 }}>{simStormDist}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 13, color: C.muted }}>mi</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 16, color: trendColor, fontWeight: 700 }}>{trendChar}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 4 }}>CARROLLTON GAUGE · 8761927</div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 36, fontWeight: 700, color: activeScenario.statusColor, textShadow: `0 0 20px ${activeScenario.statusColor}44`, lineHeight: 1 }}>{simGauge.toFixed(1)}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 13, color: C.muted }}>ft</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 16, color: trendColor, fontWeight: 700 }}>{trendChar}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                    {gaugeData ? <Badge color={C.teal} small>NOAA LIVE</Badge> : <Badge color={C.muted} small>SIMULATED</Badge>}
-                    <Sparkline data={scenario.trend} color={scenario.statusColor} />
+                    {activeDisruption === "FOG"
+                      ? (fogData ? <Badge color={C.teal} small>NDBC LIVE</Badge> : <Badge color={C.muted} small>SIMULATED</Badge>)
+                      : activeDisruption === "SEVERE WEATHER"
+                      ? (nhcData ? <Badge color={C.red} small>NHC LIVE</Badge> : <Badge color={C.muted} small>SIMULATED</Badge>)
+                      : activeDisruption === "SNOW & ICE"
+                      ? <Badge color={C.muted} small>SIMULATED</Badge>
+                      : (gaugeData ? <Badge color={C.teal} small>NOAA LIVE</Badge> : <Badge color={C.muted} small>SIMULATED</Badge>)
+                    }
+                    <Sparkline data={activeScenario.trend} color={activeScenario.statusColor} />
                   </div>
                 </div>
-                <GaugeBar value={simGauge} />
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR</div>
-                  <input type="range" min={1} max={10} step={0.1} value={simGauge}
-                    onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setScenario(buildScenario(v)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }}
-                    style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
-                    <span>1ft</span><span style={{ color: C.amber }}>5.5 ELEVATED</span><span style={{ color: C.red }}>8.0 CRITICAL</span><span>10ft</span>
-                  </div>
-                </div>
+                {activeDisruption === "FOG" ? (
+                  <>
+                    <div style={{ width: "100%", marginTop: 8 }}>
+                      <div style={{ height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative" }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min((simVis / 10) * 100, 100)}%`, background: activeScenario.statusColor, transition: "width 1.2s ease", boxShadow: `0 0 6px ${activeScenario.statusColor}66` }} />
+                        {[0.25, 0.5].map((t, i) => (
+                          <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.red : C.amber, opacity: 0.6 }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR</div>
+                      <input type="range" min={0.05} max={10} step={0.05} value={simVis}
+                        onChange={e => { const v = parseFloat(e.target.value); setSimVis(v); setFogScenario(buildFogScenario(v)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }}
+                        style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
+                        <span>0.05nm</span><span style={{ color: C.red }}>0.25 DENSE</span><span style={{ color: C.amber }}>0.5 RESTRICT</span><span>10nm</span>
+                      </div>
+                    </div>
+                  </>
+                ) : activeDisruption === "SNOW & ICE" ? (
+                  <>
+                    <div style={{ width: "100%", marginTop: 8 }}>
+                      <div style={{ height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative" }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(simIce / 10) * 100}%`, background: activeScenario.statusColor, transition: "width 1.2s ease", boxShadow: `0 0 6px ${activeScenario.statusColor}66` }} />
+                        {[4, 7].map((t, i) => (
+                          <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR</div>
+                      <input type="range" min={0} max={10} step={0.1} value={simIce}
+                        onChange={e => { const v = parseFloat(e.target.value); setSimIce(v); setIceScenario(buildIceScenario(v)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }}
+                        style={{ width: "100%", accentColor: "#93c5fd", cursor: "pointer" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
+                        <span>0</span><span style={{ color: C.amber }}>4 MODERATE</span><span style={{ color: C.red }}>7 SEVERE</span><span>10</span>
+                      </div>
+                    </div>
+                  </>
+                ) : activeDisruption === "SEVERE WEATHER" ? (
+                  <>
+                    <div style={{ width: "100%", marginTop: 8 }}>
+                      <div style={{ height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative" }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 1000) * 100, 100)}%`, background: activeScenario.statusColor, transition: "width 1.2s ease", boxShadow: `0 0 6px ${activeScenario.statusColor}66` }} />
+                        {[400, 200].map((t, i) => (
+                          <div key={i} style={{ position: "absolute", left: `${((1000 - t) / 1000) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR · CAT {simStormCat}</div>
+                      <input type="range" min={50} max={1000} step={10} value={simStormDist}
+                        onChange={e => { const v = parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }}
+                        style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
+                        <span>50mi</span><span style={{ color: C.amber }}>400 WATCH</span><span style={{ color: C.red }}>200 WARNING</span><span>1000mi</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                        {[0,1,2,3,4,5].map(cat => (
+                          <button key={cat} onClick={() => { setSimStormCat(cat); setStormScenario(buildHurricaneScenario(simStormDist, cat)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }} style={{ flex: 1, padding: "3px 0", borderRadius: 3, border: `1px solid ${simStormCat === cat ? "#a78bfa" : C.border}`, background: simStormCat === cat ? "#a78bfa22" : "transparent", color: simStormCat === cat ? "#a78bfa" : C.muted, fontFamily: C.mono, fontSize: 8, cursor: "pointer" }}>
+                            {cat === 0 ? "TS" : `C${cat}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <GaugeBar value={simGauge} />
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>SCENARIO SIMULATOR</div>
+                      <input type="range" min={1} max={10} step={0.1} value={simGauge}
+                        onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setScenario(buildFloodScenario(v)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); }}
+                        style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
+                        <span>1ft</span><span style={{ color: C.amber }}>5.5 ELEVATED</span><span style={{ color: C.red }}>8.0 CRITICAL</span><span>10ft</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div style={{ background: pendingCount > 0 ? `${C.red}08` : C.panel, border: `1px solid ${pendingCount > 0 ? C.red + "44" : C.border}`, borderRadius: 8, padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
@@ -622,7 +976,7 @@ export default function DeltaAgentDashboard() {
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>NEXT INBOUND VESSEL</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.white, marginBottom: 4 }}>MV Delta Voyager</div>
                   <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, marginBottom: 4 }}>LOA 185m · Draft 9.2m · ETA 04:20 CST</div>
-                  <Badge color={scenario.riskColor} small>{scenario.risk}</Badge>
+                  <Badge color={activeScenario.riskColor} small>{activeScenario.risk}</Badge>
                 </div>
                 {totalSavings > 0 && (
                   <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22` }}>
@@ -635,6 +989,31 @@ export default function DeltaAgentDashboard() {
                     )}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* DISRUPTION TYPE SELECTOR */}
+            <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.12em", marginBottom: 10 }}>DISRUPTION MONITOR — CORPS OF ENGINEERS CLASSIFICATION</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {DISRUPTION_TYPES.map(({ type, label, color, live }) => {
+                  const isActive = activeDisruption === type;
+                  return (
+                    <div key={type} onClick={() => switchDisruption(type)} style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "5px 10px", borderRadius: 4,
+                      border: `1px solid ${isActive ? color + "88" : live ? color + "33" : C.border}`,
+                      background: isActive ? `${color}20` : live ? `${color}08` : "transparent",
+                      opacity: live ? 1 : 0.35,
+                      cursor: live ? "pointer" : "not-allowed",
+                      transition: "all 0.2s ease",
+                    }}>
+                      {live && <span style={{ width: 5, height: 5, borderRadius: "50%", background: isActive ? color : color + "88", flexShrink: 0, display: "inline-block" }} />}
+                      <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: isActive ? color : live ? color + "99" : C.muted, letterSpacing: "0.06em" }}>{type}</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 8, color: isActive ? color + "cc" : live ? color + "66" : C.mutedLo }}>{live ? label : "COMING SOON"}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -652,10 +1031,10 @@ export default function DeltaAgentDashboard() {
             </div>
 
             {activeTab === "inbox" && (() => {
-              const pending  = scenario.decisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id));
-              const actioned = scenario.decisions.filter(d => confirmedIds.has(d.id) || overriddenIds.has(d.id));
-              const allClear = scenario.decisions.length === 0;
-              const allDone  = scenario.decisions.length > 0 && pending.length === 0;
+              const pending  = activeScenario.decisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id));
+              const actioned = activeScenario.decisions.filter(d => confirmedIds.has(d.id) || overriddenIds.has(d.id));
+              const allClear = activeScenario.decisions.length === 0;
+              const allDone  = activeScenario.decisions.length > 0 && pending.length === 0;
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {pending.map(d => <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} />)}
@@ -765,13 +1144,31 @@ export default function DeltaAgentDashboard() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
-                  {[
+                  {(activeDisruption === "FOG" ? [
+                    { label: "NDBC BURL1 — SW Pass Visibility", ok: !fogError, detail: fogData ? `${fogData.toFixed(2)}nm live` : "simulated" },
+                    { label: "NWS Marine Forecast — GMZ572",    ok: true, detail: "Coastal waters advisory active" },
+                    { label: "AIS Vessel Track",                ok: true, detail: "MV Delta Voyager at anchorage" },
+                    { label: "SMS Gateway (Twilio)",            ok: true, detail: "Ready to dispatch" },
+                    { label: "Agent Orchestrator",              ok: true, detail: "3 agents active" },
+                  ] : activeDisruption === "SNOW & ICE" ? [
+                    { label: "Corps of Engineers — Ice Index",  ok: false, detail: "Simulated — Corps RSS feed" },
+                    { label: "NOAA Water Temp — Carrollton",    ok: true,  detail: gaugeData ? `${simGauge.toFixed(1)}ft / temp monitored` : "simulated" },
+                    { label: "AIS Barge Tow Track",             ok: true,  detail: "14 tows monitored upstream" },
+                    { label: "SMS Gateway (Twilio)",            ok: true,  detail: "Ready to dispatch" },
+                    { label: "Agent Orchestrator",              ok: true,  detail: "3 agents active" },
+                  ] : activeDisruption === "SEVERE WEATHER" ? [
+                    { label: "NHC Active Storms Feed",          ok: !!nhcData, detail: nhcData ? "Live storm data" : "No active storms / simulated" },
+                    { label: "NOAA Storm Surge Model",          ok: true,  detail: "SLOSH model active" },
+                    { label: "AIS Vessel Track",                ok: true,  detail: "All berths monitored" },
+                    { label: "SMS Gateway (Twilio)",            ok: true,  detail: "Ready to dispatch" },
+                    { label: "Agent Orchestrator",              ok: true,  detail: "3 agents active" },
+                  ] : [
                     { label: "NOAA Carrollton Gauge", ok: !gaugeError, detail: gaugeData ? `${gaugeData.toFixed(2)}ft live` : "simulated" },
                     { label: "AIS Vessel Track",      ok: true, detail: "MV Delta Voyager inbound" },
                     { label: "NOPB Rail API",         ok: true, detail: "14 cars staged · Yard 3" },
                     { label: "SMS Gateway (Twilio)",  ok: true, detail: "Ready to dispatch" },
                     { label: "Agent Orchestrator",    ok: true, detail: "3 agents active" },
-                  ].map(({ label, ok, detail }) => (
+                  ]).map(({ label, ok, detail }) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div>
                         <div style={{ fontSize: 12, color: C.white }}>{label}</div>
