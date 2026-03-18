@@ -1147,8 +1147,7 @@ export default function DeltaAgentDashboard() {
                     LIVE OPERATIONS SIMULATOR
                   </div>
                   <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
-                    Drag any slider to trigger real operational decisions for the Lower Mississippi corridor.
-                    <span style={{ color: C.white }}> Hit CONFIRM & DISPATCH</span> to see autonomous SMS coordination fire in real time.
+                    Drag any slider to trigger real operational decisions for the Lower Mississippi corridor. Hit <span style={{ color: C.teal, fontFamily: C.mono, fontSize: 11 }}>CONFIRM & DISPATCH</span> to see autonomous SMS coordination fire in real time.
                   </div>
                 </div>
               </div>
