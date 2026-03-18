@@ -1030,6 +1030,70 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
   );
 }
 
+// Hoisted so CountdownTimer can use it outside the dashboard component
+function warningToMinutes(w) {
+  if (!w || w === "IMMEDIATE") return 0;
+  const h = w.match(/(\d+)h/);
+  const m = w.match(/(\d+)m/);
+  let mins = 0;
+  if (h) mins += parseInt(h[1]) * 60;
+  if (m && !w.includes("h 00m")) mins += parseInt(m[1]);
+  if (w === "24h") return 24 * 60;
+  if (w === "48h") return 48 * 60;
+  if (w === "72h") return 72 * 60;
+  return mins || 9999;
+}
+
+function CountdownTimer({ advanceWarning }) {
+  const initialSeconds = advanceWarning === "IMMEDIATE" ? 0 : warningToMinutes(advanceWarning) * 60;
+  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+
+  useEffect(() => {
+    if (advanceWarning === "IMMEDIATE" || initialSeconds === 0) return;
+    const t = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (advanceWarning === "IMMEDIATE") {
+    return (
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <PulsingDot color={C.red} size={6} />
+        <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.red, letterSpacing: "0.04em" }}>IMMEDIATE</span>
+      </span>
+    );
+  }
+
+  const h = Math.floor(secondsLeft / 3600);
+  const m = Math.floor((secondsLeft % 3600) / 60);
+  const s = secondsLeft % 60;
+
+  const isUrgent   = secondsLeft < 30 * 60;  // under 30 min
+  const isCritical = secondsLeft < 10 * 60;  // under 10 min
+  const isPulse    = secondsLeft < 5  * 60;  // under 5 min
+
+  const color = isCritical ? C.red : isUrgent ? C.amber : C.amber;
+
+  const display = h > 0
+    ? `${h}h ${String(m).padStart(2, "0")}m`
+    : m > 0
+    ? `${m}m ${String(s).padStart(2, "0")}s`
+    : `${s}s`;
+
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{ opacity: 0.65, fontFamily: C.mono, fontSize: 9 }}>ACT WITHIN</span>
+      <span style={{
+        fontFamily: C.mono, fontSize: 12, fontWeight: 700, color,
+        letterSpacing: "0.04em",
+        animation: isPulse ? "pulseText 1s ease-in-out infinite" : "none",
+      }}>
+        {display}
+      </span>
+      {isUrgent && <PulsingDot color={color} size={5} />}
+    </span>
+  );
+}
+
 function CorridorRow({ label, value, valueColor, tab, hint, active, small, onNavigate }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -1122,12 +1186,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
               {decision.agents.map(a => <AgentBadge key={a} code={a} />)}
               <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
                 {state === "pending" && (
-                  <>
-                    <span style={{ opacity: 0.7 }}>ACT WITHIN</span>
-                    <span style={{ fontSize: 11, color: decision.advanceWarning === "IMMEDIATE" ? C.red : C.amber }}>
-                      {decision.advanceWarning === "IMMEDIATE" ? "IMMEDIATE" : decision.advanceWarning}
-                    </span>
-                  </>
+                  <CountdownTimer advanceWarning={decision.advanceWarning} />
                 )}
                 {(state === "done" || state === "override") && (
                   <button
@@ -1537,22 +1596,6 @@ export default function DeltaAgentDashboard() {
     ...stormScenario.decisions,
   ];
 
-  // Sort by severity: critical first, then warning
-  // Parse advanceWarning string to minutes for sorting
-  function warningToMinutes(w) {
-    if (!w || w === "IMMEDIATE") return 0;
-    const h = w.match(/(\d+)h/);
-    const m = w.match(/(\d+)m/);
-    const d = w.match(/(\d+)h 00m/) ? null : w.match(/^(\d+)h$/);
-    let mins = 0;
-    if (h) mins += parseInt(h[1]) * 60;
-    if (m && !w.includes("h 00m")) mins += parseInt(m[1]);
-    if (w === "24h") return 24 * 60;
-    if (w === "48h") return 48 * 60;
-    if (w === "72h") return 72 * 60;
-    return mins || 9999;
-  }
-
   // Sort by time urgency - least time to act goes first (real operational priority)
   // IMMEDIATE and shortest windows bubble to top regardless of severity
   const sortedDecisions = [...allDecisions].sort((a, b) => {
@@ -1818,6 +1861,7 @@ export default function DeltaAgentDashboard() {
         @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
         @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } }
+        @keyframes pulseText { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         button:hover { filter: brightness(1.15); }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -2136,8 +2180,8 @@ export default function DeltaAgentDashboard() {
                 <div>
                   {pendingCount > 0 ? (
                     <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.amber}10`, border: `1px solid ${C.amber}33` }}>
-                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em", marginBottom: 4 }}>TOP ADVANCE WARNING</div>
-                      <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.amber, lineHeight: 1 }}>  {pendingDecisions[0]?.advanceWarning}</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em", marginBottom: 6 }}>MOST URGENT</div>
+                      <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} />
                       <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 4 }}>{pendingDecisions[0]?.disruptionType}   {pendingDecisions[0]?.disruptionLabel}</div>
                     </div>
                   ) : allDecisions.length > 0 ? (
