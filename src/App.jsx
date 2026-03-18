@@ -1397,39 +1397,22 @@ export default function DeltaAgentDashboard() {
             {/*    INBOX - unified across all threat types    */}
             {activeTab === "inbox" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {pendingDecisions.map(d => (
-                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} />
-                ))}
-                {pendingDecisions.length === 0 && (
+                {sortedDecisions.length === 0 && (
                   <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "48px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: C.muted, textAlign: "center" }}>
                     <div style={{ fontSize: 32, opacity: 0.3 }}> </div>
                     <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em" }}>INBOX CLEAR</div>
                     <div style={{ fontSize: 13 }}>All threats nominal. Drag any simulator to trigger decisions.</div>
                   </div>
                 )}
-                {actionedDecisions.length > 0 && (
-                  <div style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${C.teal}33`, background: `${C.teal}08`, display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-                    <span style={{ color: C.teal, fontSize: 16 }}> </span>
-                    <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.06em" }}>
-                      {actionedDecisions.length} DECISION{actionedDecisions.length > 1 ? "S" : ""} ACTIONED
-                    </div>
+                {pendingDecisions.length === 0 && sortedDecisions.length > 0 && (
+                  <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "32px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: C.muted, textAlign: "center" }}>
+                    <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em" }}>INBOX CLEAR</div>
+                    <div style={{ fontSize: 13 }}>All decisions actioned. Scroll down to review execution records.</div>
                   </div>
                 )}
-                {actionedDecisions.map(d => (
-                  <div key={d.id + "-done"} id={`decision-${d.id}`} style={{ border: `1px solid ${confirmedIds.has(d.id) ? C.teal + "33" : C.amber + "33"}`, borderLeft: `3px solid ${confirmedIds.has(d.id) ? C.teal : C.amber}`, borderRadius: 8, background: confirmedIds.has(d.id) ? C.tealFaint : C.amberFaint, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ color: confirmedIds.has(d.id) ? C.teal : C.amber, fontSize: 14 }}>{confirmedIds.has(d.id) ? " " : " "}</span>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{d.title}</div>
-                        <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ color: threatColor[d.disruptionType] || C.muted }}>{d.disruptionType}</span>
-                          <span> </span>
-                          <span>{confirmedIds.has(d.id) ? `$${d.costAvoided.toLocaleString()} cost avoided` : "Overridden   Manual action required"}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Badge color={confirmedIds.has(d.id) ? C.teal : C.amber} small>{confirmedIds.has(d.id) ? "CONFIRMED" : "OVERRIDE"}</Badge>
-                  </div>
+                {/* Render ALL decisions with DecisionCard to preserve ExecutionTicker state */}
+                {sortedDecisions.map(d => (
+                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} />
                 ))}
               </div>
             )}
