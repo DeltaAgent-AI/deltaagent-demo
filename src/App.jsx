@@ -1914,7 +1914,15 @@ export default function DeltaAgentDashboard() {
   const prevFloodBandRef = useRef("nm");
   useEffect(() => {
     const currentKey = floodScenario.scenarioKey;
-    const prevKey    = prevFloodBandRef.current;
+    if (!currentKey || currentKey === "nm") {
+      // Back to nominal — prune all pending flood decisions
+      if (prevFloodBandRef.current !== "nm") {
+        pruneAndAdd("flood-", FLOOD_BAND_ORDER, "nm", []);
+        prevFloodBandRef.current = "nm";
+      }
+      return;
+    }
+    const prevKey = prevFloodBandRef.current;
     if (currentKey === prevKey) return;
     prevFloodBandRef.current = currentKey;
     const currentIdx = floodBandIndex(currentKey);
@@ -1936,7 +1944,14 @@ export default function DeltaAgentDashboard() {
   const prevFogBandRef = useRef("nm");
   useEffect(() => {
     const currentKey = fogScenario.fogBandKey;
-    const prevKey    = prevFogBandRef.current;
+    if (!currentKey || currentKey === "nm") {
+      if (prevFogBandRef.current !== "nm") {
+        pruneAndAdd("fog-", FOG_BAND_ORDER, "nm", []);
+        prevFogBandRef.current = "nm";
+      }
+      return;
+    }
+    const prevKey = prevFogBandRef.current;
     if (currentKey === prevKey) return;
     prevFogBandRef.current = currentKey;
     const currentIdx = bandIndex(FOG_BAND_ORDER, currentKey);
@@ -1952,7 +1967,14 @@ export default function DeltaAgentDashboard() {
   const prevIceBandRef = useRef("nm");
   useEffect(() => {
     const currentKey = iceScenario.iceBandKey;
-    const prevKey    = prevIceBandRef.current;
+    if (!currentKey || currentKey === "nm") {
+      if (prevIceBandRef.current !== "nm") {
+        pruneAndAdd("ice-", ICE_BAND_ORDER, "nm", []);
+        prevIceBandRef.current = "nm";
+      }
+      return;
+    }
+    const prevKey = prevIceBandRef.current;
     if (currentKey === prevKey) return;
     prevIceBandRef.current = currentKey;
     const currentIdx = bandIndex(ICE_BAND_ORDER, currentKey);
@@ -1968,7 +1990,14 @@ export default function DeltaAgentDashboard() {
   const prevStormBandRef = useRef("nm");
   useEffect(() => {
     const currentKey = stormScenario.stormBandKey;
-    const prevKey    = prevStormBandRef.current;
+    if (!currentKey || currentKey === "nm") {
+      if (prevStormBandRef.current !== "nm") {
+        pruneAndAdd("storm-", STORM_BAND_ORDER, "nm", []);
+        prevStormBandRef.current = "nm";
+      }
+      return;
+    }
+    const prevKey = prevStormBandRef.current;
     if (currentKey === prevKey) return;
     prevStormBandRef.current = currentKey;
     const currentIdx = bandIndex(STORM_BAND_ORDER, currentKey);
