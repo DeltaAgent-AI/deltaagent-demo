@@ -638,22 +638,12 @@ function getManualComparison(disruptionType) {
   }
 }
 
-function ExecutionTicker({ decision, forceVisible = false }) {
+function ExecutionTicker({ decision }) {
   const [firedCount, setFiredCount] = useState(0);
   const [done, setDone]             = useState(false);
   const [elapsed, setElapsed]       = useState("0.0");
-  const [collapsed, setCollapsed]   = useState(false);
   const startRef                    = useRef(Date.now());
-  const collapseRef                 = useRef(null);
-  const hoverRef                    = useRef(false); // ref so timeout callback always sees current value
   const steps = getExecSteps(decision.disruptionType);
-
-  function scheduleCollapse() {
-    clearTimeout(collapseRef.current);
-    collapseRef.current = setTimeout(() => {
-      if (!hoverRef.current) setCollapsed(true);
-    }, 12000);
-  }
 
   useEffect(() => {
     const clock = setInterval(() => setElapsed(((Date.now() - startRef.current) / 1000).toFixed(1)), 100);
@@ -661,48 +651,15 @@ function ExecutionTicker({ decision, forceVisible = false }) {
       setTimeout(() => {
         setFiredCount(i + 1);
         if (i === steps.length - 1) {
-          setTimeout(() => {
-            setDone(true);
-            clearInterval(clock);
-            scheduleCollapse();
-          }, 500);
+          setTimeout(() => { setDone(true); clearInterval(clock); }, 500);
         }
       }, (i + 1) * 800);
     });
-    return () => { clearInterval(clock); clearTimeout(collapseRef.current); };
+    return () => clearInterval(clock);
   }, []);
 
-  // Cancel collapse when parent or self is hovered
-  useEffect(() => {
-    if (forceVisible) {
-      hoverRef.current = true;
-      clearTimeout(collapseRef.current);
-      setCollapsed(false);
-    } else {
-      hoverRef.current = false;
-    }
-  }, [forceVisible]);
-
-  if (collapsed) {
-    return (
-      <div
-        onMouseEnter={() => { hoverRef.current = true; setCollapsed(false); }}
-        onClick={() => setCollapsed(false)}
-        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION RECORD</span>
-          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{steps.length} actions   {elapsed}s   ${decision.costAvoided.toLocaleString()} avoided</span>
-        </div>
-        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>hover to expand</span>
-      </div>
-    );
-  }
-
   return (
-    <div
-      onMouseEnter={() => { hoverRef.current = true; clearTimeout(collapseRef.current); }}
-      onMouseLeave={() => { hoverRef.current = false; if (done) scheduleCollapse(); }}
-      style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
+    <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {done ? <span style={{ color: C.teal }}>+</span> : <PulsingDot color={C.teal} size={8} />}
@@ -861,8 +818,7 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
           ))}
         </div>
       )}
-      {/* Execution record stays visible while hovered */}
-      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} forceVisible={hovered} />}
+      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} />}
     </div>
   );
 }
