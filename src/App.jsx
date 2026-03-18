@@ -550,6 +550,72 @@ function Badge({ color, children, small }) {
   );
 }
 
+const AGENT_INFO = {
+  RW: {
+    name: "River Warden",
+    color: C.teal,
+    role: "Environmental monitoring",
+    description: "Watches NOAA gauge data, visibility, ice index, and NHC storm tracks. Triggers threshold alerts and classifies disruption severity.",
+  },
+  BM: {
+    name: "Berth Master",
+    color: C.amber,
+    role: "Berth & crane sequencing",
+    description: "Manages dock scheduling, crane gang assignments, and vessel queue priority. Re-sequences arrivals when conditions change.",
+  },
+  IS: {
+    name: "Intermodal Sync",
+    color: "#a78bfa",
+    role: "Rail & drayage coordination",
+    description: "Coordinates CN/KCS rail windows and drayage fleet notifications. Ensures the land-side handoff is ready when ships hit the dock.",
+  },
+};
+
+function AgentBadge({ code }) {
+  const [hovered, setHovered] = useState(false);
+  const agent = AGENT_INFO[code];
+  if (!agent) return <Badge color={C.muted} small>{code}</Badge>;
+  return (
+    <span
+      style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <Badge color={agent.color} small>{code}</Badge>
+      {hovered && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
+          transform: "translateX(-50%)",
+          width: 220, zIndex: 100,
+          background: "#0a1a18",
+          border: `1px solid ${agent.color}44`,
+          borderRadius: 7,
+          padding: "10px 12px",
+          boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px ${agent.color}22`,
+          pointerEvents: "none",
+          animation: "fadeSlideIn 0.15s ease",
+        }}>
+          {/* Arrow */}
+          <div style={{
+            position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)",
+            width: 8, height: 8, background: "#0a1a18",
+            border: `1px solid ${agent.color}44`, borderTop: "none", borderLeft: "none",
+            transform: "translateX(-50%) rotate(45deg)",
+          }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+            <div style={{ width: 22, height: 22, borderRadius: 4, background: `${agent.color}20`, border: `1px solid ${agent.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: agent.color, flexShrink: 0 }}>{code}</div>
+            <div>
+              <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: agent.color, letterSpacing: "0.06em" }}>{agent.name}</div>
+              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>{agent.role}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: "#a0c4c0", lineHeight: 1.55 }}>{agent.description}</div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 function PulsingDot({ color, size = 8 }) {
   return (
     <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
@@ -1029,7 +1095,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
                   {decision.disruptionType} &middot; {decision.disruptionLabel}
                 </span>
               )}
-              {decision.agents.map(a => <Badge key={a} color={C.muted} small>{a}</Badge>)}
+              {decision.agents.map(a => <AgentBadge key={a} code={a} />)}
               <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
                 {state === "pending" && (
                   <>
@@ -2362,16 +2428,15 @@ export default function DeltaAgentDashboard() {
                 </div>
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>AGENT NETWORK</div>
-                  {[
-                    { code: "RW", name: "River Warden",    color: C.teal,    status: "Monitoring all 4 threat feeds   15min cycle" },
-                    { code: "BM", name: "Berth Master",    color: C.amber,   status: "Berth sequence optimized" },
-                    { code: "IS", name: "Intermodal Sync", color: "#a78bfa", status: "Rail + truck handoff confirmed" },
-                  ].map(ag => (
-                    <div key={ag.code} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 6, border: `1px solid ${ag.color}22`, background: `${ag.color}08`, marginBottom: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 6, background: `${ag.color}20`, border: `1px solid ${ag.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: ag.color, flexShrink: 0 }}>{ag.code}</div>
+                  {Object.entries(AGENT_INFO).map(([code, ag]) => (
+                    <div key={code} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 6, border: `1px solid ${ag.color}22`, background: `${ag.color}08`, marginBottom: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: `${ag.color}20`, border: `1px solid ${ag.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: ag.color, flexShrink: 0, marginTop: 1 }}>{code}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.white }}>{ag.name}</div>
-                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{ag.status}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: C.white }}>{ag.name}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 8, color: ag.color, background: `${ag.color}15`, border: `1px solid ${ag.color}30`, borderRadius: 3, padding: "1px 5px" }}>{ag.role}</span>
+                        </div>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, lineHeight: 1.5 }}>{ag.description}</div>
                       </div>
                       <PulsingDot color={ag.color} size={7} />
                     </div>
