@@ -1914,11 +1914,12 @@ export default function DeltaAgentDashboard() {
   const prevFloodBandRef = useRef("nm");
   useEffect(() => {
     const currentKey = floodScenario.scenarioKey;
-    if (!currentKey || currentKey === "nm") {
-      // Back to nominal — prune all pending flood decisions
-      if (prevFloodBandRef.current !== "nm") {
-        pruneAndAdd("flood-", FLOOD_BAND_ORDER, "nm", []);
-        prevFloodBandRef.current = "nm";
+    // Treat nm and lw as "non-escalating" — prune all pending flood on either
+    if (!currentKey || currentKey === "nm" || currentKey === "lw") {
+      const isChanging = prevFloodBandRef.current !== currentKey;
+      if (isChanging) {
+        pruneAndAdd("flood-", FLOOD_BAND_ORDER, "nm", floodScenario.decisions);
+        prevFloodBandRef.current = currentKey || "nm";
       }
       return;
     }
@@ -2134,6 +2135,15 @@ export default function DeltaAgentDashboard() {
   const hasElevated = allStatuses.some(s => s.status === "ELEVATED");
   const corridorStatus      = hasCritical ? "CRITICAL" : hasElevated ? "ELEVATED" : "NOMINAL";
   const corridorStatusColor = hasCritical ? C.red : hasElevated ? C.amber : C.teal;
+
+  // Pending count color — driven by worst severity among actual pending decisions
+  // This stays accurate even during store transitions
+  const pendingHasCritical = pendingDecisions.some(d => d.severity === "critical");
+  const pendingHasWarning  = pendingDecisions.some(d => d.severity === "warning");
+  const pendingCountColor  = pendingCount === 0 ? C.muted
+    : pendingHasCritical ? C.red
+    : pendingHasWarning  ? C.amber
+    : C.teal;
 
   const sessionTotal     = sessionSavings.reduce((s, x) => s + x.amount, 0);
   const confirmedSavings = sortedDecisions.filter(d => confirmedIds.has(d.id)).reduce((s, d) => s + d.costAvoided, 0);
@@ -2378,9 +2388,9 @@ export default function DeltaAgentDashboard() {
                 style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ fontSize: 11 }}>↺</span> NEW SCENARIO
               </button>
-              <div onClick={() => pendingCount > 0 && navigateToTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${corridorStatusColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? corridorStatusColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default" }}>
-                <PulsingDot color={pendingCount > 0 ? corridorStatusColor : C.teal} size={7} />
-                <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.teal, letterSpacing: "0.08em" }}>
+              <div onClick={() => pendingCount > 0 && navigateToTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${pendingCountColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? pendingCountColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default" }}>
+                <PulsingDot color={pendingCount > 0 ? pendingCountColor : C.teal} size={7} />
+                <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: pendingCount > 0 ? pendingCountColor : C.teal, letterSpacing: "0.08em" }}>
                   {pendingCount > 0 ? `${corridorStatus}   ${pendingCount} PENDING` : corridorStatus}
                 </span>
               </div>
@@ -2687,9 +2697,9 @@ export default function DeltaAgentDashboard() {
                 {/* Left: pending count */}
                 <div
                   onClick={() => pendingCount > 0 && navigateToTab("inbox")}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderRight: `1px solid ${C.border}`, cursor: pendingCount > 0 ? "pointer" : "default", background: pendingCount > 0 ? `${corridorStatusColor}08` : "transparent" }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderRight: `1px solid ${C.border}`, cursor: pendingCount > 0 ? "pointer" : "default", background: pendingCount > 0 ? `${pendingCountColor}08` : "transparent" }}
                 >
-                  <span style={{ fontFamily: C.mono, fontSize: 32, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.muted, lineHeight: 1, textShadow: pendingCount > 0 ? `0 0 20px ${corridorStatusColor}44` : "none" }}>{pendingCount}</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 32, fontWeight: 700, color: pendingCountColor, lineHeight: 1, textShadow: pendingCount > 0 ? `0 0 20px ${pendingCountColor}44` : "none" }}>{pendingCount}</span>
                   <div>
                     <div style={{ fontFamily: C.mono, fontSize: 8, color: C.label, letterSpacing: "0.08em" }}>DECISIONS</div>
                     <div style={{ fontFamily: C.mono, fontSize: 8, color: C.label }}>AWAITING</div>
