@@ -1649,6 +1649,65 @@ function RecordDrawer({ record, onClose, onViewLog }) {
   );
 }
 
+function ThreatPanel({ label, value, subtext, scenario, expanded, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  const color = scenario.statusColor;
+  const isActive = expanded;
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 14px", cursor: "pointer",
+        background: isActive ? `${color}10` : hovered ? `${color}07` : "transparent",
+        transition: "background 0.15s ease",
+      }}
+    >
+      {/* Left: dot + label + simulate hint */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <PulsingDot color={color} size={6} />
+          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color, letterSpacing: "0.08em" }}>{label}</span>
+        </div>
+        <span style={{
+          fontFamily: C.mono, fontSize: 7, letterSpacing: "0.06em",
+          color: hovered || isActive ? color : C.muted,
+          opacity: hovered || isActive ? 1 : 0.6,
+          transition: "all 0.15s ease",
+        }}>
+          {isActive ? "COLLAPSE ∧" : "SIMULATE ›"}
+        </span>
+      </div>
+
+      {/* Right: value + subtext + chevron */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>{subtext}</div>
+        </div>
+        <div style={{
+          width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: hovered || isActive ? `${color}18` : `${C.muted}12`,
+          border: `1px solid ${hovered || isActive ? color + "44" : C.border}`,
+          transition: "all 0.15s ease",
+        }}>
+          <span style={{
+            fontSize: 9, color: hovered || isActive ? color : C.muted,
+            lineHeight: 1,
+            display: "inline-block",
+            transform: isActive ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease",
+          }}>∨</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DismissButton({ onDismiss }) {
   const [confirming, setConfirming] = useState(false);
   const timerRef = useRef(null);
@@ -2659,36 +2718,30 @@ export default function DeltaAgentDashboard() {
                   ].map(({ key, label, value, subtext, scenario, live, slider }, i, arr) => (
                     <div key={key} style={{ borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
                       {/* Compact header row — always visible */}
-                      <div
+                      <ThreatPanel
+                        label={label}
+                        value={value}
+                        subtext={subtext}
+                        scenario={scenario}
+                        expanded={expandedThreat === key}
                         onClick={() => setExpandedThreat(expandedThreat === key ? null : key)}
-                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", cursor: "pointer", background: expandedThreat === key ? `${scenario.statusColor}08` : "transparent", transition: "background 0.2s ease" }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                          <PulsingDot color={scenario.statusColor} size={6} />
-                          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: scenario.statusColor, letterSpacing: "0.08em" }}>{label}</span>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: scenario.statusColor, lineHeight: 1 }}>{value}</div>
-                          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>{subtext}</div>
-                        </div>
-                      </div>
+                      />
                       {/* Expanded slider — shown when this threat is active */}
                       {expandedThreat === key && slider}
                     </div>
                   ))}
                 </div>
-                <div style={{ padding: "5px 14px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: C.mono, fontSize: 7, color: C.mutedLo }}>ACTIVE THREAT MONITOR   LOWER MISSISSIPPI CORRIDOR   {expandedThreat ? "click header to collapse" : "click any threat to adjust"}</span>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {[
-                      { label: "FLOOD", live: !!gaugeData },
-                      { label: "FOG",   live: !!fogData },
-                      { label: "ICE",   live: false },
-                      { label: "HURRICANE", live: !!nhcData },
-                    ].map(({ label, live }) => (
-                      <span key={label} style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>{live ? "● LIVE" : "○ SIM"}</span>
-                    ))}
-                  </div>
+                <div style={{ padding: "4px 14px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+                  {[
+                    { label: "FLOOD", live: !!gaugeData },
+                    { label: "FOG",   live: !!fogData },
+                    { label: "ICE",   live: false },
+                    { label: "HURRICANE", live: !!nhcData },
+                  ].map(({ label, live }) => (
+                    <span key={label} style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
+                      {label} {live ? "● LIVE" : "○ SIM"}
+                    </span>
+                  ))}
                 </div>
               </div>
 
