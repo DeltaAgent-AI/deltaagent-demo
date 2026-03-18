@@ -1030,7 +1030,31 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
   );
 }
 
-// Translate dollar cost into operator-meaningful real-world equivalents
+function CorridorRow({ label, value, valueColor, tab, hint, active, small, onNavigate }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={() => onNavigate(tab)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "7px 8px", borderRadius: 5, cursor: "pointer",
+        background: hovered ? `${valueColor}0d` : "transparent",
+        border: `1px solid ${hovered ? valueColor + "22" : "transparent"}`,
+        transition: "all 0.15s ease",
+      }}
+    >
+      <span style={{ fontFamily: C.mono, fontSize: 9, color: hovered ? C.white : C.muted, transition: "color 0.15s ease" }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {hovered && hint && (
+          <span style={{ fontFamily: C.mono, fontSize: 8, color: valueColor, opacity: 0.8, animation: "fadeSlideIn 0.15s ease" }}>{hint}</span>
+        )}
+        <span style={{ fontFamily: C.mono, fontSize: small ? 9 : 14, fontWeight: 700, color: valueColor }}>{value}</span>
+      </div>
+    </div>
+  );
+}
 function getCostAnnotation(amount, disruptionType) {
   if (!amount) return null;
   // Industry benchmarks for Lower Mississippi operations:
@@ -2162,34 +2186,57 @@ export default function DeltaAgentDashboard() {
               <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 12 }}>CORRIDOR SUMMARY</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>ACTIVE THREATS</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: hasCritical ? C.red : hasElevated ? C.amber : C.teal }}>
-                        {[floodScenario, fogScenario, iceScenario, stormScenario].filter(s => s.status !== "NOMINAL").length} / 4
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>PENDING DECISIONS</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.muted }}>{pendingCount}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>POTENTIAL SAVINGS</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: pendingSavings > 0 ? C.green : C.muted }}>
-                        {pendingSavings > 0 ? `$${pendingSavings.toLocaleString()}` : "--"}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>NEXT VESSEL</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: simVis < 0.5 ? C.amber : C.white }}>
-                        {simVis < 0.5 ? "HELD AT ANCHORAGE" : "MV Delta Voyager"}
-                      </span>
-                    </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {[
+                      {
+                        label: "ACTIVE THREATS",
+                        value: `${[floodScenario, fogScenario, iceScenario, stormScenario].filter(s => s.status !== "NOMINAL").length} / 4`,
+                        valueColor: hasCritical ? C.red : hasElevated ? C.amber : C.teal,
+                        tab: "status",
+                        hint: "View data feeds →",
+                        active: [floodScenario, fogScenario, iceScenario, stormScenario].filter(s => s.status !== "NOMINAL").length > 0,
+                      },
+                      {
+                        label: "PENDING DECISIONS",
+                        value: String(pendingCount),
+                        valueColor: pendingCount > 0 ? corridorStatusColor : C.muted,
+                        tab: "inbox",
+                        hint: pendingCount > 0 ? "Go to inbox →" : null,
+                        active: pendingCount > 0,
+                      },
+                      {
+                        label: "POTENTIAL SAVINGS",
+                        value: pendingSavings > 0 ? `$${pendingSavings.toLocaleString()}` : "--",
+                        valueColor: pendingSavings > 0 ? C.green : C.muted,
+                        tab: "inbox",
+                        hint: pendingSavings > 0 ? "Action decisions →" : null,
+                        active: pendingSavings > 0,
+                      },
+                      {
+                        label: "NEXT VESSEL",
+                        value: simVis < 0.5 ? "HELD" : "MV Delta Voyager",
+                        valueColor: simVis < 0.5 ? C.amber : C.white,
+                        tab: "status",
+                        hint: "System status →",
+                        active: false,
+                        small: true,
+                      },
+                    ].map(({ label, value, valueColor, tab, hint, active, small }) => (
+                      <CorridorRow key={label} label={label} value={value} valueColor={valueColor} tab={tab} hint={hint} active={active} small={small} onNavigate={navigateToTab} />
+                    ))}
                   </div>
                 </div>
                 {confirmedSavings > 0 && (
-                  <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22` }}>
-                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 2, letterSpacing: "0.08em" }}>CONFIRMED SAVINGS</div>
+                  <div
+                    onClick={() => navigateToTab("impact")}
+                    style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}22`, cursor: "pointer", transition: "all 0.15s ease" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${C.green}1e`; e.currentTarget.style.borderColor = `${C.green}44`; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = `${C.green}10`; e.currentTarget.style.borderColor = `${C.green}22`; }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 2, letterSpacing: "0.08em" }}>CONFIRMED SAVINGS</div>
+                      <span style={{ fontFamily: C.mono, fontSize: 8, color: C.green, opacity: 0.7 }}>View impact →</span>
+                    </div>
                     <div style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, color: C.green }}>${confirmedSavings.toLocaleString()}</div>
                   </div>
                 )}
