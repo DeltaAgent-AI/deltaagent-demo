@@ -764,16 +764,13 @@ function ExecutionTicker({ decision }) {
   );
 }
 
-function DecisionCard({ decision, onConfirm, onOverride }) {
+function DecisionCard({ decision, onConfirm, onOverride, onDismiss }) {
   const [state, setState]         = useState("pending");
   const [expanded, setExpanded]   = useState(false);
   const [hovered, setHovered]     = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const collapseTimer             = useRef(null);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
-
-  if (dismissed) return null;
 
   function handleConfirm() {
     setState("executing");
@@ -820,7 +817,7 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
                 )}
                 {(state === "done" || state === "override") && (
                   <button
-                    onClick={e => { e.stopPropagation(); setDismissed(true); }}
+                    onClick={e => { e.stopPropagation(); onDismiss(); }}
                     style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, fontFamily: C.mono, fontSize: 10, padding: "2px 8px", borderRadius: 3, cursor: "pointer", letterSpacing: "0.06em" }}
                     title="Dismiss">
                     x
@@ -972,6 +969,7 @@ export default function DeltaAgentDashboard() {
   const [activeTab, setActiveTab]         = useState("inbox");
   const [confirmedIds, setConfirmedIds]   = useState(new Set());
   const [overriddenIds, setOverriddenIds] = useState(new Set());
+  const [dismissedIds, setDismissedIds]   = useState(new Set());
   const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
@@ -1503,8 +1501,8 @@ export default function DeltaAgentDashboard() {
                   </div>
                 )}
                 {/* Render ALL decisions with DecisionCard to preserve ExecutionTicker state */}
-                {sortedDecisions.map(d => (
-                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} />
+                {sortedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
+                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} />
                 ))}
               </div>
             )}
