@@ -2755,13 +2755,18 @@ export default function DeltaAgentDashboard() {
                   </div>
                 </div>
 
-                {/* Middle: threat status + countdown */}
+                {/* Middle: most urgent countdown + summary */}
                 <div style={{ display: "flex", alignItems: "center", gap: 0, padding: "0 4px", overflow: "hidden" }}>
                   {pendingCount > 0 ? (
-                    <div style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                      <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} />
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>·</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{pendingDecisions[0]?.disruptionType} — {pendingDecisions[0]?.disruptionLabel}</span>
+                    <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>MOST URGENT</span>
+                        <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} />
+                      </div>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.border }}>|</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>
+                        {pendingCount} decision{pendingCount !== 1 ? "s" : ""} · <span style={{ color: pendingCountColor }}>${pendingSavings.toLocaleString()}</span> at stake
+                      </span>
                     </div>
                   ) : (
                     <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 8 }}>
