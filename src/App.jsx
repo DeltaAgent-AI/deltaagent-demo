@@ -1144,7 +1144,6 @@ export default function DeltaAgentDashboard() {
   function navigateToTab(tabId, logId) {
     setActiveTab(tabId);
     if (logId) setAutoExpandLogId(logId);
-    // Small delay so the tab content renders before we scroll
     setTimeout(() => {
       tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
@@ -1744,7 +1743,7 @@ export default function DeltaAgentDashboard() {
             </div>
 
             {/*    TABS    */}
-            <div ref={tabsRef} style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}` }}>
+            <div ref={tabsRef} style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 54, zIndex: 40, background: `${C.bg}f5`, backdropFilter: "blur(12px)" }}>
               {[
                 { id: "inbox",  label: `DECISION INBOX${pendingCount > 0 ? ` (${pendingCount})` : ""}` },
                 { id: "log",    label: "AGENT LOG" },
