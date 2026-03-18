@@ -2468,10 +2468,10 @@ export default function DeltaAgentDashboard() {
             <div style={{ background: `linear-gradient(135deg, ${C.teal}10 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}33`, padding: "24px 28px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.12em", marginBottom: 4 }}>
+                  <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 6 }}>
                     OPERATIONS SIMULATOR — LOWER MISSISSIPPI CORRIDOR
                   </div>
-                  <div style={{ fontSize: 13, color: C.muted }}>
+                  <div style={{ fontSize: 14, color: C.body }}>
                     Select a real scenario to see DeltaAgent respond autonomously — or explore freely.
                   </div>
                 </div>
@@ -2822,27 +2822,49 @@ export default function DeltaAgentDashboard() {
             {activeTab === "inbox" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {sortedDecisions.length === 0 && (
-                  <div style={{ padding: "28px 4px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <PulsingDot color={C.teal} size={6} />
-                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.label }}>
-                      Monitoring 4 threats — all nominal.
-                    </span>
-                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>
-                      {sessionSavings.length > 0
-                        ? `Last event actioned ${sessionSavings[sessionSavings.length - 1]?.time}. Adjust any simulator to continue.`
-                        : "Select a scenario or adjust any simulator to begin."
-                      }
-                    </span>
+                  <div style={{ padding: "32px 0 16px" }}>
+                    {/* Status line */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+                      <PulsingDot color={C.teal} size={8} />
+                      <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>
+                        MONITORING 4 THREATS — ALL NOMINAL
+                      </span>
+                      <span style={{ fontFamily: C.mono, fontSize: 11, color: C.label }}>
+                        · {sessionSavings.length > 0
+                          ? `Last event actioned ${sessionSavings[sessionSavings.length - 1]?.time}. Agents watching for new threshold crossings.`
+                          : "Select a scenario or adjust any simulator to begin."}
+                      </span>
+                    </div>
+
+                    {/* Live agent activity */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                      {[
+                        { agent: "RW", name: "River Warden", color: C.teal,   activity: `Carrollton Gauge polling — ${simGauge.toFixed(1)}ft`, status: floodScenario.status },
+                        { agent: "BM", name: "Berth Master", color: C.tealDim, activity: "Berth schedule nominal — MV Delta Voyager ETA 04:20", status: "NOMINAL" },
+                        { agent: "IS", name: "Intermodal Sync", color: "#818cf8", activity: "CN/KCS rail windows confirmed — 14 cars staged Yard 3", status: "NOMINAL" },
+                      ].map(({ agent, name, color, activity, status }) => (
+                        <div key={agent} style={{ padding: "12px 14px", borderRadius: 6, background: C.panel, border: `1px solid ${C.border}` }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <div style={{ width: 24, height: 24, borderRadius: 5, background: `${color}18`, border: `1px solid ${color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, flexShrink: 0 }}>{agent}</div>
+                            <div>
+                              <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color }}>{name}</div>
+                              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.teal }}>● MONITORING</div>
+                            </div>
+                          </div>
+                          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body, lineHeight: 1.5 }}>{activity}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {pendingDecisions.length === 0 && sortedDecisions.length > 0 && (
-                  <div style={{ padding: "24px 4px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <PulsingDot color={C.green} size={6} />
-                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.green }}>
-                      All decisions actioned.
+                  <div style={{ padding: "24px 0 8px", display: "flex", alignItems: "center", gap: 10 }}>
+                    <PulsingDot color={C.green} size={8} />
+                    <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.green, letterSpacing: "0.08em" }}>
+                      ALL DECISIONS ACTIONED
                     </span>
-                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>
-                      {sessionSavings.length > 0 && `$${sessionSavings.reduce((s, x) => s + x.amount, 0).toLocaleString()} avoided this session.`}
+                    <span style={{ fontFamily: C.mono, fontSize: 11, color: C.body }}>
+                      {sessionSavings.length > 0 && `· $${sessionSavings.reduce((s, x) => s + x.amount, 0).toLocaleString()} avoided this session.`}
                       {" "}Agents watching for new threshold crossings.
                     </span>
                     {actionedDecisions.length > 0 && (
