@@ -1603,7 +1603,7 @@ export default function DeltaAgentDashboard() {
                 { id: "impact", label: "IMPACT" },
                 { id: "status", label: "SYSTEM STATUS" },
               ].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "10px 18px", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${C.teal}` : "2px solid transparent", background: "transparent", color: activeTab === tab.id ? C.teal : tab.id === "impact" && sessionTotal > 0 ? C.green : C.muted, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.2s ease", marginBottom: -1 }}>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "10px 18px", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${C.teal}` : "2px solid transparent", background: "transparent", color: activeTab === tab.id ? C.teal : C.muted, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.2s ease", marginBottom: -1 }}>
                   {tab.label}
                 </button>
               ))}
