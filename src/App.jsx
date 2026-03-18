@@ -638,11 +638,13 @@ function getManualComparison(disruptionType) {
   }
 }
 
-function ExecutionTicker({ decision }) {
+function ExecutionTicker({ decision, forceVisible = false }) {
   const [firedCount, setFiredCount] = useState(0);
   const [done, setDone]             = useState(false);
   const [elapsed, setElapsed]       = useState("0.0");
+  const [collapsed, setCollapsed]   = useState(false);
   const startRef                    = useRef(Date.now());
+  const collapseRef                 = useRef(null);
   const steps = getExecSteps(decision.disruptionType);
 
   useEffect(() => {
@@ -650,17 +652,43 @@ function ExecutionTicker({ decision }) {
     steps.forEach((_, i) => {
       setTimeout(() => {
         setFiredCount(i + 1);
-        if (i === steps.length - 1) setTimeout(() => { setDone(true); clearInterval(clock); }, 500);
+        if (i === steps.length - 1) setTimeout(() => {
+          setDone(true);
+          clearInterval(clock);
+          // Auto-collapse after 10s once done, unless hovered
+          collapseRef.current = setTimeout(() => setCollapsed(true), 10000);
+        }, 500);
       }, (i + 1) * 800);
     });
-    return () => clearInterval(clock);
+    return () => { clearInterval(clock); clearTimeout(collapseRef.current); };
   }, []);
+
+  // forceVisible from parent hover - keep expanded
+  useEffect(() => {
+    if (forceVisible) {
+      clearTimeout(collapseRef.current);
+      setCollapsed(false);
+    }
+  }, [forceVisible]);
+
+  if (collapsed && !forceVisible) {
+    return (
+      <div onClick={() => setCollapsed(false)} style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: C.teal, fontSize: 12 }}>+</span>
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION RECORD</span>
+          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{steps.length} actions   {elapsed}s   ${decision.costAvoided.toLocaleString()} avoided</span>
+        </div>
+        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>hover or click to expand</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {done ? <span style={{ color: C.teal }}> </span> : <PulsingDot color={C.teal} size={8} />}
+          {done ? <span style={{ color: C.teal }}>+</span> : <PulsingDot color={C.teal} size={8} />}
           <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>{done ? "EXECUTION RECORD" : "EXECUTING..."}</span>
         </div>
         <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>{elapsed}s elapsed</span>
@@ -675,7 +703,7 @@ function ExecutionTicker({ decision }) {
                 <div style={{ fontSize: 12, color: fired ? C.white : C.muted, fontWeight: fired ? 600 : 400 }}>{step.label}</div>
                 <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{step.detail}</div>
               </div>
-              <span style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, flexShrink: 0 }}>{fired ? `  ${((i + 1) * 0.8).toFixed(1)}s` : "--"}</span>
+              <span style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, flexShrink: 0 }}>{fired ? `${((i + 1) * 0.8).toFixed(1)}s` : "--"}</span>
             </div>
           );
         })}
@@ -707,8 +735,10 @@ function ExecutionTicker({ decision }) {
 }
 
 function DecisionCard({ decision, onConfirm, onOverride }) {
-  const [state, setState]       = useState("pending");
-  const [expanded, setExpanded] = useState(false);
+  const [state, setState]         = useState("pending");
+  const [expanded, setExpanded]   = useState(false);
+  const [hovered, setHovered]     = useState(false);
+  const collapseTimer             = useRef(null);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
 
@@ -718,11 +748,21 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
   }
   function handleOverride() { setState("override"); onOverride(decision); }
 
+  // Keep execution record visible while hovered
+  function handleMouseEnter() { setHovered(true); clearTimeout(collapseTimer.current); }
+  function handleMouseLeave() {
+    setHovered(false);
+    // Don't auto-collapse - user must scroll away
+  }
+
   const borderColor = state === "done" ? C.teal : severityColor;
   const bgColor     = state === "done" ? C.tealFaint : severityBg;
 
   return (
-    <div style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "border-color 0.5s ease, background 0.5s ease" }}>
+    <div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "border-color 0.5s ease, background 0.5s ease" }}>
       <div style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -737,22 +777,29 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
                 </span>
               )}
               {decision.agents.map(a => <Badge key={a} color={C.muted} small>{a}</Badge>)}
-              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700 }}>  {decision.advanceWarning} advance warning</span>
+              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700 }}>{decision.advanceWarning} advance warning</span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>{decision.title}</div>
             <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.55 }}>{decision.reason}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-          <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}33`, borderRadius: 6, padding: "10px 14px" }}>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>EST. COST AVOIDED</div>
-            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</div>
+
+        {/* Reduced cost emphasis - one line instead of two big cards */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: `${C.muted}08`, border: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>EST. COST AVOIDED</span>
+            <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
           </div>
-          <div style={{ background: `${C.red}10`, border: `1px solid ${C.red}22`, borderRadius: 6, padding: "10px 14px" }}>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 4, letterSpacing: "0.08em" }}>COST IF IGNORED</div>
-            <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.red }}>${decision.costIfIgnored.toLocaleString()}</div>
+          <div style={{ width: 1, height: 16, background: C.border }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>IF IGNORED</span>
+            <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.red }}>${decision.costIfIgnored.toLocaleString()}</span>
+          </div>
+          <div style={{ marginLeft: "auto", fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+            {decision.actions.length} actions queued
           </div>
         </div>
+
         {state === "pending" && (
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={handleConfirm} style={{ flex: 1, padding: "11px 0", borderRadius: 6, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
@@ -762,7 +809,7 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
                 OVERRIDE
             </button>
             <button onClick={() => setExpanded(!expanded)} style={{ padding: "11px 16px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 11, cursor: "pointer" }}>
-              {expanded ? " " : " "}
+              {expanded ? "-" : "+"}
             </button>
           </div>
         )}
@@ -775,7 +822,6 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
         {state === "override" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ padding: "12px 16px", borderRadius: 6, border: `1px solid ${C.amber}55`, background: `${C.amber}12`, display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}> </span>
               <div>
                 <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 4 }}>OVERRIDE LOGGED - MANUAL ACTION REQUIRED</div>
                 <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5 }}>Automated dispatch was cancelled. Your team must manually coordinate with the Port Director, Pilot Station, and CN/KCS rail. This decision has been recorded in the audit trail.</div>
@@ -798,7 +844,8 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
           ))}
         </div>
       )}
-      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} />}
+      {/* Execution record stays visible while hovered */}
+      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} forceVisible={hovered} />}
     </div>
   );
 }
