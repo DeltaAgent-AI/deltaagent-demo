@@ -426,53 +426,115 @@ function buildIceScenario(iceIndex) {
   return { iceIndex, coverage, status, statusColor, risk, riskColor, decisions, trend };
 }
 
-//    HURRICANE SCENARIO                                                         
-// distanceMiles: distance of storm center from mouth of Mississippi
-// category: 0-5 (0 = tropical storm)
+//    HURRICANE SCENARIO - Lower Mississippi River / USCG MHCPP
+// Governed by Sector New Orleans Maritime Hurricane Contingency Port Plan (MHCPP)
+// Timeline anchored to arrival of Gale Force Winds (34 knots) at SW Pass Entrance Sea Buoy
+// Port Conditions set by USCG Captain of the Port (COTP):
+// WHISKEY = 72h to impact  (port open, prep begins)
+// X-RAY   = 48h to impact  (open, intensified prep)
+// YANKEE  = 24h to impact  (restricted, inbound closed)
+// ZULU    = 12h to impact  (fully closed)
+// RECOVERY = post-storm   (closed pending survey)
 function buildHurricaneScenario(distanceMiles, category) {
-  const imminent  = distanceMiles < 200;
-  const watch     = distanceMiles < 400;
-  const status      = imminent ? "CRITICAL" : watch ? "ELEVATED" : "NOMINAL";
-  const statusColor = imminent ? C.red : watch ? C.amber : C.teal;
-  const risk        = imminent ? "HIGH RISK" : watch ? "ELEVATED RISK" : "NOMINAL";
-  const riskColor   = statusColor;
-  const catLabel    = category === 0 ? "Tropical Storm" : "Category " + category;
-  const decisions = imminent ? [
+  const catLabel = category === 0 ? "Tropical Storm" : "Cat " + category;
+
+  // Map distance to Port Condition
+  // Assuming storm speed ~15mph: 72h=1080mi, 48h=720mi, 24h=360mi, 12h=180mi
+  const zulu    = distanceMiles < 180;
+  const yankee  = distanceMiles >= 180 && distanceMiles < 360;
+  const xray    = distanceMiles >= 360 && distanceMiles < 720;
+  const whiskey = distanceMiles >= 720 && distanceMiles < 1000;
+
+  const portCondition = zulu ? "ZULU" : yankee ? "YANKEE" : xray ? "X-RAY" : whiskey ? "WHISKEY" : "NOMINAL";
+
+  const status = (zulu || yankee) ? "CRITICAL"
+    : xray    ? "ELEVATED"
+    : whiskey ? "CAUTIONARY"
+    : "NOMINAL";
+
+  const statusColor = (zulu || yankee) ? C.red
+    : xray    ? C.amber
+    : whiskey ? C.amber
+    : C.teal;
+
+  const risk = (zulu || yankee) ? "HIGH RISK"
+    : xray    ? "ELEVATED RISK"
+    : whiskey ? "MONITOR"
+    : "NOMINAL";
+
+  const riskColor = statusColor;
+
+  const decisions = zulu ? [
     {
       id: "h1", severity: "critical",
-      disruptionType: "HURRICANE", disruptionLabel: "HURRICANE",
-      title: "EVACUATE - Clear All Berths Within 24h",
-      reason: catLabel + " " + distanceMiles + " miles from Southwest Pass. NHC forecast landfall within 18-24h. All vessels must depart or seek shelter. Port closure imminent.",
-      costAvoided: 112000, costIfIgnored: 112000, advanceWarning: "18h",
+      disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION ZULU",
+      title: "CLOSE - Port Condition ZULU - Full Closure",
+      reason: catLabel + " " + distanceMiles + "mi from SW Pass - 12h to gale force winds. COTP declaring Port Condition ZULU. Port closed to ALL inbound and outbound traffic. Suspend all cargo operations including bunkering and lightering.",
+      costAvoided: 128000, costIfIgnored: 128000, advanceWarning: "12h",
       agents: ["RW", "BM", "IS"],
-      actions: ["All inbound vessels diverted to Mobile, AL or Pascagoula, MS anchorage", "All berths cleared - vessels at dock given 6h departure window", "CN/KCS rail traffic halted - cars staged at inland yards", "Port Director, Coast Guard Sector NOLA, and FEMA notified", "Emergency operation mode activated - MTSA hurricane protocol"],
+      actions: ["COTP Port Condition ZULU declared - all traffic halted", "Suspend all cargo ops including bunkering and lightering", "Gantry cranes, conveyors, and loose gear lashed and secured", "Essential Personnel roster activated - designated staff report to stations", "Joint Gulf Coast Inland Waterways Hurricane Response Protocol activated", "FEMA + Port NOLA EOC notified - MTSA hurricane audit log created"],
     },
     {
       id: "h2", severity: "critical",
-      disruptionType: "HURRICANE", disruptionLabel: "STORM SURGE",
-      title: "SECURE - Storm Surge Protocol Activated",
-      reason: "NHC surge forecast " + (category * 4 + 6) + "-" + (category * 4 + 10) + "ft above normal at Southwest Pass. Terminal equipment must be secured.",
-      costAvoided: 68000, costIfIgnored: 68000, advanceWarning: "12h",
-      agents: ["BM"],
-      actions: ["Crane booms lowered and secured at all berths", "Terminal cargo covered and tie-downs verified", "Equipment moved to elevated staging areas", "Berth infrastructure flood checklist completed"],
+      disruptionType: "HURRICANE", disruptionLabel: "RNA ENFORCEMENT",
+      title: "ENFORCE - Regulated Navigation Area Restriction",
+      reason: "RNA restrictions now active. All floating vessels prohibited from Harvey Canal and Algiers Canal unless pre-approved Annual Hurricane Operation Plan (AHOP) is on file.",
+      costAvoided: 64000, costIfIgnored: 64000, advanceWarning: "IMMEDIATE",
+      agents: ["BM", "RW"],
+      actions: ["Enforce RNA - Harvey Canal and Algiers Canal restricted", "Verify AHOP status for all vessels remaining in restricted areas", "Two-anchor requirement enforced - vessels must be underway-ready within 15 min", "Coast Guard Sector NOLA RNA enforcement notification dispatched"],
     },
-  ] : watch ? [
+  ] : yankee ? [
+    {
+      id: "h1", severity: "critical",
+      disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION YANKEE",
+      title: "RESTRICT - Port Condition YANKEE - Inbound Closed",
+      reason: catLabel + " " + distanceMiles + "mi from SW Pass - 24h to gale force winds. Port restricted - closed to all inbound vessel traffic. Order termination of all cargo operations not associated with storm prep.",
+      costAvoided: 96000, costIfIgnored: 96000, advanceWarning: "24h",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Port closed to all inbound traffic - COTP YANKEE declared", "Terminate all cargo operations not related to storm preparation", "Encourage vessels to depart - those staying must have approved storm mooring system", "Vessel storm mooring plans reviewed and approved by Port Director", "CN/KCS rail traffic pre-positioned - cars staged at inland yards"],
+    },
+    {
+      id: "h2", severity: "warning",
+      disruptionType: "HURRICANE", disruptionLabel: "VESSEL MOORING",
+      title: "VERIFY - Storm Mooring Plans for All Remaining Vessels",
+      reason: "Vessels electing to remain must have a written storm mooring plan on file. Minimum two anchors required. All must be ready to get underway within 15 minutes.",
+      costAvoided: 42000, costIfIgnored: 42000, advanceWarning: "18h",
+      agents: ["BM"],
+      actions: ["Request written storm mooring plans from all remaining vessel masters", "Verify minimum two-anchor requirement for each vessel", "Confirm 15-minute underway readiness for all docked vessels", "Berth-by-berth inspection of mooring line condition and storm tie-downs"],
+    },
+  ] : xray ? [
     {
       id: "h1", severity: "warning",
-      disruptionType: "HURRICANE", disruptionLabel: "HURRICANE WATCH",
-      title: "PREPARE - Hurricane Watch Protocol",
-      reason: catLabel + " tracking toward Gulf Coast - " + distanceMiles + " miles out. 48-72h window for preparation. Vessel sequencing must begin now.",
-      costAvoided: 54000, costIfIgnored: 54000, advanceWarning: "48h",
+      disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION X-RAY",
+      title: "PREPARE - Port Condition X-RAY - Intensified Prep",
+      reason: catLabel + " " + distanceMiles + "mi from SW Pass - 48h to gale force winds. Port open but preparation intensifies. Review all vessel mooring plans. Secure or remove all potential flying debris and hazardous materials.",
+      costAvoided: 58000, costIfIgnored: 58000, advanceWarning: "48h",
       agents: ["RW", "BM", "IS"],
-      actions: ["Inbound vessel queue reviewed - priority cargo expedited", "Berth clearance schedule drafted for potential port closure", "CN/KCS rail pre-positioned for rapid clearance", "Port Director briefed - contingency plan activated"],
+      actions: ["Review vessel mooring plans - written plans required upon request", "Secure or remove all potential flying debris from terminal areas", "Secure all hazardous materials per MHCPP protocol", "Confirm all expected vessel arrivals and sailings with masters and agents", "Pre-position CN/KCS rail for potential rapid clearance"],
+    },
+  ] : whiskey ? [
+    {
+      id: "h1", severity: "warning",
+      disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION WHISKEY",
+      title: "INITIATE - Port Condition WHISKEY - Storm Prep Begins",
+      reason: catLabel + " tracking toward Gulf - " + distanceMiles + "mi from SW Pass. 72h to gale force winds at SW Pass Entrance Sea Buoy. Port remains open. Begin fuel top-offs and confirm vessel schedules.",
+      costAvoided: 32000, costIfIgnored: 32000, advanceWarning: "72h",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Begin fueling all district vehicles and bulk tanks", "Inspect all port areas - document current condition", "Confirm all expected vessel arrivals and sailings with masters and agents", "Activate Gulf Coast Inland Waterways Joint Hurricane Response Protocol monitoring", "Port Director briefed - MHCPP contingency plan on standby"],
     },
   ] : [];
-  const trend = imminent
-    ? [800, 650, 500, 380, 290, 220, 205, distanceMiles]
-    : watch
-    ? [900, 820, 720, 600, 500, 430, 410, distanceMiles]
-    : [1200, 1100, 980, 850, 700, 550, 420, distanceMiles];
-  return { distanceMiles, category, status, statusColor, risk, riskColor, decisions, trend };
+
+  const trend = zulu
+    ? [900, 750, 580, 420, 320, 220, 185, distanceMiles]
+    : yankee
+    ? [950, 820, 680, 540, 430, 380, 365, distanceMiles]
+    : xray
+    ? [1050, 950, 850, 750, 680, 600, 550, distanceMiles]
+    : whiskey
+    ? [1200, 1150, 1080, 1020, 960, 900, 850, distanceMiles]
+    : [1400, 1350, 1280, 1200, 1150, 1100, 1050, distanceMiles];
+
+  return { distanceMiles, category, portCondition, status, statusColor, risk, riskColor, decisions, trend };
 }
 
 function Badge({ color, children, small }) {
@@ -663,12 +725,12 @@ function getExecSteps(disruptionType) {
       ];
     case "HURRICANE":
       return [
-        { label: "Coast Guard Sector NOLA - port closure alert", detail: "MARSEC level updated",                icon: "->", type: "SMS"   },
-        { label: "NHC advisory acknowledged + logged",           detail: "Track data ingested   surge model run",icon: "->", type: "DATA"  },
-        { label: "All berths cleared - departure sequence set",  detail: "6h vessel departure window issued",   icon: "->", type: "OPS"   },
-        { label: "Crane booms secured - storm protocol active",  detail: "All terminals confirmed",              icon: "->", type: "OPS"   },
-        { label: "FEMA + Port NOLA emergency ops notified",      detail: "+1 (504) 555-0911   EOC activated",   icon: "->", type: "SMS"   },
-        { label: "MTSA hurricane audit log created",             detail: "Emergency operations record",          icon: "->", type: "AUDIT" },
+        { label: "COTP Port Condition declared - Coast Guard notified",  detail: "Sector New Orleans MHCPP activated",   icon: "->", type: "SMS"   },
+        { label: "NHC advisory + track data logged",                     detail: "SW Pass Sea Buoy reference updated",  icon: "->", type: "DATA"  },
+        { label: "Vessel masters notified - mooring plans required",     detail: "All agents contacted via Twilio",     icon: "->", type: "SMS"   },
+        { label: "Terminal equipment securing protocol activated",       detail: "Cranes, conveyors, gear lashed",      icon: "->", type: "OPS"   },
+        { label: "Essential Personnel roster activated",                 detail: "Storm duty assignments confirmed",    icon: "->", type: "OPS"   },
+        { label: "MTSA hurricane audit log + FEMA EOC notified",        detail: "Joint Response Protocol active",      icon: "->", type: "AUDIT" },
       ];
     default: // FLOOD
       return [
@@ -1413,7 +1475,14 @@ export default function DeltaAgentDashboard() {
                     {nhcData ? <Badge color={C.red} small>LIVE</Badge> : <Badge color={C.muted} small>STANDBY</Badge>}
                   </div>
                   <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: stormScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simStormDist}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>mi</span></div>
-                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Storm Distance   NHC Track   Cat {simStormCat}</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>
+                    SW Pass Distance   NHC Track   Cat {simStormCat}
+                    {stormScenario.portCondition !== "NOMINAL" && (
+                      <span style={{ color: stormScenario.statusColor, marginLeft: 6, fontWeight: 700 }}>
+                        PORT COND. {stormScenario.portCondition}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
                     <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 950) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 0.3s ease" }} />
                     <div style={{ position: "absolute", left: `${((1000 - 400) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.amber, opacity: 0.6 }} />
@@ -1425,7 +1494,7 @@ export default function DeltaAgentDashboard() {
                     onChange={e => { const v = 1000 - parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
                     style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted }}>
-                    <span>1000mi CLEAR</span><span style={{ color: C.amber }}>400</span><span style={{ color: C.red }}>IMMINENT</span>
+                    <span>1000mi</span><span style={{ color: C.amber }}>WHISKEY</span><span style={{ color: C.amber }}>X-RAY</span><span style={{ color: C.red }}>YANKEE</span><span style={{ color: C.red }}>ZULU</span>
                   </div>
                   <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
                     {[0,1,2,3,4,5].map(cat => (
