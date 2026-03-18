@@ -1126,12 +1126,16 @@ function warningToMinutes(w) {
   return mins || 9999;
 }
 
-function CountdownTimer({ advanceWarning }) {
-  const initialSeconds = advanceWarning === "IMMEDIATE" ? 0 : warningToMinutes(advanceWarning) * 60;
+function CountdownTimer({ advanceWarning, createdAt }) {
+  const totalSeconds = advanceWarning === "IMMEDIATE" ? 0 : warningToMinutes(advanceWarning) * 60;
+  // If createdAt is provided, subtract elapsed time so all timers stay in sync
+  const initialSeconds = createdAt
+    ? Math.max(0, totalSeconds - Math.floor((Date.now() - createdAt) / 1000))
+    : totalSeconds;
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
 
   useEffect(() => {
-    if (advanceWarning === "IMMEDIATE" || initialSeconds === 0) return;
+    if (advanceWarning === "IMMEDIATE" || totalSeconds === 0) return;
     const t = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, []);
@@ -1288,7 +1292,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
               {decision.agents.map(a => <AgentBadge key={a} code={a} />)}
               <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
                 {state === "pending" && (
-                  <CountdownTimer advanceWarning={decision.advanceWarning} />
+                  <CountdownTimer advanceWarning={decision.advanceWarning} createdAt={decision.createdAt} />
                 )}
                 {(state === "done" || state === "override") && (
                   <DismissButton onDismiss={e => { e?.stopPropagation?.(); onDismiss(); }} />
@@ -1943,9 +1947,9 @@ export default function DeltaAgentDashboard() {
         }
       });
 
-      // Add new decisions from current band
+      // Add new decisions from current band — stamp createdAt for live countdown
       incoming.forEach(d => {
-        if (!next[d.id]) { next[d.id] = d; changed = true; }
+        if (!next[d.id]) { next[d.id] = { ...d, createdAt: Date.now() }; changed = true; }
       });
 
       return changed ? next : prev;
@@ -1959,7 +1963,7 @@ export default function DeltaAgentDashboard() {
       const next = { ...prev };
       let changed = false;
       incoming.forEach(d => {
-        if (!next[d.id]) { next[d.id] = d; changed = true; }
+        if (!next[d.id]) { next[d.id] = { ...d, createdAt: Date.now() }; changed = true; }
       });
       return changed ? next : prev;
     });
@@ -2761,7 +2765,7 @@ export default function DeltaAgentDashboard() {
                     <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>MOST URGENT</span>
                       <span style={{ fontFamily: C.mono, fontSize: 9, color: C.border }}>·</span>
-                      <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} />
+                      <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} createdAt={pendingDecisions[0]?.createdAt} />
                     </div>
                   ) : (
                     <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 8 }}>
