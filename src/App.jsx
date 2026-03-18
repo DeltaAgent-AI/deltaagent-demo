@@ -680,7 +680,7 @@ function ExecutionTicker({ decision }) {
     if (done) {
       collapseRef.current = setTimeout(() => {
         if (!hoverRef.current) setCollapsed(true);
-      }, 3000);
+      }, 1000);
     }
   }
 
@@ -768,9 +768,12 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
   const [state, setState]         = useState("pending");
   const [expanded, setExpanded]   = useState(false);
   const [hovered, setHovered]     = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const collapseTimer             = useRef(null);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
+
+  if (dismissed) return null;
 
   function handleConfirm() {
     setState("executing");
@@ -800,18 +803,29 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-              <Badge color={state === "done" ? C.teal : severityColor}>{state === "done" ? "CONFIRMED" : decision.severity}</Badge>
-              {decision.disruptionType && (
+              <Badge color={state === "done" ? C.teal : severityColor}>{state === "done" ? "CONFIRMED" : decision.severity}</Badge>              {decision.disruptionType && (
                 <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: C.muted, background: `${C.muted}15`, border: `1px solid ${C.muted}33`, borderRadius: 3, padding: "1px 6px", letterSpacing: "0.06em" }}>
                   {decision.disruptionType} &middot; {decision.disruptionLabel}
                 </span>
               )}
               {decision.agents.map(a => <Badge key={a} color={C.muted} small>{a}</Badge>)}
-              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ opacity: 0.7 }}>ACT WITHIN</span>
-                <span style={{ fontSize: 11, color: decision.advanceWarning === "IMMEDIATE" ? C.red : C.amber }}>
-                  {decision.advanceWarning === "IMMEDIATE" ? "IMMEDIATE" : decision.advanceWarning}
-                </span>
+              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                {state === "pending" && (
+                  <>
+                    <span style={{ opacity: 0.7 }}>ACT WITHIN</span>
+                    <span style={{ fontSize: 11, color: decision.advanceWarning === "IMMEDIATE" ? C.red : C.amber }}>
+                      {decision.advanceWarning === "IMMEDIATE" ? "IMMEDIATE" : decision.advanceWarning}
+                    </span>
+                  </>
+                )}
+                {(state === "done" || state === "override") && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setDismissed(true); }}
+                    style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, fontFamily: C.mono, fontSize: 10, padding: "2px 8px", borderRadius: 3, cursor: "pointer", letterSpacing: "0.06em" }}
+                    title="Dismiss">
+                    x
+                  </button>
+                )}
               </span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>{decision.title}</div>
