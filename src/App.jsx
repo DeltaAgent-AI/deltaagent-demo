@@ -838,6 +838,7 @@ export default function DeltaAgentDashboard() {
   const [activeTab, setActiveTab]         = useState("inbox");
   const [confirmedIds, setConfirmedIds]   = useState(new Set());
   const [overriddenIds, setOverriddenIds] = useState(new Set());
+  const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
   const [agentLog, setAgentLog] = useState([
@@ -865,6 +866,27 @@ export default function DeltaAgentDashboard() {
   const pendingDecisions  = sortedDecisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id));
   const actionedDecisions = sortedDecisions.filter(d => confirmedIds.has(d.id) || overriddenIds.has(d.id));
   const pendingCount      = pendingDecisions.length;
+
+  // Fire alert SMS when new decisions arrive in inbox (not yet alerted, not actioned)
+  useEffect(() => {
+    const gaugeContext = {
+      ft:   simGauge.toFixed(1),
+      vis:  simVis.toFixed(2),
+      ice:  simIce.toFixed(1),
+      dist: simStormDist,
+      cat:  simStormCat,
+    };
+    pendingDecisions.forEach(decision => {
+      if (!alertedIds.has(decision.id)) {
+        setAlertedIds(prev => new Set([...prev, decision.id]));
+        fetch("/api/dispatch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision, gaugeContext, mode: "alert" }),
+        }).catch(() => {}); // silent fail - don't block UI
+      }
+    });
+  }, [pendingDecisions.map(d => d.id).join(",")]); // only re-run when decision IDs change
 
   // Overall corridor status - worst active threat drives the header
   const allStatuses = [floodScenario, fogScenario, iceScenario, stormScenario];
@@ -920,13 +942,42 @@ export default function DeltaAgentDashboard() {
       gauge: simGauge, agents: decision.agents, disruptionType: decision.disruptionType,
       time: ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" }),
     }]);
-    setAgentLog(prev => [{
-      id: logId,
-      time: ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
-      action: `CONFIRMED: ${decision.title}`,
-      cost: `$${decision.costAvoided.toLocaleString()} cost avoidance logged   ${getExecSteps(decision.disruptionType).length} alerts dispatched`,
-      severity: decision.severity, disruptionType: decision.disruptionType,
-    }, ...prev]);
+
+    // Send dispatch confirmation SMS
+    const gaugeContext = {
+      ft:   simGauge.toFixed(1),
+      vis:  simVis.toFixed(2),
+      ice:  simIce.toFixed(1),
+      dist: simStormDist,
+      cat:  simStormCat,
+    };
+    fetch("/api/dispatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision, gaugeContext, mode: "dispatch" }),
+    })
+    .then(r => r.json())
+    .then(result => {
+      const note = result.success
+        ? `${result.dispatched} SMS dispatched   $${decision.costAvoided.toLocaleString()} cost avoidance logged`
+        : `SMS dispatch failed   Manual notification required`;
+      setAgentLog(prev => [{
+        id: logId,
+        time: ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
+        action: `CONFIRMED + DISPATCHED: ${decision.title}`,
+        cost: note,
+        severity: decision.severity, disruptionType: decision.disruptionType,
+      }, ...prev]);
+    })
+    .catch(() => {
+      setAgentLog(prev => [{
+        id: logId,
+        time: ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
+        action: `CONFIRMED: ${decision.title}`,
+        cost: `$${decision.costAvoided.toLocaleString()} cost avoidance logged   SMS offline`,
+        severity: decision.severity, disruptionType: decision.disruptionType,
+      }, ...prev]);
+    });
   }
 
   function handleOverride(decision) {
