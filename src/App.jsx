@@ -642,7 +642,10 @@ function ExecutionTicker({ decision }) {
   const [firedCount, setFiredCount] = useState(0);
   const [done, setDone]             = useState(false);
   const [elapsed, setElapsed]       = useState("0.0");
+  const [collapsed, setCollapsed]   = useState(false);
   const startRef                    = useRef(Date.now());
+  const hoverRef                    = useRef(false);
+  const collapseRef                 = useRef(null);
   const steps = getExecSteps(decision.disruptionType);
 
   useEffect(() => {
@@ -651,15 +654,56 @@ function ExecutionTicker({ decision }) {
       setTimeout(() => {
         setFiredCount(i + 1);
         if (i === steps.length - 1) {
-          setTimeout(() => { setDone(true); clearInterval(clock); }, 500);
+          setTimeout(() => {
+            setDone(true);
+            clearInterval(clock);
+            // Start collapse timer after execution completes
+            collapseRef.current = setTimeout(() => {
+              if (!hoverRef.current) setCollapsed(true);
+            }, 8000);
+          }, 500);
         }
       }, (i + 1) * 800);
     });
-    return () => clearInterval(clock);
+    return () => { clearInterval(clock); clearTimeout(collapseRef.current); };
   }, []);
 
+  function handleMouseEnter() {
+    hoverRef.current = true;
+    clearTimeout(collapseRef.current);
+    setCollapsed(false);
+  }
+
+  function handleMouseLeave() {
+    hoverRef.current = false;
+    // Collapse after 3s when mouse leaves (only if done)
+    if (done) {
+      collapseRef.current = setTimeout(() => {
+        if (!hoverRef.current) setCollapsed(true);
+      }, 3000);
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <div
+        onMouseEnter={handleMouseEnter}
+        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+        onClick={() => setCollapsed(false)}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION RECORD</span>
+          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{steps.length} actions   {elapsed}s   ${decision.costAvoided.toLocaleString()} avoided</span>
+        </div>
+        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>hover to expand</span>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
+    <div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {done ? <span style={{ color: C.teal }}>+</span> : <PulsingDot color={C.teal} size={8} />}
@@ -751,7 +795,12 @@ function DecisionCard({ decision, onConfirm, onOverride }) {
                 </span>
               )}
               {decision.agents.map(a => <Badge key={a} color={C.muted} small>{a}</Badge>)}
-              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700 }}>{decision.advanceWarning} advance warning</span>
+              <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ opacity: 0.7 }}>ACT WITHIN</span>
+                <span style={{ fontSize: 11, color: decision.advanceWarning === "IMMEDIATE" ? C.red : C.amber }}>
+                  {decision.advanceWarning === "IMMEDIATE" ? "IMMEDIATE" : decision.advanceWarning}
+                </span>
+              </span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>{decision.title}</div>
             <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.55 }}>{decision.reason}</div>
@@ -916,10 +965,27 @@ export default function DeltaAgentDashboard() {
   ];
 
   // Sort by severity: critical first, then warning
+  // Parse advanceWarning string to minutes for sorting
+  function warningToMinutes(w) {
+    if (!w || w === "IMMEDIATE") return 0;
+    const h = w.match(/(\d+)h/);
+    const m = w.match(/(\d+)m/);
+    const d = w.match(/(\d+)h 00m/) ? null : w.match(/^(\d+)h$/);
+    let mins = 0;
+    if (h) mins += parseInt(h[1]) * 60;
+    if (m && !w.includes("h 00m")) mins += parseInt(m[1]);
+    if (w === "24h") return 24 * 60;
+    if (w === "48h") return 48 * 60;
+    if (w === "72h") return 72 * 60;
+    return mins || 9999;
+  }
+
+  // Sort by time urgency - least time to act goes first (real operational priority)
+  // IMMEDIATE and shortest windows bubble to top regardless of severity
   const sortedDecisions = [...allDecisions].sort((a, b) => {
-    if (a.severity === "critical" && b.severity !== "critical") return -1;
-    if (b.severity === "critical" && a.severity !== "critical") return 1;
-    return 0;
+    const aMin = warningToMinutes(a.advanceWarning);
+    const bMin = warningToMinutes(b.advanceWarning);
+    return aMin - bMin;
   });
 
   const pendingDecisions  = sortedDecisions.filter(d => !confirmedIds.has(d.id) && !overriddenIds.has(d.id));
