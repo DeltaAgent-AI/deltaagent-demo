@@ -588,29 +588,55 @@ function GaugeBar({ value, max = 20 }) {
 }
 
 function SMSNotification({ decision, onClose, onClick }) {
-  const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [visible, setVisible]         = useState(false);
+  const [hovered, setHovered]         = useState(false);
+  const [pendingClose, setPendingClose] = useState(false);
   const timerRef = useRef(null);
 
-  function startTimer() {
-    timerRef.current = setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 6000);
-  }
-  function pauseTimer() { clearTimeout(timerRef.current); }
-  function resumeTimer() { startTimer(); }
-
+  // Slide in on mount, then immediately trigger close (unless user hovers)
   useEffect(() => {
     setTimeout(() => setVisible(true), 50);
-    startTimer();
+    // After slide-in completes, begin close sequence immediately
+    timerRef.current = setTimeout(() => setPendingClose(true), 500);
     return () => clearTimeout(timerRef.current);
   }, []);
 
-  function handleClick() { clearTimeout(timerRef.current); onClick(); setVisible(false); setTimeout(onClose, 400); }
+  // When pendingClose is set: close immediately if not hovered, else wait for mouse leave
+  useEffect(() => {
+    if (!pendingClose) return;
+    if (!hovered) {
+      setVisible(false);
+      timerRef.current = setTimeout(onClose, 400);
+    }
+    // if hovered, the onMouseLeave handler will fire the close
+  }, [pendingClose, hovered]);
+
+  // Called from parent (handleConfirm) — triggers immediate close
+  useEffect(() => {
+    // We don't auto-start a timer anymore; parent drives close via onClose being called
+  }, []);
+
+  function handleMouseLeave() {
+    setHovered(false);
+    if (pendingClose) {
+      setVisible(false);
+      timerRef.current = setTimeout(onClose, 400);
+    }
+  }
+
+  function handleClick() {
+    clearTimeout(timerRef.current);
+    onClick();
+    setVisible(false);
+    setTimeout(onClose, 400);
+  }
+
   const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" });
   return (
     <div
       onClick={handleClick}
-      onMouseEnter={() => { setHovered(true); pauseTimer(); }}
-      onMouseLeave={() => { setHovered(false); resumeTimer(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={handleMouseLeave}
       style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.03 : 1})` : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
       <div style={{ width: 340, background: "linear-gradient(150deg,#040f0e,#061a17)", borderRadius: 12, overflow: "hidden", boxShadow: hovered ? `0 32px 80px rgba(0,0,0,0.95),0 0 0 1px ${C.teal}88,0 0 40px ${C.teal}22` : `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.teal}44`, fontFamily: C.sans, transition: "box-shadow 0.2s ease" }}>
         <div style={{ height: 3, background: `linear-gradient(90deg,${C.teal},#0f4547,transparent)` }} />
@@ -996,7 +1022,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
 function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) {
   const [expanded, setExpanded] = useState(autoExpand);
   const ref = useRef(null);
-  const isConfirmed = entry.action.startsWith("CONFIRMED:");
+  const isConfirmed = entry.action.startsWith("CONFIRMED");
   const isOverride  = entry.severity === "override";
   const isAlert     = entry.action.startsWith("ALERT:");
   const isMonitor   = entry.action.startsWith("MONITORING:") || entry.action.startsWith("RIVER WARDEN:");
