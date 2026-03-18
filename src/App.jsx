@@ -1986,7 +1986,7 @@ export default function DeltaAgentDashboard() {
         @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
         @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } }
         @keyframes pulseText { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes criticalPulse { 0%,100% { box-shadow: 0 0 0 1px ${C.red}22, 0 4px 24px ${C.red}18; } 50% { box-shadow: 0 0 0 1px ${C.red}44, 0 4px 32px ${C.red}30; } }
+        @keyframes criticalPulse { 0%,100% { box-shadow: 0 0 0 1px rgba(220,38,38,0.13), 0 4px 24px rgba(220,38,38,0.09); } 50% { box-shadow: 0 0 0 1px rgba(220,38,38,0.27), 0 4px 32px rgba(220,38,38,0.19); } }
         @keyframes tooltipFadeIn { from { opacity: 0; } to { opacity: 1; } }
         button:hover { filter: brightness(1.15); }
         ::-webkit-scrollbar { width: 3px; }
