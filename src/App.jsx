@@ -692,6 +692,8 @@ function CredentialChip({ label, color, title, detail }) {
     </span>
   );
 }
+
+function PulsingDot({ color, size = 8 }) {
   return (
     <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
       <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: color, opacity: 0.35, animation: "ping 1.6s ease-in-out infinite" }} />
