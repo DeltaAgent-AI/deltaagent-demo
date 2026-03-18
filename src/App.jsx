@@ -1139,6 +1139,16 @@ export default function DeltaAgentDashboard() {
   const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
+  const tabsRef = useRef(null);
+
+  function navigateToTab(tabId, logId) {
+    setActiveTab(tabId);
+    if (logId) setAutoExpandLogId(logId);
+    // Small delay so the tab content renders before we scroll
+    setTimeout(() => {
+      tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
   const [agentLog, setAgentLog] = useState([
     { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled",     cost: "Stage 0.7ft   Nominal   No action required",      severity: "ok" },
     { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
@@ -1433,11 +1443,11 @@ export default function DeltaAgentDashboard() {
 
       {smsQueue.map(sms => (
         <SMSNotification key={sms.id} decision={sms} onClose={() => removeSms(sms.id)}
-          onClick={() => { setActiveTab("log"); setAutoExpandLogId(sms.logId); }} />
+          onClick={() => { navigateToTab("log", sms.logId); }} />
       ))}
       {overrideQueue.map(ov => (
         <OverrideNotification key={ov.id} decision={ov} onClose={() => setOverrideQueue(q => q.filter(o => o.id !== ov.id))}
-          onClick={() => { setOverrideQueue(q => q.filter(o => o.id !== ov.id)); setActiveTab("log"); }} />
+          onClick={() => { setOverrideQueue(q => q.filter(o => o.id !== ov.id)); navigateToTab("log"); }} />
       ))}
 
       <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative", overflow: "hidden" }}>
@@ -1459,7 +1469,7 @@ export default function DeltaAgentDashboard() {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div onClick={() => pendingCount > 0 && setActiveTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${corridorStatusColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? corridorStatusColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default" }}>
+              <div onClick={() => pendingCount > 0 && navigateToTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${corridorStatusColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? corridorStatusColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default" }}>
                 <PulsingDot color={pendingCount > 0 ? corridorStatusColor : C.teal} size={7} />
                 <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.teal, letterSpacing: "0.08em" }}>
                   {pendingCount > 0 ? `${corridorStatus}   ${pendingCount} PENDING` : corridorStatus}
@@ -1734,7 +1744,7 @@ export default function DeltaAgentDashboard() {
             </div>
 
             {/*    TABS    */}
-            <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}` }}>
+            <div ref={tabsRef} style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}` }}>
               {[
                 { id: "inbox",  label: `DECISION INBOX${pendingCount > 0 ? ` (${pendingCount})` : ""}` },
                 { id: "log",    label: "AGENT LOG" },
