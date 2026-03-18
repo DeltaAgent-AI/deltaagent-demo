@@ -254,9 +254,10 @@ function buildFogScenario(visNm) {
 
   const riskColor = statusColor;
 
+  const fogBandKey = zeroZero ? "zz" : critical ? "cr" : restricted ? "rs" : cautionary ? "ca" : "nm";
   const decisions = zeroZero ? [
     {
-      id: "f1", severity: "critical",
+      id: `fog-${fogBandKey}-d1`, severity: "critical",
       disruptionType: "FOG", disruptionLabel: "ZERO-ZERO",
       title: "HALT - Total Movement Shutdown",
       reason: "KMSY visibility " + visNm.toFixed(2) + "nm - Zero-Zero conditions. Catastrophic collision risk. Every vessel stays put. Logistics domino imminent - 500+ trucks idling at terminal gates.",
@@ -265,7 +266,7 @@ function buildFogScenario(visNm) {
       actions: ["Halt all vessel movement - every ship stays put per Coast Guard order", "Shut down truck gates - prevent land-side gridlock on surface streets", "Stop CN/KCS rail lines - prevent intermodal backup at terminal", "Order anchorage for all vessels currently in Kenner Bend straightaway", "Notify Port Director - logistics domino protocol activated"],
     },
     {
-      id: "f2", severity: "critical",
+      id: `fog-${fogBandKey}-d2`, severity: "critical",
       disruptionType: "FOG", disruptionLabel: "ALLISION RISK",
       title: "PROHIBIT - No Vessel May Leave or Approach Wharves",
       reason: "Sub-0.25nm visibility creates total disorientation risk. A 30-second radar or GPS outage could cause allision with bridge pier or levee grounding.",
@@ -275,7 +276,7 @@ function buildFogScenario(visNm) {
     },
   ] : critical ? [
     {
-      id: "f1", severity: "critical",
+      id: `fog-${fogBandKey}-d1`, severity: "critical",
       disruptionType: "FOG", disruptionLabel: "DENSE FOG",
       title: "SUSPEND - All Mooring Operations",
       reason: "KMSY visibility " + visNm.toFixed(2) + "nm - dense fog threshold. Suspend all docking and undocking. Order ships in straightaways to find nearest anchorage immediately.",
@@ -284,7 +285,7 @@ function buildFogScenario(visNm) {
       actions: ["Suspend all mooring operations - no vessel may leave or approach wharf", "Order vessels in Kenner Bend straightaway to nearest anchorage", "Pilot boarding suspended at Southwest Pass and Pilottown stations", "Crane gang stood down - berth crews on hold", "Drayage trucks notified - 2-4hr delay window via Twilio SMS"],
     },
     {
-      id: "f2", severity: "warning",
+      id: `fog-${fogBandKey}-d2`, severity: "warning",
       disruptionType: "FOG", disruptionLabel: "BRIDGE RESTRICTION",
       title: "COORDINATE - One-Way Traffic at Bridges",
       reason: "Dense fog makes two-way traffic under Huey P. Long and Crescent City Connection bridges catastrophically dangerous. One-way protocol must be maintained.",
@@ -294,7 +295,7 @@ function buildFogScenario(visNm) {
     },
   ] : restricted ? [
     {
-      id: "f1", severity: "warning",
+      id: `fog-${fogBandKey}-d1`, severity: "warning",
       disruptionType: "FOG", disruptionLabel: "RESTRICTED VIS",
       title: "INITIATE - One-Way Traffic at Dangerous Bends",
       reason: "KMSY visibility " + visNm.toFixed(2) + "nm - restricted phase. Radar ghosting at sharp bends. Initiate one-way traffic through bridges. Pilots may stop boarding at Southwest Pass.",
@@ -304,7 +305,7 @@ function buildFogScenario(visNm) {
     },
   ] : cautionary ? [
     {
-      id: "f1", severity: "warning",
+      id: `fog-${fogBandKey}-d1`, severity: "warning",
       disruptionType: "FOG", disruptionLabel: "CAUTIONARY",
       title: "ACTIVATE - VTS Monitoring and Tug Standby",
       reason: "KMSY visibility " + visNm.toFixed(2) + "nm - cautionary phase. Tow-heads beginning to disappear. Reaction time compressed by 4-knot current. Activate VTS checkpoint monitoring.",
@@ -324,7 +325,7 @@ function buildFogScenario(visNm) {
     ? [4.2, 3.8, 3.2, 2.6, 2.2, 1.8, 1.4, visNm]
     : [8.0, 8.5, 9.0, 9.2, 9.5, 9.8, 10.0, visNm];
 
-  return { visNm, status, statusColor, risk, riskColor, decisions, trend };
+  return { visNm, status, statusColor, risk, riskColor, decisions, trend, fogBandKey };
 }
 
 //    ICE SCENARIO - Lower Mississippi River specific
@@ -358,9 +359,10 @@ function buildIceScenario(iceIndex) {
 
   const riskColor = statusColor;
 
+  const iceBandKey = severe ? "sv" : heavy ? "hv" : intermediate ? "im" : trace ? "tr" : "nm";
   const decisions = severe ? [
     {
-      id: "i1", severity: "critical",
+      id: `ice-${iceBandKey}-d1`, severity: "critical",
       disruptionType: "ICE", disruptionLabel: "RIVER CLOSURE",
       title: "HALT - Full River Closure Protocol",
       reason: "Ice coverage at " + coverage.toFixed(0) + "% - severe jamming. River current pushing ice floes with enough force to overwhelm vessel engines. Coast Guard coordination required for immediate closure. Bridge piers at Huey P. Long at risk of ice dam formation.",
@@ -369,7 +371,7 @@ function buildIceScenario(iceIndex) {
       actions: ["Coordinate with Coast Guard Sector NOLA - river closure declaration", "Halt all vessel traffic - no exceptions", "Monitor Huey P. Long Bridge piers for ice jam formation", "Suspend all land-side operations - shut truck gates and rail lines", "Port Director emergency notification - MTSA ice closure protocol activated"],
     },
     {
-      id: "i2", severity: "critical",
+      id: `ice-${iceBandKey}-d2`, severity: "critical",
       disruptionType: "ICE", disruptionLabel: "LOGISTICS FREEZE",
       title: "SUSPEND - All Land-Side Operations",
       reason: "Ships cannot move. Port is now a warehouse that cannot be emptied. Rail and trucking must halt to prevent land-side gridlock on surface streets.",
@@ -379,7 +381,7 @@ function buildIceScenario(iceIndex) {
     },
   ] : heavy ? [
     {
-      id: "i1", severity: "critical",
+      id: `ice-${iceBandKey}-d1`, severity: "critical",
       disruptionType: "ICE", disruptionLabel: "MOORING RISK",
       title: "MANDATE - Standby Tugs at All Berths",
       reason: "Ice coverage at " + coverage.toFixed(0) + "% - ice building between docked ships and wharf. Pressure can snap massive steel mooring lines. Require assist tugs pinned against all docked vessels to maintain pressure.",
@@ -388,7 +390,7 @@ function buildIceScenario(iceIndex) {
       actions: ["Mandate standby assist tugs at all berths via Crescent Towing", "Suspend all barge fleeting - loose barge in ice becomes a battering ram", "Notify vessel masters - mooring line snap risk advisory issued", "Increase mooring line checks to every 30 minutes", "SMS dispatch to Port Director + Coast Guard Sector NOLA"],
     },
     {
-      id: "i2", severity: "warning",
+      id: `ice-${iceBandKey}-d2`, severity: "warning",
       disruptionType: "ICE", disruptionLabel: "BARGE FLEETING",
       title: "SUSPEND - Barge Fleeting Operations",
       reason: "Heavy ice coverage makes barge building dangerous. A loose barge in pack ice becomes a battering ram capable of damaging bridge piers or other vessels.",
@@ -398,7 +400,7 @@ function buildIceScenario(iceIndex) {
     },
   ] : intermediate ? [
     {
-      id: "i1", severity: "warning",
+      id: `ice-${iceBandKey}-d1`, severity: "warning",
       disruptionType: "ICE", disruptionLabel: "BUOY DISPLACEMENT",
       title: "DECLARE - Unreliable Aids to Navigation",
       reason: "Ice coverage at " + coverage.toFixed(0) + "% - moving ice snagging buoy chains and dragging channel markers out of position. Green and red channel markers may not be where they are supposed to be.",
@@ -408,7 +410,7 @@ function buildIceScenario(iceIndex) {
     },
   ] : trace ? [
     {
-      id: "i1", severity: "warning",
+      id: `ice-${iceBandKey}-d1`, severity: "warning",
       disruptionType: "ICE", disruptionLabel: "ENGINE INTAKES",
       title: "ADVISORY - Monitor Vessel Engine Intakes",
       reason: "Trace ice (frazil slush) detected on Lower Mississippi. Primary risk is sea chest clogging on tugs and ships. Slush can block cooling water intakes causing engines to overheat and fail mid-current.",
@@ -426,7 +428,7 @@ function buildIceScenario(iceIndex) {
     ? [0.3, 0.6, 0.9, 1.2, 1.5, 1.8, 2.1, iceIndex]
     : [0.1, 0.1, 0.2, 0.1, 0.2, 0.1, 0.1, iceIndex];
 
-  return { iceIndex, coverage, status, statusColor, risk, riskColor, decisions, trend };
+  return { iceIndex, coverage, status, statusColor, risk, riskColor, decisions, trend, iceBandKey };
 }
 
 //    HURRICANE SCENARIO - Lower Mississippi River / USCG MHCPP
@@ -467,9 +469,10 @@ function buildHurricaneScenario(distanceMiles, category) {
 
   const riskColor = statusColor;
 
+  const stormBandKey = zulu ? "zu" : yankee ? "ya" : xray ? "xr" : whiskey ? "wh" : "nm";
   const decisions = zulu ? [
     {
-      id: "h1", severity: "critical",
+      id: `storm-${stormBandKey}-d1`, severity: "critical",
       disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION ZULU",
       title: "CLOSE - Port Condition ZULU - Full Closure",
       reason: catLabel + " " + distanceMiles + "mi from SW Pass - 12h to gale force winds. COTP declaring Port Condition ZULU. Port closed to ALL inbound and outbound traffic. Suspend all cargo operations including bunkering and lightering.",
@@ -478,7 +481,7 @@ function buildHurricaneScenario(distanceMiles, category) {
       actions: ["COTP Port Condition ZULU declared - all traffic halted", "Suspend all cargo ops including bunkering and lightering", "Gantry cranes, conveyors, and loose gear lashed and secured", "Essential Personnel roster activated - designated staff report to stations", "Joint Gulf Coast Inland Waterways Hurricane Response Protocol activated", "FEMA + Port NOLA EOC notified - MTSA hurricane audit log created"],
     },
     {
-      id: "h2", severity: "critical",
+      id: `storm-${stormBandKey}-d2`, severity: "critical",
       disruptionType: "HURRICANE", disruptionLabel: "RNA ENFORCEMENT",
       title: "ENFORCE - Regulated Navigation Area Restriction",
       reason: "RNA restrictions now active. All floating vessels prohibited from Harvey Canal and Algiers Canal unless pre-approved Annual Hurricane Operation Plan (AHOP) is on file.",
@@ -488,7 +491,7 @@ function buildHurricaneScenario(distanceMiles, category) {
     },
   ] : yankee ? [
     {
-      id: "h1", severity: "critical",
+      id: `storm-${stormBandKey}-d1`, severity: "critical",
       disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION YANKEE",
       title: "RESTRICT - Port Condition YANKEE - Inbound Closed",
       reason: catLabel + " " + distanceMiles + "mi from SW Pass - 24h to gale force winds. Port restricted - closed to all inbound vessel traffic. Order termination of all cargo operations not associated with storm prep.",
@@ -497,7 +500,7 @@ function buildHurricaneScenario(distanceMiles, category) {
       actions: ["Port closed to all inbound traffic - COTP YANKEE declared", "Terminate all cargo operations not related to storm preparation", "Encourage vessels to depart - those staying must have approved storm mooring system", "Vessel storm mooring plans reviewed and approved by Port Director", "CN/KCS rail traffic pre-positioned - cars staged at inland yards"],
     },
     {
-      id: "h2", severity: "warning",
+      id: `storm-${stormBandKey}-d2`, severity: "warning",
       disruptionType: "HURRICANE", disruptionLabel: "VESSEL MOORING",
       title: "VERIFY - Storm Mooring Plans for All Remaining Vessels",
       reason: "Vessels electing to remain must have a written storm mooring plan on file. Minimum two anchors required. All must be ready to get underway within 15 minutes.",
@@ -507,7 +510,7 @@ function buildHurricaneScenario(distanceMiles, category) {
     },
   ] : xray ? [
     {
-      id: "h1", severity: "warning",
+      id: `storm-${stormBandKey}-d1`, severity: "warning",
       disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION X-RAY",
       title: "PREPARE - Port Condition X-RAY - Intensified Prep",
       reason: catLabel + " " + distanceMiles + "mi from SW Pass - 48h to gale force winds. Port open but preparation intensifies. Review all vessel mooring plans. Secure or remove all potential flying debris and hazardous materials.",
@@ -517,7 +520,7 @@ function buildHurricaneScenario(distanceMiles, category) {
     },
   ] : whiskey ? [
     {
-      id: "h1", severity: "warning",
+      id: `storm-${stormBandKey}-d1`, severity: "warning",
       disruptionType: "HURRICANE", disruptionLabel: "PORT CONDITION WHISKEY",
       title: "INITIATE - Port Condition WHISKEY - Storm Prep Begins",
       reason: catLabel + " tracking toward Gulf - " + distanceMiles + "mi from SW Pass. 72h to gale force winds at SW Pass Entrance Sea Buoy. Port remains open. Begin fuel top-offs and confirm vessel schedules.",
@@ -537,7 +540,7 @@ function buildHurricaneScenario(distanceMiles, category) {
     ? [1200, 1150, 1080, 1020, 960, 900, 850, distanceMiles]
     : [1400, 1350, 1280, 1200, 1150, 1100, 1050, distanceMiles];
 
-  return { distanceMiles, category, portCondition, status, statusColor, risk, riskColor, decisions, trend };
+  return { distanceMiles, category, portCondition, status, statusColor, risk, riskColor, decisions, trend, stormBandKey };
 }
 
 function Badge({ color, children, small }) {
@@ -1902,20 +1905,6 @@ export default function DeltaAgentDashboard() {
     });
   }
 
-  // Remove all pending decisions for a non-flood type when it returns to NOMINAL
-  function pruneTypeOnNominal(typePrefix) {
-    setDecisionStore(prev => {
-      const next = { ...prev };
-      let changed = false;
-      Object.keys(next).forEach(id => {
-        if (!id.startsWith(typePrefix)) return;
-        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
-        if (!isActioned) { delete next[id]; changed = true; }
-      });
-      return changed ? next : prev;
-    });
-  }
-
   // Flood: add when crossing into a new band; prune bands above when sliding back down
   const prevFloodBandRef = useRef("nm");
   useEffect(() => {
@@ -1938,47 +1927,82 @@ export default function DeltaAgentDashboard() {
     }
   }, [floodScenario.scenarioKey]);
 
-  // Fog: add on new status; prune all pending fog on NOMINAL
-  const prevFogStatusRef = useRef("NOMINAL");
+  const FOG_BAND_ORDER   = ["nm", "ca", "rs", "cr", "zz"];
+  const ICE_BAND_ORDER   = ["nm", "tr", "im", "hv", "sv"];
+  const STORM_BAND_ORDER = ["nm", "wh", "xr", "ya", "zu"];
+
+  function bandIndex(order, key) { return order.indexOf(key); }
+
+  function pruneAbove(typePrefix, order, currentKey) {
+    const currentIdx = bandIndex(order, currentKey);
+    setDecisionStore(prev => {
+      const next = { ...prev };
+      let changed = false;
+      Object.keys(next).forEach(id => {
+        if (!id.startsWith(typePrefix)) return;
+        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
+        if (isActioned) return;
+        const parts = id.split("-");
+        const bandKey = parts[1]; // e.g. "fog-cr-d1" → "cr"
+        if (bandIndex(order, bandKey) > currentIdx) {
+          delete next[id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }
+
+  // Fog
+  const prevFogBandRef = useRef("nm");
   useEffect(() => {
-    const curr = fogScenario.status;
-    const prev = prevFogStatusRef.current;
-    if (curr === prev) return;
-    prevFogStatusRef.current = curr;
-    if (curr === "NOMINAL") {
-      pruneTypeOnNominal("f");
+    const currentKey = fogScenario.fogBandKey;
+    const prevKey    = prevFogBandRef.current;
+    if (currentKey === prevKey) return;
+    prevFogBandRef.current = currentKey;
+    const currentIdx = bandIndex(FOG_BAND_ORDER, currentKey);
+    const prevIdx    = bandIndex(FOG_BAND_ORDER, prevKey);
+    if (currentIdx > prevIdx) {
+      addDecisions(fogScenario.decisions);
     } else {
+      pruneAbove("fog-", FOG_BAND_ORDER, currentKey);
       addDecisions(fogScenario.decisions);
     }
-  }, [fogScenario.status]);
+  }, [fogScenario.fogBandKey]);
 
-  // Ice: add on new status; prune all pending ice on NOMINAL
-  const prevIceStatusRef = useRef("NOMINAL");
+  // Ice
+  const prevIceBandRef = useRef("nm");
   useEffect(() => {
-    const curr = iceScenario.status;
-    const prev = prevIceStatusRef.current;
-    if (curr === prev) return;
-    prevIceStatusRef.current = curr;
-    if (curr === "NOMINAL") {
-      pruneTypeOnNominal("i");
+    const currentKey = iceScenario.iceBandKey;
+    const prevKey    = prevIceBandRef.current;
+    if (currentKey === prevKey) return;
+    prevIceBandRef.current = currentKey;
+    const currentIdx = bandIndex(ICE_BAND_ORDER, currentKey);
+    const prevIdx    = bandIndex(ICE_BAND_ORDER, prevKey);
+    if (currentIdx > prevIdx) {
+      addDecisions(iceScenario.decisions);
     } else {
+      pruneAbove("ice-", ICE_BAND_ORDER, currentKey);
       addDecisions(iceScenario.decisions);
     }
-  }, [iceScenario.status]);
+  }, [iceScenario.iceBandKey]);
 
-  // Hurricane: add on new status; prune all pending storm on NOMINAL
-  const prevStormStatusRef = useRef("NOMINAL");
+  // Hurricane
+  const prevStormBandRef = useRef("nm");
   useEffect(() => {
-    const curr = stormScenario.status;
-    const prev = prevStormStatusRef.current;
-    if (curr === prev) return;
-    prevStormStatusRef.current = curr;
-    if (curr === "NOMINAL") {
-      pruneTypeOnNominal("h");
+    const currentKey = stormScenario.stormBandKey;
+    const prevKey    = prevStormBandRef.current;
+    if (currentKey === prevKey) return;
+    prevStormBandRef.current = currentKey;
+    const currentIdx = bandIndex(STORM_BAND_ORDER, currentKey);
+    const prevIdx    = bandIndex(STORM_BAND_ORDER, prevKey);
+    if (currentIdx > prevIdx) {
+      addDecisions(stormScenario.decisions);
     } else {
+      pruneAbove("storm-", STORM_BAND_ORDER, currentKey);
       addDecisions(stormScenario.decisions);
     }
-  }, [stormScenario.status]);
+  }, [stormScenario.stormBandKey]);
 
   const allDecisions = Object.values(decisionStore);
 
@@ -2248,9 +2272,9 @@ export default function DeltaAgentDashboard() {
     ]);
     // Reset band tracking refs so scenario restarts cleanly
     prevFloodBandRef.current  = "nm";
-    prevFogStatusRef.current  = "NOMINAL";
-    prevIceStatusRef.current  = "NOMINAL";
-    prevStormStatusRef.current = "NOMINAL";
+    prevFogBandRef.current    = "nm";
+    prevIceBandRef.current    = "nm";
+    prevStormBandRef.current  = "nm";
     setActiveTab("inbox");
     setSmsQueue([]); setOverrideQueue([]);
   }
@@ -2408,9 +2432,9 @@ export default function DeltaAgentDashboard() {
                       ]);
                       setActiveTab("inbox");
                       prevFloodBandRef.current  = "nm";
-                      prevFogStatusRef.current  = "NOMINAL";
-                      prevIceStatusRef.current  = "NOMINAL";
-                      prevStormStatusRef.current = "NOMINAL";
+                      prevFogBandRef.current    = "nm";
+                      prevIceBandRef.current    = "nm";
+                      prevStormBandRef.current  = "nm";
                     },
                   },
                   {
@@ -2437,9 +2461,9 @@ export default function DeltaAgentDashboard() {
                       ]);
                       setActiveTab("inbox");
                       prevFloodBandRef.current  = "nm";
-                      prevFogStatusRef.current  = "NOMINAL";
-                      prevIceStatusRef.current  = "NOMINAL";
-                      prevStormStatusRef.current = "NOMINAL";
+                      prevFogBandRef.current    = "nm";
+                      prevIceBandRef.current    = "nm";
+                      prevStormBandRef.current  = "nm";
                     },
                   },
                   {
@@ -2466,9 +2490,9 @@ export default function DeltaAgentDashboard() {
                       ]);
                       setActiveTab("inbox");
                       prevFloodBandRef.current  = "nm";
-                      prevFogStatusRef.current  = "NOMINAL";
-                      prevIceStatusRef.current  = "NOMINAL";
-                      prevStormStatusRef.current = "NOMINAL";
+                      prevFogBandRef.current    = "nm";
+                      prevIceBandRef.current    = "nm";
+                      prevStormBandRef.current  = "nm";
                     },
                   },
                 ].map(({ icon, label, sublabel, description, color, action }) => (
