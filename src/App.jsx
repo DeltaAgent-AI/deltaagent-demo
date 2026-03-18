@@ -1147,6 +1147,189 @@ function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) 
   );
 }
 
+function RecordDrawer({ record, onClose, onViewLog }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setVisible(true), 20);
+  }, []);
+
+  function handleClose() {
+    setVisible(false);
+    setTimeout(onClose, 320);
+  }
+
+  if (!record) return null;
+
+  const isConfirm = record.type === "confirm";
+  const accentColor = isConfirm ? C.teal : C.amber;
+  const steps = getExecSteps(record.disruptionType);
+  const typeColors = { SMS: C.teal, API: "#818cf8", OPS: C.amber, DATA: "#67e8f9", AUDIT: C.muted };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={handleClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(2px)",
+          opacity: visible ? 1 : 0,
+          transition: "opacity 0.3s ease",
+        }}
+      />
+      {/* Drawer */}
+      <div style={{
+        position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 201,
+        width: 420,
+        background: "linear-gradient(160deg,#060f0d,#030a08)",
+        borderLeft: `1px solid ${accentColor}33`,
+        boxShadow: `-24px 0 80px rgba(0,0,0,0.7), 0 0 0 1px ${accentColor}22`,
+        transform: visible ? "translateX(0)" : "translateX(100%)",
+        transition: "transform 0.32s cubic-bezier(0.22,1,0.36,1)",
+        display: "flex", flexDirection: "column",
+        fontFamily: C.sans,
+        overflowY: "auto",
+      }}>
+        {/* Top accent line */}
+        <div style={{ height: 3, background: `linear-gradient(90deg,${accentColor},${accentColor}44,transparent)`, flexShrink: 0 }} />
+
+        {/* Header */}
+        <div style={{ padding: "18px 20px 14px", borderBottom: `1px solid ${accentColor}22`, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                  background: isConfirm
+                    ? `linear-gradient(135deg,#0f4547,${C.teal})`
+                    : "linear-gradient(135deg,#92400e,#d97706)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: `0 0 10px ${accentColor}44`,
+                }}>
+                  {isConfirm
+                    ? <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><polygon points="8,2 14,14 8,10 2,14" fill="white" /></svg>
+                    : <span style={{ color: "white", fontSize: 14, fontWeight: 700 }}>!</span>
+                  }
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: accentColor, letterSpacing: "0.1em" }}>
+                  {isConfirm ? "EXECUTION RECORD" : "OVERRIDE RECORD"}
+                </div>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.white, lineHeight: 1.35, marginBottom: 4 }}>
+                {record.title}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{record.time}</span>
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: accentColor, background: `${accentColor}15`, border: `1px solid ${accentColor}33`, borderRadius: 3, padding: "1px 6px" }}>
+                  {record.disruptionType}
+                </span>
+                {isConfirm && (
+                  <span style={{ fontFamily: C.mono, fontSize: 9, color: C.green }}>
+                    ${record.costAvoided?.toLocaleString()} avoided
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleClose}
+              style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, fontFamily: C.mono, fontSize: 11, padding: "4px 10px", borderRadius: 4, cursor: "pointer", flexShrink: 0, marginTop: 2 }}>
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "16px 20px", flex: 1 }}>
+          {isConfirm ? (
+            <>
+              {/* Summary strip */}
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                {[
+                  { label: "AVOIDED",  value: `$${record.costAvoided?.toLocaleString()}`, color: C.green },
+                  { label: "ELAPSED",  value: "5.3s",   color: C.teal },
+                  { label: "ALERTS",   value: String(steps.length), color: C.teal },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ flex: 1, padding: "8px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}22`, textAlign: "center" }}>
+                    <div style={{ fontFamily: C.mono, fontSize: 7, color: C.muted, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Execution steps */}
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>DISPATCH LOG</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+                {steps.map((step, i) => {
+                  const typeColor = typeColors[step.type] || C.muted;
+                  return (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "34px 1fr auto 28px", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 4, background: `${C.teal}09`, border: `1px solid ${C.teal}1a` }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, borderRadius: 3, padding: "2px 0", textAlign: "center" }}>
+                        {step.type}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.white, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{step.label}</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, whiteSpace: "nowrap" }}>{step.detail}</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.teal, textAlign: "right" }}>{((i + 1) * 0.8).toFixed(1)}s</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* vs manual */}
+              <div style={{ padding: "8px 12px", borderRadius: 5, background: `${C.muted}0a`, border: `1px solid ${C.border}` }}>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+                  Agent execution: 5.3s   vs. manual: {getManualComparison(record.disruptionType)}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Override body */}
+              <div style={{ padding: "12px 14px", borderRadius: 6, background: `${C.amber}0d`, border: `1px solid ${C.amber}33`, marginBottom: 14 }}>
+                <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 6 }}>
+                  OVERRIDE LOGGED — MANUAL ACTION REQUIRED
+                </div>
+                <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.6 }}>
+                  Automated dispatch was cancelled. Your team must manually coordinate with the Port Director, Pilot Station, and CN/KCS rail. This decision has been recorded in the MTSA audit trail.
+                </div>
+              </div>
+
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>CONTACTS REQUIRING MANUAL COORDINATION</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+                {["Port Director — +1 (504) 555-0147", "Pilot Station — +1 (504) 555-0293", "CN/KCS Rail Operations", "Drayage Fleet Dispatcher"].map((contact, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 4, background: `${C.amber}08`, border: `1px solid ${C.amber}22` }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.amber, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: C.white }}>{contact}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ padding: "8px 12px", borderRadius: 5, background: `${C.red}08`, border: `1px solid ${C.red}22` }}>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.red }}>
+                  ~45 min / 20 manual calls required   vs. 4.8s automated
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+            MTSA audit record filed   {record.time}
+          </div>
+          <button
+            onClick={onViewLog}
+            style={{ background: "transparent", border: `1px solid ${accentColor}44`, color: accentColor, fontFamily: C.mono, fontSize: 9, padding: "4px 12px", borderRadius: 4, cursor: "pointer", letterSpacing: "0.06em" }}>
+            VIEW IN AGENT LOG →
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function DeltaAgentDashboard() {
   //    All four threat simulators run simultaneously   
   const [gaugeData, setGaugeData]   = useState(null);
@@ -1180,11 +1363,12 @@ export default function DeltaAgentDashboard() {
   const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
+  const [drawerRecord, setDrawerRecord]       = useState(null);
   const tabsRef = useRef(null);
 
   function navigateToTab(tabId, logId) {
     setActiveTab(tabId);
-    if (logId) setAutoExpandLogId(logId);
+    setAutoExpandLogId(logId || null);
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }, 50);
@@ -1481,13 +1665,37 @@ export default function DeltaAgentDashboard() {
         @media (max-width: 640px) { .hero-grid { grid-template-columns: 1fr !important; } .hide-sm { display: none !important; } }
       `}</style>
 
+      {drawerRecord && (
+        <RecordDrawer
+          record={drawerRecord}
+          onClose={() => setDrawerRecord(null)}
+          onViewLog={() => { setDrawerRecord(null); navigateToTab("log"); }}
+        />
+      )}
+
       {smsQueue.map(sms => (
         <SMSNotification key={sms.id} decision={sms} onClose={() => removeSms(sms.id)}
-          onClick={() => { navigateToTab("log", sms.logId); }} />
+          onClick={() => setDrawerRecord({
+            type: "confirm",
+            title: sms.title,
+            time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" }),
+            disruptionType: sms.disruptionType,
+            costAvoided: sms.costAvoided,
+            ft: sms.ft,
+          })} />
       ))}
       {overrideQueue.map(ov => (
         <OverrideNotification key={ov.id} decision={ov} onClose={() => setOverrideQueue(q => q.filter(o => o.id !== ov.id))}
-          onClick={() => { setOverrideQueue(q => q.filter(o => o.id !== ov.id)); navigateToTab("log"); }} />
+          onClick={() => {
+            setOverrideQueue(q => q.filter(o => o.id !== ov.id));
+            setDrawerRecord({
+              type: "override",
+              title: ov.title,
+              time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" }),
+              disruptionType: ov.disruptionType,
+              costAvoided: ov.costAvoided,
+            });
+          }} />
       ))}
 
       <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative", overflow: "hidden" }}>
