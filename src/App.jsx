@@ -795,10 +795,12 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
 
   return (
     <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div
+        onClick={() => done && setCollapsed(true)}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, cursor: done ? "pointer" : "default" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {done
-            ? <span onClick={() => setCollapsed(true)} style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em", cursor: "pointer" }}>- EXECUTION RECORD</span>
+            ? <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>- EXECUTION RECORD</span>
             : <><PulsingDot color={C.teal} size={8} /><span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>EXECUTING...</span></>
           }
         </div>
