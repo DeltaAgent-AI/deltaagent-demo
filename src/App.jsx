@@ -694,53 +694,93 @@ function SMSNotification({ decision, onClose, onClick }) {
 }
 
 function OverrideNotification({ decision, onClose, onClick }) {
-  const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const timerRef = useRef(null);
+  const [visible, setVisible]   = useState(false);
+  const [hovered, setHovered]   = useState(false);
+  const [progress, setProgress] = useState(100);
+  const timerRef                = useRef(null);
+  const progressRef             = useRef(null);
+  const startTimeRef            = useRef(null);
+  const remainingRef            = useRef(TOAST_DURATION);
 
-  function startTimer() {
-    timerRef.current = setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 6000);
+  function startDrain() {
+    const start = Date.now();
+    startTimeRef.current = start;
+    progressRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.max(0, 100 - (elapsed / remainingRef.current) * 100);
+      setProgress(pct);
+    }, 50);
+    timerRef.current = setTimeout(() => {
+      clearInterval(progressRef.current);
+      setVisible(false);
+      setTimeout(onClose, 400);
+    }, remainingRef.current);
   }
-  function pauseTimer() { clearTimeout(timerRef.current); }
-  function resumeTimer() { startTimer(); }
+
+  function pauseDrain() {
+    clearTimeout(timerRef.current);
+    clearInterval(progressRef.current);
+    if (startTimeRef.current) {
+      const elapsed = Date.now() - startTimeRef.current;
+      remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+    }
+  }
 
   useEffect(() => {
-    setTimeout(() => setVisible(true), 50);
-    startTimer();
-    return () => clearTimeout(timerRef.current);
+    setTimeout(() => { setVisible(true); startDrain(); }, 50);
+    return () => { clearTimeout(timerRef.current); clearInterval(progressRef.current); };
   }, []);
 
-  function handleClick() { clearTimeout(timerRef.current); onClick(); setVisible(false); setTimeout(onClose, 400); }
+  function handleMouseEnter() { setHovered(true); pauseDrain(); }
+  function handleMouseLeave() { setHovered(false); startDrain(); }
+  function handleClick() {
+    clearTimeout(timerRef.current);
+    clearInterval(progressRef.current);
+    onClick();
+    setVisible(false);
+    setTimeout(onClose, 400);
+  }
+
   const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" });
   return (
     <div
       onClick={handleClick}
-      onMouseEnter={() => { setHovered(true); pauseTimer(); }}
-      onMouseLeave={() => { setHovered(false); resumeTimer(); }}
-      style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.03 : 1})` : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.02 : 1})` : "translateX(120%) scale(0.9)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
       <div style={{ width: 340, background: "linear-gradient(150deg,#0f0a00,#1a1000)", borderRadius: 12, overflow: "hidden", boxShadow: hovered ? `0 32px 80px rgba(0,0,0,0.95),0 0 0 1px ${C.amber}88,0 0 40px ${C.amber}22` : `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.amber}55`, fontFamily: C.sans, transition: "box-shadow 0.2s ease" }}>
         <div style={{ height: 3, background: `linear-gradient(90deg,${C.amber},#92400e,transparent)` }} />
-        <div style={{ padding: "14px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ padding: "14px 16px 10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#92400e,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0, boxShadow: `0 0 12px ${C.amber}44` }}>!</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.amber, letterSpacing: "0.08em" }}>MANUAL ACTION REQUIRED</div>
               <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 1 }}>{time}   override logged</div>
             </div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, opacity: 0.7 }}>view</div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, opacity: 0.7 }}>view →</div>
           </div>
-          <div style={{ background: `${C.amber}0d`, border: `1px solid ${C.amber}44`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+          <div style={{ background: `${C.amber}0d`, border: `1px solid ${C.amber}44`, borderRadius: 8, padding: "9px 12px", marginBottom: 10 }}>
             <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 3 }}>{decision.title}</div>
             <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>Automated dispatch cancelled   <span style={{ color: C.amber }}>Your team must coordinate manually</span></div>
           </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
             {["Port Director","Pilot Station","CN/KCS","Drayage"].map((l, i) => (
               <div key={i} style={{ fontFamily: C.mono, fontSize: 8, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 3, padding: "3px 6px" }}>{l}</div>
             ))}
           </div>
-          <div style={{ marginTop: 10, fontFamily: C.mono, fontSize: 9, color: "#666" }}>~45 min / 20 manual calls required   MTSA audit logged</div>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: "#666", marginBottom: 8 }}>~45 min / 20 manual calls required   MTSA audit logged</div>
+          {/* Progress drain bar */}
+          <div style={{ height: 2, background: C.mutedLo, borderRadius: 1, overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${progress}%`,
+              background: hovered ? C.red : C.amber,
+              transition: "background 0.2s ease",
+              borderRadius: 1,
+            }} />
+          </div>
           {hovered && (
-            <div style={{ marginTop: 8, fontFamily: C.mono, fontSize: 9, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+            <div style={{ marginTop: 6, fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "center" }}>
               Click to view override record in Agent Log
             </div>
           )}
@@ -1068,7 +1108,8 @@ function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) 
 
   useEffect(() => {
     if (autoExpand && ref.current) {
-      setTimeout(() => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      // Don't scroll - tabs are sticky, navigateToTab already handles scroll position
+      setExpanded(true);
     }
   }, [autoExpand]);
 
@@ -1145,7 +1186,7 @@ export default function DeltaAgentDashboard() {
     setActiveTab(tabId);
     if (logId) setAutoExpandLogId(logId);
     setTimeout(() => {
-      tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 50);
   }
   const [agentLog, setAgentLog] = useState([
