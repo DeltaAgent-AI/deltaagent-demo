@@ -1984,10 +1984,16 @@ export default function DeltaAgentDashboard() {
                     <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}33` }}>
                       <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em", marginBottom: 4 }}>STATUS</div>
                       <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.green, lineHeight: 1.4 }}>All decisions actioned</div>
-                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 4 }}>{corridorStatus} — {allStatuses.filter(s => s.status !== "NOMINAL").length} active threat{allStatuses.filter(s => s.status !== "NOMINAL").length !== 1 ? "s" : ""} monitored</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 4 }}>
+                        {allStatuses.filter(s => s.status !== "NOMINAL").length} threat{allStatuses.filter(s => s.status !== "NOMINAL").length !== 1 ? "s" : ""} monitored — agents active
+                      </div>
                     </div>
                   ) : (
-                    <div style={{ fontSize: 12, color: C.muted }}>All systems nominal — no action required</div>
+                    <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.teal}08`, border: `1px solid ${C.teal}22` }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em", marginBottom: 4 }}>STATUS</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, lineHeight: 1.4 }}>Corridor nominal</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 4 }}>4 threats monitored — no thresholds breached</div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -2072,16 +2078,50 @@ export default function DeltaAgentDashboard() {
             {activeTab === "inbox" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {sortedDecisions.length === 0 && (
-                  <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "48px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: C.muted, textAlign: "center" }}>
-                    <div style={{ fontSize: 32, opacity: 0.3 }}> </div>
-                    <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em" }}>INBOX CLEAR</div>
-                    <div style={{ fontSize: 13 }}>All threats nominal. Drag any simulator to trigger decisions.</div>
+                  <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "36px 28px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 10, background: `${C.teal}12`, border: `1px solid ${C.teal}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <PulsingDot color={C.teal} size={10} />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 5 }}>ALL CLEAR — CORRIDOR NOMINAL</div>
+                        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+                          4 threats monitored — flood, fog, ice, hurricane. No thresholds breached.
+                          {sessionSavings.length > 0 && (
+                            <span style={{ color: "#a0c4c0" }}> Last event actioned {sessionSavings[sessionSavings.length - 1]?.time}.</span>
+                          )}
+                        </div>
+                        <div style={{ marginTop: 8, fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+                          Select a scenario above or drag any slider to simulate a disruption event.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {pendingDecisions.length === 0 && sortedDecisions.length > 0 && (
-                  <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "32px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: C.muted, textAlign: "center" }}>
-                    <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em" }}>INBOX CLEAR</div>
-                    <div style={{ fontSize: 13 }}>All decisions actioned. Scroll down to review execution records.</div>
+                  <div style={{ background: C.panel, border: `1px solid ${C.green}22`, borderLeft: `3px solid ${C.green}`, borderRadius: 8, padding: "20px 24px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${C.green}12`, border: `1px solid ${C.green}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ color: C.green, fontSize: 16 }}>✓</span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: "0.1em", marginBottom: 4 }}>
+                          ALL DECISIONS ACTIONED
+                        </div>
+                        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
+                          {allStatuses.filter(s => s.status !== "NOMINAL").length} active threat{allStatuses.filter(s => s.status !== "NOMINAL").length !== 1 ? "s" : ""} still being monitored.
+                          {sessionSavings.length > 0 && (
+                            <span style={{ color: C.green }}> ${sessionSavings.reduce((s, x) => s + x.amount, 0).toLocaleString()} avoided this session.</span>
+                          )}
+                          {" "}Agents watching for new threshold crossings.
+                        </div>
+                      </div>
+                      {actionedDecisions.length > 0 && (
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, flexShrink: 0 }}>
+                          {actionedDecisions.length} record{actionedDecisions.length !== 1 ? "s" : ""} below ↓
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {/* Pending decisions first - sorted by urgency */}
