@@ -84,9 +84,10 @@ function buildFloodScenario(ft) {
 
   const riskColor = statusColor;
 
+  const scenarioKey = floodStage ? "fs" : critical ? "cr" : bridgeWarn ? "bw" : hwProclaim ? "hw" : algiers ? "al" : lowWater ? "lw" : "nm";
   const decisions = floodStage ? [
     {
-      id: "d1", severity: "critical",
+      id: `flood-${scenarioKey}-d1`, severity: "critical",
       disruptionType: "FLOOD", disruptionLabel: "FLOOD STAGE",
       title: "COORDINATE - Bonnet Carre Spillway Protocol",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - official flood stage reached. Coordinate with Army Corps regarding Bonnet Carre Spillway opening. Navigation hazardous for all vessel classes.",
@@ -95,7 +96,7 @@ function buildFloodScenario(ft) {
       actions: ["Notify Army Corps - Bonnet Carre Spillway opening review initiated", "Issue Navigation Safety Notice to all inbound vessels", "Coordinate with Coast Guard Sector NOLA - full navigation advisory", "Alert all terminal operators - emergency mooring protocols activated", "Monitor saltwater wedge at Southwest Pass"],
     },
     {
-      id: "d2", severity: "critical",
+      id: `flood-${scenarioKey}-d2`, severity: "critical",
       disruptionType: "FLOOD", disruptionLabel: "LEVEE PROTECTION",
       title: "HALT - All Construction Within 1500ft of Levee",
       reason: "At " + ft.toFixed(1) + "ft soil saturation puts critical pressure on levees. All construction activity within 1,500 feet must halt immediately per Corps protocol.",
@@ -105,7 +106,7 @@ function buildFloodScenario(ft) {
     },
   ] : critical ? [
     {
-      id: "d1", severity: "critical",
+      id: `flood-${scenarioKey}-d1`, severity: "critical",
       disruptionType: "FLOOD", disruptionLabel: "HIGH WATER",
       title: "MANDATE - Standby Tugs at All Berths",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft. Extreme river currents at Algiers Point and Carrollton Bend. Coast Guard mandate requires standby assist tugs for all deep-draft vessels.",
@@ -114,7 +115,7 @@ function buildFloodScenario(ft) {
       actions: ["Deploy standby tugs to Berths 1-4 via Crescent Towing", "Notify all deep-draft vessel masters - tug assist mandatory at Algiers Point", "Restrict barge fleeting - breakaway prevention protocol activated", "SMS dispatch to Port Director + Coast Guard Sector NOLA"],
     },
     {
-      id: "d2", severity: "warning",
+      id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "CONSTRUCTION HALT",
       title: "PREPARE - Halt Construction Near Levees",
       reason: "Stage at " + ft.toFixed(1) + "ft and rising toward flood stage. Soil saturation risk escalating. Pre-position halt orders for all sites within 1,500ft of levee.",
@@ -124,7 +125,7 @@ function buildFloodScenario(ft) {
     },
   ] : bridgeWarn ? [
     {
-      id: "d1", severity: "critical",
+      id: `flood-${scenarioKey}-d1`, severity: "critical",
       disruptionType: "FLOOD", disruptionLabel: "BRIDGE CLEARANCE",
       title: "RESTRICT - Huey P. Long Bridge Clearance",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft triggers Huey P. Long Bridge air draft restriction. Tall vessels and loaded barges must be re-routed or rescheduled.",
@@ -133,7 +134,7 @@ function buildFloodScenario(ft) {
       actions: ["Issue Huey P. Long Bridge clearance restriction notice", "Notify all vessels with air draft above restriction threshold", "Re-sequence affected vessels to wait for stage drop", "Coordinate with CN/KCS rail - bridge traffic impacts intermodal timing", "SMS dispatch to Port Director + affected vessel agents"],
     },
     {
-      id: "d2", severity: "warning",
+      id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "STANDBY TUGS",
       title: "PREPARE - Standby Tugs at Upper Berths",
       reason: "Stage at " + ft.toFixed(1) + "ft. River current at Algiers Point and Carrollton Bend increasing. Pre-position standby tugs before mandatory tug assist threshold is reached.",
@@ -143,7 +144,7 @@ function buildFloodScenario(ft) {
     },
   ] : hwProclaim ? [
     {
-      id: "d1", severity: "warning",
+      id: `flood-${scenarioKey}-d1`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "HIGH WATER PROCLAMATION",
       title: "ACTIVATE - High Water Proclamation",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - above 11ft threshold. High Water Proclamation required. Switch to daylight-only mooring for all deep-draft vessels. Huey P. Long Bridge restriction approaching.",
@@ -152,7 +153,7 @@ function buildFloodScenario(ft) {
       actions: ["Issue High Water Proclamation - daylight-only mooring for deep-draft vessels", "Restrict barge fleeting - single-cut tows only above Carrollton", "Notify all vessel masters and agents via SMS + VHF Ch 16", "Monitor Huey P. Long Bridge clearance - restriction threshold at 13ft", "CN/KCS rail windows adjusted for potential cargo delays"],
     },
     {
-      id: "d2", severity: "warning",
+      id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "BARGE RESTRICTION",
       title: "RESTRICT - Barge Fleeting at Carrollton Bend",
       reason: "Current speed increasing at Carrollton Bend above 11ft. Restrict large barge tows to prevent breakaways that could impact bridges and vessels.",
@@ -162,7 +163,7 @@ function buildFloodScenario(ft) {
     },
   ] : algiers ? [
     {
-      id: "d1", severity: "warning",
+      id: `flood-${scenarioKey}-d1`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "ALGIERS POINT",
       title: "RESTRICT - Algiers Point Vessel Size Limit",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - Algiers Point restriction threshold reached. River current at the bend now limits deep-draft vessel maneuverability. Vessel size restrictions now active.",
@@ -171,7 +172,7 @@ function buildFloodScenario(ft) {
       actions: ["Activate Algiers Point vessel size restriction protocol", "Notify Crescent River Port Pilots - current advisory for the bend", "Restrict deep-draft inbound vessels - tug assist required at Algiers Point", "Re-sequence vessel queue - smaller drafts prioritized through the bend", "SMS dispatch to all vessel agents with Algiers Point restriction notice"],
     },
     {
-      id: "d2", severity: "warning",
+      id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "DREDGING PRIORITY",
       title: "SCHEDULE - Priority Dredging at Critical Berths",
       reason: "Rising stage at " + ft.toFixed(1) + "ft increasing siltation risk at berths. Schedule dredging priority to maintain 50ft draft for Post-Panamax vessels before channel shoaling occurs.",
@@ -181,7 +182,7 @@ function buildFloodScenario(ft) {
     },
   ] : lowWater ? [
     {
-      id: "d1", severity: "warning",
+      id: `flood-${scenarioKey}-d1`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "SALTWATER WEDGE",
       title: "MONITOR - Saltwater Intrusion Risk",
       reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - below 4ft threshold. River flow too weak to push back Gulf saltwater. Saltwater wedge creeping toward New Orleans industrial intakes.",
@@ -190,7 +191,7 @@ function buildFloodScenario(ft) {
       actions: ["Monitor saltwater wedge position at Southwest Pass - hourly readings", "Alert industrial water intake operators - potential salinity increase", "Coordinate with Army Corps regarding underwater sill deployment", "Notify terminal operators - machinery corrosion risk if salt reaches intakes"],
     },
     {
-      id: "d2", severity: "warning",
+      id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "DRAFT RESTRICTION",
       title: "ISSUE - Draft Restrictions for Inbound Vessels",
       reason: "Low water at " + ft.toFixed(1) + "ft reduces controlling draft. Vessels may only load to 45ft draft instead of 50ft - costing millions in lost cargo revenue per ship.",
@@ -996,7 +997,16 @@ function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) 
   const [expanded, setExpanded] = useState(autoExpand);
   const ref = useRef(null);
   const isConfirmed = entry.action.startsWith("CONFIRMED:");
-  const entryColor = entry.severity === "override" ? C.amber : entry.severity === "critical" ? C.red : entry.severity === "warning" ? C.amber : C.teal;
+  const isOverride  = entry.severity === "override";
+  const isAlert     = entry.action.startsWith("ALERT:");
+  const isMonitor   = entry.action.startsWith("MONITORING:") || entry.action.startsWith("RIVER WARDEN:");
+  const entryColor  = isOverride  ? C.amber
+    : isConfirmed   ? C.green
+    : isAlert       ? (entry.severity === "critical" ? C.red : C.amber)
+    : isMonitor     ? C.teal
+    : entry.severity === "critical" ? C.red
+    : entry.severity === "warning"  ? C.amber
+    : C.teal;
 
   useEffect(() => {
     if (autoExpand && ref.current) {
@@ -1591,8 +1601,14 @@ export default function DeltaAgentDashboard() {
                       <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.amber, lineHeight: 1 }}>  {pendingDecisions[0]?.advanceWarning}</div>
                       <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 4 }}>{pendingDecisions[0]?.disruptionType}   {pendingDecisions[0]?.disruptionLabel}</div>
                     </div>
+                  ) : allDecisions.length > 0 ? (
+                    <div style={{ padding: "10px 12px", borderRadius: 6, background: `${C.green}10`, border: `1px solid ${C.green}33` }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em", marginBottom: 4 }}>STATUS</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.green, lineHeight: 1.4 }}>All decisions actioned</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 4 }}>{corridorStatus} — {allStatuses.filter(s => s.status !== "NOMINAL").length} active threat{allStatuses.filter(s => s.status !== "NOMINAL").length !== 1 ? "s" : ""} monitored</div>
+                    </div>
                   ) : (
-                    <div style={{ fontSize: 12, color: C.muted }}>All systems nominal - no action required</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>All systems nominal — no action required</div>
                   )}
                 </div>
               </div>
