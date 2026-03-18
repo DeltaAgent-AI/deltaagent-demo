@@ -216,7 +216,7 @@ function buildFloodScenario(ft) {
     ? [6.2, 5.4, 4.8, 4.2, 3.8, 3.4, 3.1, ft]
     : [6.4, 6.1, 5.8, 5.5, 5.8, 6.1, 6.3, ft];
 
-  return { ft, status, statusColor, risk, riskColor, decisions, trend };
+  return { ft, status, statusColor, risk, riskColor, decisions, trend, scenarioKey };
 }
 
 //    FOG SCENARIO - Lower Mississippi River specific
@@ -1730,18 +1730,12 @@ export default function DeltaAgentDashboard() {
 
   //    Merge all active decisions from all threat types into one unified inbox   
   // Decision store — accumulates decisions as thresholds are crossed
+  // Triggered by status string changes (discrete) not array references (unstable)
   // Each threshold band has unique IDs (flood-al-d1, flood-hw-d1 etc.)
-  // New crossings add to the store; nothing is ever removed or overwritten
   const [decisionStore, setDecisionStore] = useState({});
 
-  useEffect(() => {
-    const incoming = [
-      ...floodScenario.decisions,
-      ...fogScenario.decisions,
-      ...iceScenario.decisions,
-      ...stormScenario.decisions,
-    ];
-    if (incoming.length === 0) return;
+  function mergeDecisions(incoming) {
+    if (!incoming.length) return;
     setDecisionStore(prev => {
       const next = { ...prev };
       let changed = false;
@@ -1753,12 +1747,27 @@ export default function DeltaAgentDashboard() {
       });
       return changed ? next : prev;
     });
-  }, [
-    floodScenario.decisions,
-    fogScenario.decisions,
-    iceScenario.decisions,
-    stormScenario.decisions,
-  ]);
+  }
+
+  // Flood — fire when scenarioKey changes (each band has a unique key: al, hw, bw, cr, fs, lw)
+  useEffect(() => {
+    mergeDecisions(floodScenario.decisions);
+  }, [floodScenario.scenarioKey]);
+
+  // Fog
+  useEffect(() => {
+    mergeDecisions(fogScenario.decisions);
+  }, [fogScenario.status]);
+
+  // Ice
+  useEffect(() => {
+    mergeDecisions(iceScenario.decisions);
+  }, [iceScenario.status]);
+
+  // Hurricane
+  useEffect(() => {
+    mergeDecisions(stormScenario.decisions);
+  }, [stormScenario.status]);
 
   const allDecisions = Object.values(decisionStore);
 
