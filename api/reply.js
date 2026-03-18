@@ -1,7 +1,3 @@
-// api/dispatch.js - add this near the top before any Twilio calls
-if (process.env.TWILIO_ENABLED !== 'true') {
-  return res.status(200).json({ ok: true, disabled: true, message: 'SMS disabled - pending carrier verification' });
-}
 // api/reply.js - DeltaAgent Twilio Webhook
 // Receives SMS replies from Port Director (YES/NO)
 // Updates pending decision state and triggers dispatch if YES
@@ -25,6 +21,11 @@ async function sendSMS(to, body) {
 }
 
 export default async function handler(req, res) {
+  // SMS disabled — pending Twilio carrier verification
+  if (process.env.TWILIO_ENABLED !== 'true') {
+    return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+  }
+
   // Twilio sends POST with form data
   res.setHeader("Content-Type", "text/xml");
 
@@ -47,7 +48,6 @@ export default async function handler(req, res) {
       ? `DELTAAGENT: Confirmed. Dispatching ${pendingStore[pendingId].title}. All contacts notified.`
       : `DELTAAGENT: Confirmed. Dispatching all pending actions. Contacts notified.`;
 
-    // Store confirmation for dashboard polling
     const confirmKey = pendingId || `confirm-${Date.now()}`;
     pendingStore[confirmKey] = {
       ...( pendingStore[pendingId] || {} ),
@@ -71,7 +71,6 @@ export default async function handler(req, res) {
     responseMsg = `DELTAAGENT: Reply YES to confirm dispatch or NO to override. Include the Ref ID from the alert for faster processing.`;
   }
 
-  // Respond with TwiML
   return res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Message>${responseMsg}</Message>

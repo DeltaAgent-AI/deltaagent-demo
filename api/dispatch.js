@@ -1,7 +1,3 @@
-// api/dispatch.js - add this near the top before any Twilio calls
-if (process.env.TWILIO_ENABLED !== 'true') {
-  return res.status(200).json({ ok: true, disabled: true, message: 'SMS disabled - pending carrier verification' });
-}
 // api/dispatch.js - DeltaAgent SMS Dispatch
 // Sends alert SMS when decision arrives in inbox
 // Also handles manual CONFIRM & DISPATCH from dashboard
@@ -95,6 +91,11 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // SMS disabled — pending Twilio carrier verification
+  if (process.env.TWILIO_ENABLED !== 'true') {
+    return res.status(200).json({ ok: true, success: true, disabled: true, dispatched: 0, message: 'SMS disabled - pending carrier verification' });
+  }
 
   try {
     const { decision, gaugeContext, mode } = req.body;
