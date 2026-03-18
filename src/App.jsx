@@ -987,7 +987,7 @@ function getCostAnnotation(amount, disruptionType) {
   }
 }
 
-function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = "pending", onStateChange }) {
+function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, resolved = false, cardState = "pending", onStateChange }) {
   const [expanded, setExpanded] = useState(false);
   const [exiting, setExiting]   = useState(false);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
@@ -1096,15 +1096,37 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
         )}
         {state === "override" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ padding: "12px 16px", borderRadius: 6, border: `1px solid ${C.amber}55`, background: `${C.amber}12`, display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <div>
-                <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 4 }}>OVERRIDE LOGGED - MANUAL ACTION REQUIRED</div>
-                <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5 }}>Automated dispatch was cancelled. Your team must manually coordinate with the Port Director, Pilot Station, and CN/KCS rail. This decision has been recorded in the audit trail.</div>
+            {resolved ? (
+              <div style={{ padding: "10px 14px", borderRadius: 6, border: `1px solid ${C.green}44`, background: `${C.green}0d`, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ color: C.green, fontSize: 14 }}>✓</span>
+                <div>
+                  <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: "0.06em" }}>MANUALLY RESOLVED</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 2 }}>Team coordination complete — MTSA audit record closed</div>
+                </div>
               </div>
-            </div>
-            <div style={{ padding: "8px 12px", borderRadius: 5, background: `${C.red}08`, border: `1px solid ${C.red}22` }}>
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.red }}>Manual coordination typically takes ~45 min / 20 calls vs. 4.8s automated</div>
-            </div>
+            ) : (
+              <>
+                <div style={{ padding: "12px 14px", borderRadius: 6, border: `1px solid ${C.amber}44`, background: `${C.amber}0d` }}>
+                  <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 4 }}>OVERRIDE LOGGED — MANUAL ACTION REQUIRED</div>
+                  <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5, marginBottom: 10 }}>Your team must manually coordinate with Port Director, Pilot Station, and CN/KCS rail. Mark resolved when complete.</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {["Port Director", "Pilot Station", "CN/KCS"].map(c => (
+                      <span key={c} style={{ fontFamily: C.mono, fontSize: 8, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 3, padding: "2px 7px" }}>{c}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1, padding: "8px 12px", borderRadius: 5, background: `${C.red}08`, border: `1px solid ${C.red}22` }}>
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.red }}>~45 min / 20 manual calls vs. 4.8s automated</div>
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); onResolve && onResolve(decision); }}
+                    style={{ padding: "8px 16px", borderRadius: 5, border: `1px solid ${C.green}55`, background: `${C.green}12`, color: C.green, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    MARK RESOLVED ✓
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1129,10 +1151,12 @@ function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) 
   const ref = useRef(null);
   const isConfirmed = entry.action.startsWith("CONFIRMED");
   const isOverride  = entry.severity === "override";
+  const isResolved  = entry.action.startsWith("RESOLVED:");
   const isAlert     = entry.action.startsWith("ALERT:");
   const isMonitor   = entry.action.startsWith("MONITORING:") || entry.action.startsWith("RIVER WARDEN:");
   const entryColor  = isOverride  ? C.amber
     : isConfirmed   ? C.green
+    : isResolved    ? C.green
     : isAlert       ? (entry.severity === "critical" ? C.red : C.amber)
     : isMonitor     ? C.teal
     : entry.severity === "critical" ? C.red
@@ -1395,6 +1419,7 @@ export default function DeltaAgentDashboard() {
   const [dismissedIds, setDismissedIds]   = useState(new Set());
   const [cardStates, setCardStates]       = useState({}); // persists executing/done/override per card id
   const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
+  const [resolvedIds, setResolvedIds]     = useState(new Set()); // tracks manually resolved overrides
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
   const [drawerRecord, setDrawerRecord]       = useState(null);
@@ -1674,6 +1699,17 @@ export default function DeltaAgentDashboard() {
       action: `OVERRIDE: ${decision.title}`,
       cost: "Automated dispatch cancelled   Manual coordination required   Logged for MTSA audit",
       severity: "override", disruptionType: decision.disruptionType,
+    }, ...prev]);
+  }
+
+  function handleResolve(decision) {
+    setResolvedIds(prev => new Set([...prev, decision.id]));
+    setAgentLog(prev => [{
+      id: `resolved-${decision.id}-${Date.now()}`,
+      time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" }),
+      action: `RESOLVED: ${decision.title}`,
+      cost: "Manual coordination complete   Team confirmed   MTSA audit record closed",
+      severity: "ok", disruptionType: decision.disruptionType,
     }, ...prev]);
   }
 
@@ -2160,7 +2196,7 @@ export default function DeltaAgentDashboard() {
                 )}
                 {/* Pending decisions first - sorted by urgency */}
                 {pendingDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
-                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))}
+                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} onResolve={handleResolve} resolved={resolvedIds.has(d.id)}
                     cardState={cardStates[d.id] || "pending"} onStateChange={s => setCardStates(prev => ({ ...prev, [d.id]: s }))} />
                 ))}
                 {/* Actioned decisions below with divider */}
@@ -2175,13 +2211,13 @@ export default function DeltaAgentDashboard() {
                 )}
                 {actionedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => {
                   const isConfirmed = confirmedIds.has(d.id);
-                  const color = isConfirmed ? C.teal : C.amber;
-                  const [rowExpanded, setRowExpanded] = [false, () => {}]; // placeholder
+                  const isResolved  = resolvedIds.has(d.id);
+                  const color = isConfirmed ? C.teal : isResolved ? C.green : C.amber;
                   return (
                     <div key={d.id} style={{ border: `1px solid ${color}22`, borderLeft: `3px solid ${color}44`, borderRadius: 6, background: `${color}06`, overflow: "hidden" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
                         <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 3, padding: "2px 6px", flexShrink: 0 }}>
-                          {isConfirmed ? "CONFIRMED" : "OVERRIDE"}
+                          {isConfirmed ? "CONFIRMED" : isResolved ? "RESOLVED" : "OVERRIDE"}
                         </span>
                         <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, flexShrink: 0 }}>
                           {d.disruptionType}
@@ -2194,6 +2230,18 @@ export default function DeltaAgentDashboard() {
                             ${d.costAvoided.toLocaleString()} avoided
                           </span>
                         )}
+                        {!isConfirmed && !isResolved && (
+                          <button
+                            onClick={() => handleResolve(d)}
+                            style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: C.green, background: `${C.green}12`, border: `1px solid ${C.green}44`, borderRadius: 3, padding: "3px 10px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                            MARK RESOLVED ✓
+                          </button>
+                        )}
+                        {isResolved && (
+                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.green, flexShrink: 0 }}>
+                            team confirmed ✓
+                          </span>
+                        )}
                         <button
                           onClick={() => setDismissedIds(prev => new Set([...prev, d.id]))}
                           style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 11, padding: "0 2px", flexShrink: 0 }}>
@@ -2203,6 +2251,13 @@ export default function DeltaAgentDashboard() {
                       {isConfirmed && (
                         <div style={{ borderTop: `1px solid ${C.border}22` }}>
                           <ExecutionTicker decision={d} alreadyDone={true} />
+                        </div>
+                      )}
+                      {!isConfirmed && !isResolved && (
+                        <div style={{ padding: "8px 14px", borderTop: `1px solid ${C.amber}15`, background: `${C.amber}05` }}>
+                          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+                            Manual coordination in progress — ~45 min / 20 calls required
+                          </div>
                         </div>
                       )}
                     </div>
