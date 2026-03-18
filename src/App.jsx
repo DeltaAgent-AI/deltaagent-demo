@@ -879,13 +879,15 @@ function ExecutionTicker({ decision }) {
   );
 }
 
-function DecisionCard({ decision, onConfirm, onOverride, onDismiss }) {
-  const [state, setState]         = useState("pending");
+function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = "pending", onStateChange }) {
   const [expanded, setExpanded]   = useState(false);
   const [hovered, setHovered]     = useState(false);
   const collapseTimer             = useRef(null);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
+
+  const state = cardState;
+  function setState(s) { onStateChange && onStateChange(s); }
 
   function handleConfirm() {
     setState("executing");
@@ -1085,6 +1087,7 @@ export default function DeltaAgentDashboard() {
   const [confirmedIds, setConfirmedIds]   = useState(new Set());
   const [overriddenIds, setOverriddenIds] = useState(new Set());
   const [dismissedIds, setDismissedIds]   = useState(new Set());
+  const [cardStates, setCardStates]       = useState({}); // persists executing/done/override per card id
   const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
@@ -1358,7 +1361,7 @@ export default function DeltaAgentDashboard() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 <button
-                  onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setSimIce(0); setIceScenario(buildIceScenario(0)); setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); setDismissedIds(new Set()); }}
+                  onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setSimIce(0); setIceScenario(buildIceScenario(0)); setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({}); }}
                   style={{ padding: "10px 22px", borderRadius: 6, border: `1px solid ${C.teal}`, background: C.teal, color: C.bg, fontFamily: C.mono, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", cursor: "pointer", whiteSpace: "nowrap", boxShadow: `0 0 20px ${C.teal}44` }}>
                   START GUIDED DEMO
                 </button>
@@ -1624,7 +1627,8 @@ export default function DeltaAgentDashboard() {
                 )}
                 {/* Pending decisions first - sorted by urgency */}
                 {pendingDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
-                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} />
+                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))}
+                    cardState={cardStates[d.id] || "pending"} onStateChange={s => setCardStates(prev => ({ ...prev, [d.id]: s }))} />
                 ))}
                 {/* Actioned decisions below with divider */}
                 {actionedDecisions.filter(d => !dismissedIds.has(d.id)).length > 0 && (
@@ -1637,7 +1641,8 @@ export default function DeltaAgentDashboard() {
                   </div>
                 )}
                 {actionedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
-                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} />
+                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))}
+                    cardState={cardStates[d.id] || "pending"} onStateChange={s => setCardStates(prev => ({ ...prev, [d.id]: s }))} />
                 ))}
               </div>
             )}
