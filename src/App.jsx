@@ -1292,7 +1292,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
               {decision.agents.map(a => <AgentBadge key={a} code={a} />)}
               <span style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, marginLeft: "auto", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
                 {state === "pending" && (
-                  <CountdownTimer advanceWarning={decision.advanceWarning} createdAt={decision.createdAt} />
+                  <CountdownTimer key={decision.id} advanceWarning={decision.advanceWarning} createdAt={decision.createdAt} />
                 )}
                 {(state === "done" || state === "override") && (
                   <DismissButton onDismiss={e => { e?.stopPropagation?.(); onDismiss(); }} />
@@ -2765,7 +2765,7 @@ export default function DeltaAgentDashboard() {
                     <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>MOST URGENT</span>
                       <span style={{ fontFamily: C.mono, fontSize: 9, color: C.border }}>·</span>
-                      <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} createdAt={pendingDecisions[0]?.createdAt} />
+                      <CountdownTimer key={pendingDecisions[0]?.id} advanceWarning={pendingDecisions[0]?.advanceWarning} createdAt={pendingDecisions[0]?.createdAt} />
                     </div>
                   ) : (
                     <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 8 }}>
