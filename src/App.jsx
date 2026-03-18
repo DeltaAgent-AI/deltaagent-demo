@@ -1733,32 +1733,95 @@ export default function DeltaAgentDashboard() {
             </div>
           </header>
 
-          {/* ONBOARDING BANNER */}
+          {/* SCENARIO SELECTOR BANNER */}
           {showBanner && (
-            <div style={{ background: `linear-gradient(135deg, ${C.teal}18 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}44`, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: `${C.teal}20`, border: `1px solid ${C.teal}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <PulsingDot color={C.teal} size={10} />
-                </div>
+            <div style={{ background: `linear-gradient(135deg, ${C.teal}10 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}33`, padding: "24px 28px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 4 }}>
-                    LIVE OPERATIONS SIMULATOR
+                  <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.12em", marginBottom: 4 }}>
+                    OPERATIONS SIMULATOR — LOWER MISSISSIPPI CORRIDOR
                   </div>
-                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
-                    Drag any slider to trigger real operational decisions for the Lower Mississippi corridor. Hit <span style={{ color: C.teal, fontFamily: C.mono, fontSize: 11 }}>CONFIRM & DISPATCH</span> to see autonomous SMS coordination fire in real time.
+                  <div style={{ fontSize: 13, color: C.muted }}>
+                    Select a real scenario to see DeltaAgent respond autonomously — or explore freely.
                   </div>
                 </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                <button
-                  onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setSimIce(0); setIceScenario(buildIceScenario(0)); setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({}); }}
-                  style={{ padding: "10px 22px", borderRadius: 6, border: `1px solid ${C.teal}`, background: C.teal, color: C.bg, fontFamily: C.mono, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", cursor: "pointer", whiteSpace: "nowrap", boxShadow: `0 0 20px ${C.teal}44` }}>
-                  START GUIDED DEMO
-                </button>
                 <button onClick={() => setShowBanner(false)}
-                  style={{ padding: "10px 16px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  style={{ padding: "7px 14px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
                   EXPLORE FREELY
                 </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                {[
+                  {
+                    icon: "🌊",
+                    label: "HIGH WATER EVENT",
+                    sublabel: "Carrollton Gauge — 11.4ft",
+                    description: "High Water Proclamation triggered. Barge fleeting restrictions, daylight mooring orders, and CN/KCS rail re-sequencing required.",
+                    color: C.red,
+                    action: () => {
+                      setShowBanner(false);
+                      setSimGauge(11.4); setFloodScenario(buildFloodScenario(11.4));
+                      setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
+                      setSimIce(0); setIceScenario(buildIceScenario(0));
+                      setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
+                      setConfirmedIds(new Set()); setOverriddenIds(new Set());
+                      setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+                      setActiveTab("inbox");
+                    },
+                  },
+                  {
+                    icon: "🌫️",
+                    label: "DENSE FOG ADVISORY",
+                    sublabel: "SW Pass Visibility — 0.3nm",
+                    description: "Critical visibility at Southwest Pass. One-way traffic restrictions, pilot boarding suspended, 22 drayage trucks on hold.",
+                    color: C.teal,
+                    action: () => {
+                      setShowBanner(false);
+                      setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
+                      setSimVis(0.3); setFogScenario(buildFogScenario(0.3));
+                      setSimIce(0); setIceScenario(buildIceScenario(0));
+                      setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
+                      setConfirmedIds(new Set()); setOverriddenIds(new Set());
+                      setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+                      setActiveTab("inbox");
+                    },
+                  },
+                  {
+                    icon: "🌀",
+                    label: "HURRICANE APPROACH",
+                    sublabel: "Cat 2 — 320mi from SW Pass",
+                    description: "Port Condition YANKEE imminent. Inbound traffic closure, storm mooring plan verification, RNA enforcement required.",
+                    color: "#a78bfa",
+                    action: () => {
+                      setShowBanner(false);
+                      setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
+                      setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
+                      setSimIce(0); setIceScenario(buildIceScenario(0));
+                      setSimStormDist(320); setSimStormCat(2); setStormScenario(buildHurricaneScenario(320, 2));
+                      setConfirmedIds(new Set()); setOverriddenIds(new Set());
+                      setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+                      setActiveTab("inbox");
+                    },
+                  },
+                ].map(({ icon, label, sublabel, description, color, action }) => (
+                  <div
+                    key={label}
+                    onClick={action}
+                    style={{ background: `${color}0a`, border: `1px solid ${color}33`, borderRadius: 8, padding: "16px 18px", cursor: "pointer", transition: "all 0.2s ease" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.borderColor = `${color}66`; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = `${color}0a`; e.currentTarget.style.borderColor = `${color}33`; e.currentTarget.style.transform = "none"; }}
+                  >
+                    <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 8 }}>{sublabel}</div>
+                    <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.55 }}>{description}</div>
+                    <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 3, padding: "3px 8px", letterSpacing: "0.06em" }}>
+                        SIMULATE →
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
