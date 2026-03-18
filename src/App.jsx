@@ -640,7 +640,58 @@ function AgentBadge({ code }) {
   );
 }
 
-function PulsingDot({ color, size = 8 }) {
+function CredentialChip({ label, color, title, detail }) {
+  const [hovered, setHovered] = useState(false);
+  const [pos, setPos]         = useState({ top: 0, left: 0 });
+  const ref                   = useRef(null);
+
+  function handleMouseEnter() {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 8, left: r.left + r.width / 2 });
+    }
+    setHovered(true);
+  }
+
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 4, border: `1px solid ${color}33`, background: `${color}0d`, cursor: "default" }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
+      <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color, letterSpacing: "0.08em" }}>{label}</span>
+      {hovered && (
+        <div style={{
+          position: "fixed",
+          top: pos.top,
+          left: pos.left,
+          transform: "translateX(-50%)",
+          width: 240, zIndex: 9999,
+          background: "#0a1a18",
+          border: `1px solid ${color}44`,
+          borderRadius: 7,
+          padding: "10px 12px",
+          boxShadow: `0 8px 32px rgba(0,0,0,0.9), 0 0 0 1px ${color}22`,
+          pointerEvents: "none",
+          animation: "tooltipFadeIn 0.15s ease",
+          fontFamily: C.sans,
+        }}>
+          {/* Arrow pointing up */}
+          <div style={{
+            position: "absolute", top: -5, left: "50%",
+            width: 8, height: 8, background: "#0a1a18",
+            border: `1px solid ${color}44`, borderBottom: "none", borderRight: "none",
+            transform: "translateX(-50%) rotate(45deg)",
+          }} />
+          <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.06em", marginBottom: 5 }}>{title}</div>
+          <div style={{ fontSize: 11, color: "#a0c4c0", lineHeight: 1.55 }}>{detail}</div>
+        </div>
+      )}
+    </span>
+  );
+}
   return (
     <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
       <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: color, opacity: 0.35, animation: "ping 1.6s ease-in-out infinite" }} />
@@ -1994,6 +2045,20 @@ export default function DeltaAgentDashboard() {
                 <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em" }}>DELTAAGENT<span style={{ color: C.teal }}> AI</span></div>
                 <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>OPERATIONS COMMAND   BETA</div>
               </div>
+              <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
+                <CredentialChip
+                  label="TWIC"
+                  color={C.teal}
+                  title="TWIC-Cleared Founders"
+                  detail="Transportation Worker Identification Credential — federal TSA background clearance required for unescorted access to all US maritime terminals and port facilities."
+                />
+                <CredentialChip
+                  label="MTSA"
+                  color={C.tealDim}
+                  title="MTSA Aligned"
+                  detail="Maritime Transportation Security Act — all agent decision logs, dispatch records, and override audits are structured for MTSA compliance and Coast Guard record-keeping."
+                />
+              </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
@@ -2617,44 +2682,9 @@ export default function DeltaAgentDashboard() {
             )}
 
             {/*    FOOTER    */}
-            <div style={{ marginTop: 8, padding: "16px 0 4px", borderTop: `1px solid ${C.border}` }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
-                {[
-                  {
-                    badge: "TWIC-CLEARED",
-                    color: C.teal,
-                    title: "Transportation Worker Identification Credential",
-                    detail: "Federal security clearance required for unescorted access to US maritime facilities. 5-year TSA background check.",
-                  },
-                  {
-                    badge: "MTSA ALIGNED",
-                    color: C.tealDim,
-                    title: "Maritime Transportation Security Act",
-                    detail: "Decision audit trails and automated dispatch logs are structured for MTSA compliance and Coast Guard record-keeping requirements.",
-                  },
-                  {
-                    badge: "NEWLAB NEW ORLEANS",
-                    color: C.muted,
-                    title: "In Residence at Newlab New Orleans",
-                    detail: "Building at the intersection of Mississippi River infrastructure and industrial AI at Newlab's Bywater innovation hub.",
-                  },
-                ].map(({ badge, color, title, detail }) => (
-                  <div key={badge} style={{ padding: "10px 12px", borderRadius: 6, background: `${color}08`, border: `1px solid ${color}18` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                      <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, letterSpacing: "0.08em" }}>{badge}</span>
-                    </div>
-                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.white, marginBottom: 3 }}>{title}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, lineHeight: 1.5 }}>{detail}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>
-                  © 2026 DeltaAgent AI, LLC   ·   deltaagent.ai   ·   New Orleans, LA
-                </div>
-                <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>BETA   ·   Operations Command v0.1</div>
-              </div>
+            <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>© 2026 DeltaAgent AI, LLC · deltaagent.ai · New Orleans, LA</div>
+              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>BETA · Operations Command v0.1</div>
             </div>
           </div>
         </div>
