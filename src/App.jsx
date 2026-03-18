@@ -473,38 +473,56 @@ function GaugeBar({ value, max = 20 }) {
 
 function SMSNotification({ decision, onClose, onClick }) {
   const [visible, setVisible] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const timerRef = useRef(null);
+
+  function startTimer() {
+    timerRef.current = setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 6000);
+  }
+  function pauseTimer() { clearTimeout(timerRef.current); }
+  function resumeTimer() { startTimer(); }
+
   useEffect(() => {
     setTimeout(() => setVisible(true), 50);
-    timerRef.current = setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 6000);
+    startTimer();
     return () => clearTimeout(timerRef.current);
   }, []);
+
   function handleClick() { clearTimeout(timerRef.current); onClick(); setVisible(false); setTimeout(onClose, 400); }
   const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" });
   return (
-    <div onClick={handleClick} style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? "translateX(0) scale(1)" : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
-      <div style={{ width: 310, background: "linear-gradient(150deg,#040f0e,#061a17)", borderRadius: 12, overflow: "hidden", boxShadow: `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.teal}44`, fontFamily: C.sans }}>
+    <div
+      onClick={handleClick}
+      onMouseEnter={() => { setHovered(true); pauseTimer(); }}
+      onMouseLeave={() => { setHovered(false); resumeTimer(); }}
+      style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.03 : 1})` : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
+      <div style={{ width: 340, background: "linear-gradient(150deg,#040f0e,#061a17)", borderRadius: 12, overflow: "hidden", boxShadow: hovered ? `0 32px 80px rgba(0,0,0,0.95),0 0 0 1px ${C.teal}88,0 0 40px ${C.teal}22` : `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.teal}44`, fontFamily: C.sans, transition: "box-shadow 0.2s ease" }}>
         <div style={{ height: 3, background: `linear-gradient(90deg,${C.teal},#0f4547,transparent)` }} />
-        <div style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: `linear-gradient(135deg,#0f4547,${C.teal})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><polygon points="8,2 14,14 8,10 2,14" fill="white" /></svg>
+        <div style={{ padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg,#0f4547,${C.teal})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 0 12px ${C.teal}44` }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><polygon points="8,2 14,14 8,10 2,14" fill="white" /></svg>
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION COMPLETE</div>
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{time}   6 alerts dispatched</div>
+              <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>EXECUTION COMPLETE</div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 1 }}>{time}   6 alerts dispatched</div>
             </div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.teal }}>view record  </div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.teal, opacity: 0.7 }}>view record</div>
           </div>
-          <div style={{ background: `${C.teal}0d`, border: `1px solid ${C.teal}22`, borderRadius: 7, padding: "8px 10px", marginBottom: 8 }}>
-            <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.white, marginBottom: 2 }}>  {decision.title}</div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>Gauge {decision.ft?.toFixed(1)}ft   ${decision.costAvoided?.toLocaleString()} avoided</div>
+          <div style={{ background: `${C.teal}0d`, border: `1px solid ${C.teal}33`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+            <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 3 }}>{decision.title}</div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>Gauge {decision.ft?.toFixed(1)}ft   <span style={{ color: C.green }}>${decision.costAvoided?.toLocaleString()} avoided</span></div>
           </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {["Port Director","Pilot Station","CN/KCS","Drayage","Berth TOS","Audit"].map((l, i) => (
-              <div key={i} style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, background: `${C.teal}10`, border: `1px solid ${C.teal}22`, borderRadius: 3, padding: "2px 5px" }}>  {l}</div>
+              <div key={i} style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, background: `${C.teal}12`, border: `1px solid ${C.teal}30`, borderRadius: 3, padding: "3px 6px" }}>{l}</div>
             ))}
           </div>
+          {hovered && (
+            <div style={{ marginTop: 10, fontFamily: C.mono, fontSize: 9, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+              Click to view full execution record in Agent Log
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -513,37 +531,55 @@ function SMSNotification({ decision, onClose, onClick }) {
 
 function OverrideNotification({ decision, onClose, onClick }) {
   const [visible, setVisible] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const timerRef = useRef(null);
+
+  function startTimer() {
+    timerRef.current = setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 6000);
+  }
+  function pauseTimer() { clearTimeout(timerRef.current); }
+  function resumeTimer() { startTimer(); }
+
   useEffect(() => {
     setTimeout(() => setVisible(true), 50);
-    timerRef.current = setTimeout(() => { setVisible(false); setTimeout(onClose, 400); }, 6000);
+    startTimer();
     return () => clearTimeout(timerRef.current);
   }, []);
+
   function handleClick() { clearTimeout(timerRef.current); onClick(); setVisible(false); setTimeout(onClose, 400); }
   const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" });
   return (
-    <div onClick={handleClick} style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? "translateX(0) scale(1)" : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
-      <div style={{ width: 310, background: "linear-gradient(150deg,#0f0a00,#1a1000)", borderRadius: 12, overflow: "hidden", boxShadow: `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.amber}55`, fontFamily: C.sans }}>
+    <div
+      onClick={handleClick}
+      onMouseEnter={() => { setHovered(true); pauseTimer(); }}
+      onMouseLeave={() => { setHovered(false); resumeTimer(); }}
+      style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.03 : 1})` : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
+      <div style={{ width: 340, background: "linear-gradient(150deg,#0f0a00,#1a1000)", borderRadius: 12, overflow: "hidden", boxShadow: hovered ? `0 32px 80px rgba(0,0,0,0.95),0 0 0 1px ${C.amber}88,0 0 40px ${C.amber}22` : `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.amber}55`, fontFamily: C.sans, transition: "box-shadow 0.2s ease" }}>
         <div style={{ height: 3, background: `linear-gradient(90deg,${C.amber},#92400e,transparent)` }} />
-        <div style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg,#92400e,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}> </div>
+        <div style={{ padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#92400e,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0, boxShadow: `0 0 12px ${C.amber}44` }}>!</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.amber, letterSpacing: "0.06em" }}>MANUAL ACTION REQUIRED</div>
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{time}   override logged</div>
+              <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.amber, letterSpacing: "0.08em" }}>MANUAL ACTION REQUIRED</div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 1 }}>{time}   override logged</div>
             </div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.amber }}>view  </div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, opacity: 0.7 }}>view</div>
           </div>
-          <div style={{ background: `${C.amber}0d`, border: `1px solid ${C.amber}33`, borderRadius: 7, padding: "8px 10px", marginBottom: 8 }}>
-            <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.white, marginBottom: 2 }}>  {decision.title}</div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>Automated dispatch cancelled   Your team must coordinate</div>
+          <div style={{ background: `${C.amber}0d`, border: `1px solid ${C.amber}44`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+            <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 3 }}>{decision.title}</div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>Automated dispatch cancelled   <span style={{ color: C.amber }}>Your team must coordinate manually</span></div>
           </div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {["Port Director","Pilot Station","CN/KCS","Drayage"].map((l, i) => (
-              <div key={i} style={{ fontFamily: C.mono, fontSize: 8, color: C.amber, background: `${C.amber}10`, border: `1px solid ${C.amber}22`, borderRadius: 3, padding: "2px 5px" }}>  {l}</div>
+              <div key={i} style={{ fontFamily: C.mono, fontSize: 8, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 3, padding: "3px 6px" }}>{l}</div>
             ))}
           </div>
-          <div style={{ marginTop: 8, fontFamily: C.mono, fontSize: 9, color: "#666" }}>~45 min / 20 manual calls required   MTSA audit logged</div>
+          <div style={{ marginTop: 10, fontFamily: C.mono, fontSize: 9, color: "#666" }}>~45 min / 20 manual calls required   MTSA audit logged</div>
+          {hovered && (
+            <div style={{ marginTop: 8, fontFamily: C.mono, fontSize: 9, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+              Click to view override record in Agent Log
+            </div>
+          )}
         </div>
       </div>
     </div>
