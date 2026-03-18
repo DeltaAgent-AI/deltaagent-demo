@@ -588,39 +588,47 @@ function GaugeBar({ value, max = 20 }) {
 }
 
 function SMSNotification({ decision, onClose, onClick }) {
-  const [visible, setVisible]         = useState(false);
-  const [hovered, setHovered]         = useState(false);
-  const [pendingClose, setPendingClose] = useState(false);
-  const timerRef = useRef(null);
+  const [visible, setVisible]   = useState(false);
+  const [hovered, setHovered]   = useState(false);
+  const [expired, setExpired]   = useState(false);
+  const timerRef                = useRef(null);
 
-  // Slide in on mount, then immediately trigger close (unless user hovers)
   useEffect(() => {
+    // Slide in
     setTimeout(() => setVisible(true), 50);
-    // After slide-in completes, begin close sequence immediately
-    timerRef.current = setTimeout(() => setPendingClose(true), 500);
+    // Stay for 5 seconds then mark expired
+    timerRef.current = setTimeout(() => setExpired(true), 5000);
     return () => clearTimeout(timerRef.current);
   }, []);
 
-  // When pendingClose is set: close immediately if not hovered, else wait for mouse leave
+  // When expired: close immediately if not hovered, else wait for mouse leave
   useEffect(() => {
-    if (!pendingClose) return;
+    if (!expired) return;
     if (!hovered) {
       setVisible(false);
-      timerRef.current = setTimeout(onClose, 400);
+      setTimeout(onClose, 400);
     }
-    // if hovered, the onMouseLeave handler will fire the close
-  }, [pendingClose, hovered]);
+  }, [expired]);
 
-  // Called from parent (handleConfirm) — triggers immediate close
-  useEffect(() => {
-    // We don't auto-start a timer anymore; parent drives close via onClose being called
-  }, []);
+  function handleMouseEnter() {
+    setHovered(true);
+    // Pause timer while hovering
+    clearTimeout(timerRef.current);
+  }
 
   function handleMouseLeave() {
     setHovered(false);
-    if (pendingClose) {
+    if (expired) {
+      // Already expired while hovering — close now
       setVisible(false);
-      timerRef.current = setTimeout(onClose, 400);
+      setTimeout(onClose, 400);
+    } else {
+      // Resume countdown with remaining ~1s grace
+      timerRef.current = setTimeout(() => {
+        setExpired(true);
+        setVisible(false);
+        setTimeout(onClose, 400);
+      }, 1000);
     }
   }
 
@@ -635,7 +643,7 @@ function SMSNotification({ decision, onClose, onClick }) {
   return (
     <div
       onClick={handleClick}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.03 : 1})` : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
       <div style={{ width: 340, background: "linear-gradient(150deg,#040f0e,#061a17)", borderRadius: 12, overflow: "hidden", boxShadow: hovered ? `0 32px 80px rgba(0,0,0,0.95),0 0 0 1px ${C.teal}88,0 0 40px ${C.teal}22` : `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.teal}44`, fontFamily: C.sans, transition: "box-shadow 0.2s ease" }}>
@@ -780,7 +788,7 @@ function getManualComparison(disruptionType) {
   }
 }
 
-function ExecutionTicker({ decision, alreadyDone = false }) {
+function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
   const steps = getExecSteps(decision.disruptionType);
   const [firedCount, setFiredCount] = useState(alreadyDone ? steps.length : 0);
   const [done, setDone]             = useState(alreadyDone);
@@ -798,7 +806,8 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
           setTimeout(() => {
             setDone(true);
             clearInterval(clock);
-            setCollapsed(true); // auto-collapse when animation finishes
+            setCollapsed(true);
+            onDone && onDone();
           }, 500);
         }
       }, (i + 1) * 800);
@@ -897,10 +906,10 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
 }
 
 function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = "pending", onStateChange }) {
-  const [expanded, setExpanded]         = useState(false);
-  const [hovered, setHovered]           = useState(false);
-  const [pendingConfirm, setPendingConfirm] = useState(false);
-  const [exiting, setExiting]           = useState(false);
+  const [expanded, setExpanded]             = useState(false);
+  const [hovered, setHovered]               = useState(false);
+  const [exiting, setExiting]               = useState(false);
+  const hoveredRef                          = useRef(false);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
 
@@ -914,22 +923,37 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
 
   function handleConfirm() {
     setState("executing");
-    if (hovered) {
-      setPendingConfirm(true);
-    } else {
+    // Ticker will call onTickerDone when all steps complete
+    // If not hovered right now, move immediately
+    if (!hoveredRef.current) {
       doConfirm();
     }
+    // If hovered, wait — onTickerDone or handleMouseLeave will trigger doConfirm
   }
 
   function handleOverride() { setState("override"); onOverride(decision); }
 
-  function handleMouseEnter() { setHovered(true); }
+  function handleMouseEnter() {
+    setHovered(true);
+    hoveredRef.current = true;
+  }
+
   function handleMouseLeave() {
     setHovered(false);
-    if (pendingConfirm) {
-      setPendingConfirm(false);
+    hoveredRef.current = false;
+    // If we're mid-execution or done, move to actioned immediately on mouse leave
+    if (state === "executing" || state === "done") {
       doConfirm();
     }
+  }
+
+  function handleTickerDone() {
+    setState("done");
+    // If not hovering when ticker finishes, move to actioned immediately
+    if (!hoveredRef.current) {
+      doConfirm();
+    }
+    // If still hovering, mouseLeave will fire doConfirm
   }
 
   const borderColor = state === "done" ? C.teal : severityColor;
@@ -1037,7 +1061,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
           ))}
         </div>
       )}
-      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} alreadyDone={state === "done"} />}
+      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} alreadyDone={false} onDone={handleTickerDone} />}
     </div>
   );
 }
@@ -1798,7 +1822,7 @@ export default function DeltaAgentDashboard() {
                       </div>
                       {isConfirmed && (
                         <div style={{ borderTop: `1px solid ${C.border}22` }}>
-                          <ExecutionTicker decision={d} alreadyDone={false} />
+                          <ExecutionTicker decision={d} alreadyDone={true} />
                         </div>
                       )}
                     </div>
