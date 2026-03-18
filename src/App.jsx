@@ -887,26 +887,39 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
 }
 
 function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = "pending", onStateChange }) {
-  const [expanded, setExpanded]   = useState(false);
-  const [hovered, setHovered]     = useState(false);
-  const collapseTimer             = useRef(null);
+  const [expanded, setExpanded]         = useState(false);
+  const [hovered, setHovered]           = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [exiting, setExiting]           = useState(false);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
 
   const state = cardState;
   function setState(s) { onStateChange && onStateChange(s); }
 
+  function doConfirm() {
+    setExiting(true);
+    setTimeout(() => onConfirm(decision), 300);
+  }
+
   function handleConfirm() {
     setState("executing");
-    setTimeout(() => { setState("done"); onConfirm(decision); }, STEPS_DURATION);
+    if (hovered) {
+      setPendingConfirm(true);
+    } else {
+      doConfirm();
+    }
   }
+
   function handleOverride() { setState("override"); onOverride(decision); }
 
-  // Keep execution record visible while hovered
-  function handleMouseEnter() { setHovered(true); clearTimeout(collapseTimer.current); }
+  function handleMouseEnter() { setHovered(true); }
   function handleMouseLeave() {
     setHovered(false);
-    // Don't auto-collapse - user must scroll away
+    if (pendingConfirm) {
+      setPendingConfirm(false);
+      doConfirm();
+    }
   }
 
   const borderColor = state === "done" ? C.teal : severityColor;
@@ -916,7 +929,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "border-color 0.5s ease, background 0.5s ease" }}>
+      style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "border-color 0.5s ease, background 0.5s ease, opacity 0.3s ease, transform 0.3s ease", opacity: exiting ? 0 : 1, transform: exiting ? "translateX(20px)" : "none", pointerEvents: exiting ? "none" : "auto" }}>
       <div style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -1775,7 +1788,7 @@ export default function DeltaAgentDashboard() {
                       </div>
                       {isConfirmed && (
                         <div style={{ borderTop: `1px solid ${C.border}22` }}>
-                          <ExecutionTicker decision={d} alreadyDone={true} />
+                          <ExecutionTicker decision={d} alreadyDone={false} />
                         </div>
                       )}
                     </div>
