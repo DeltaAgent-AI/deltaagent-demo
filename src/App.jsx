@@ -833,6 +833,9 @@ export default function DeltaAgentDashboard() {
 
   //    shared UI state   
   const [time, setTime]                   = useState(new Date());
+  const [showBanner, setShowBanner]       = useState(true);
+  const [guidedDemo, setGuidedDemo]       = useState(false);
+  const [guidedStep, setGuidedStep]       = useState(0);
   const [smsQueue, setSmsQueue]           = useState([]);
   const [overrideQueue, setOverrideQueue] = useState([]);
   const [activeTab, setActiveTab]         = useState("inbox");
@@ -931,6 +934,24 @@ export default function DeltaAgentDashboard() {
       if (d?.activeStorms?.length) setNhcData(d.activeStorms[0]);
     }).catch(() => {});
   }, []);
+
+  // Guided demo automation - walks through Algiers Point flood scenario
+  const guidedSteps = [
+    { label: "Monitoring nominal conditions...", duration: 1500, action: () => {} },
+    { label: "Simulating rising river stage...", duration: 2000, action: () => { setSimGauge(5.0); setFloodScenario(buildFloodScenario(5.0)); } },
+    { label: "River approaching Algiers Point threshold...", duration: 2000, action: () => { setSimGauge(7.2); setFloodScenario(buildFloodScenario(7.2)); } },
+    { label: "Algiers Point restriction triggered!", duration: 2500, action: () => { setSimGauge(8.3); setFloodScenario(buildFloodScenario(8.3)); setActiveTab("inbox"); } },
+    { label: "Adding fog advisory...", duration: 2000, action: () => { const v = 0.8; setSimVis(v); setFogScenario(buildFogScenario(v)); } },
+    { label: "Review decisions in inbox and hit CONFIRM & DISPATCH", duration: 99999, action: () => {} },
+  ];
+
+  useEffect(() => {
+    if (!guidedDemo) return;
+    if (guidedStep >= guidedSteps.length) { setGuidedDemo(false); setGuidedStep(0); return; }
+    guidedSteps[guidedStep].action();
+    const timer = setTimeout(() => setGuidedStep(s => s + 1), guidedSteps[guidedStep].duration);
+    return () => clearTimeout(timer);
+  }, [guidedDemo, guidedStep]);
 
   function handleConfirm(decision) {
     const logId = `log-${decision.id}-${Date.now()}`;
@@ -1057,6 +1078,45 @@ export default function DeltaAgentDashboard() {
               </div>
             </div>
           </header>
+
+          {/* ONBOARDING BANNER */}
+          {showBanner && (
+            <div style={{ background: `${C.teal}12`, borderBottom: `1px solid ${C.teal}33`, padding: "10px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ color: C.teal, fontSize: 14 }}>~</span>
+                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, letterSpacing: "0.06em" }}>
+                  <span style={{ color: C.teal, fontWeight: 700 }}>SIMULATOR MODE</span>
+                  {"   "}Drag any slider to trigger live operational decisions. Hit CONFIRM & DISPATCH to see autonomous coordination in action.
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <button
+                  onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); }}
+                  style={{ padding: "5px 14px", borderRadius: 4, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: C.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  START GUIDED DEMO
+                </button>
+                <button onClick={() => setShowBanner(false)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, padding: "2px 6px" }}>x</button>
+              </div>
+            </div>
+          )}
+
+          {/* GUIDED DEMO PROGRESS BAR */}
+          {guidedDemo && guidedStep < guidedSteps.length && (
+            <div style={{ background: `${C.amber}10`, borderBottom: `1px solid ${C.amber}33`, padding: "8px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <PulsingDot color={C.amber} size={6} />
+                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.amber, letterSpacing: "0.06em", fontWeight: 700 }}>
+                  GUIDED DEMO{"   "}{guidedStep + 1}/{guidedSteps.length}{"   "}
+                </span>
+                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>
+                  {guidedSteps[guidedStep]?.label}
+                </span>
+              </div>
+              <button onClick={() => { setGuidedDemo(false); setGuidedStep(0); }} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, fontFamily: C.mono, fontSize: 9, padding: "3px 10px", borderRadius: 4, cursor: "pointer", letterSpacing: "0.06em" }}>
+                EXIT DEMO
+              </button>
+            </div>
+          )}
 
           <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
 
