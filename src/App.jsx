@@ -592,39 +592,39 @@ function getExecSteps(disruptionType) {
   switch (disruptionType) {
     case "FOG":
       return [
-        { label: "Pilot Station - boarding advisory issued",     detail: "+1 (504) 555-0293   visibility alert",  icon: "->" },
-        { label: "Coast Guard Sector NOLA notified",             detail: "VHF Ch 16 + SMS dispatch",              icon: "->" },
-        { label: "Berth crew stood down - crane on standby",     detail: "Berth 1 crew hold confirmed",           icon: "->" },
-        { label: "Drayage fleet notified via Twilio",            detail: "22 trucks - delay window issued",       icon: "->" },
-        { label: "NWS marine forecast logged",                   detail: "GMZ572 advisory acknowledged",          icon: "->" },
-        { label: "MTSA audit entry created",                     detail: "Fog delay compliance record",           icon: "->" },
+        { label: "Pilot Station - boarding advisory issued",    detail: "+1 (504) 555-0293   visibility alert",  icon: "->", type: "SMS"   },
+        { label: "Coast Guard Sector NOLA notified",            detail: "VHF Ch 16 + SMS dispatch",              icon: "->", type: "SMS"   },
+        { label: "Berth crew stood down - crane on standby",    detail: "Berth 1 crew hold confirmed",           icon: "->", type: "OPS"   },
+        { label: "Drayage fleet notified via Twilio",           detail: "22 trucks - delay window issued",       icon: "->", type: "SMS"   },
+        { label: "NWS marine forecast logged",                  detail: "GMZ572 advisory acknowledged",          icon: "->", type: "DATA"  },
+        { label: "MTSA audit entry created",                    detail: "Fog delay compliance record",           icon: "->", type: "AUDIT" },
       ];
     case "ICE":
       return [
-        { label: "Corps of Engineers restriction acknowledged",  detail: "Navigation notice logged",              icon: "->" },
-        { label: "Upstream barge operators notified",            detail: "Draft reduction advisory - 14 tows",   icon: "->" },
-        { label: "CN/KCS rail windows shifted",                  detail: "Departure delay +48h logged",           icon: "->" },
-        { label: "Terminal inventory resequenced",               detail: "Priority cargo identified + flagged",   icon: "->" },
-        { label: "Commodity traders notified via Twilio",        detail: "Grain + fertilizer stakeholders",       icon: "->" },
-        { label: "MTSA audit entry created",                     detail: "Ice restriction compliance record",     icon: "->" },
+        { label: "Corps of Engineers restriction acknowledged", detail: "Navigation notice logged",              icon: "->", type: "DATA"  },
+        { label: "Upstream barge operators notified",           detail: "Draft reduction advisory - 14 tows",   icon: "->", type: "SMS"   },
+        { label: "CN/KCS rail windows shifted",                 detail: "Departure delay +48h logged",           icon: "->", type: "API"   },
+        { label: "Terminal inventory resequenced",              detail: "Priority cargo identified + flagged",   icon: "->", type: "OPS"   },
+        { label: "Commodity traders notified via Twilio",       detail: "Grain + fertilizer stakeholders",       icon: "->", type: "SMS"   },
+        { label: "MTSA audit entry created",                    detail: "Ice restriction compliance record",     icon: "->", type: "AUDIT" },
       ];
     case "HURRICANE":
       return [
-        { label: "Coast Guard Sector NOLA - port closure alert", detail: "MARSEC level updated",                 icon: "->" },
-        { label: "NHC advisory acknowledged + logged",           detail: "Track data ingested   surge model run", icon: "->" },
-        { label: "All berths cleared - departure sequence set",  detail: "6h vessel departure window issued",    icon: "->" },
-        { label: "Crane booms secured - storm protocol active",  detail: "All terminals confirmed",               icon: "->" },
-        { label: "FEMA + Port NOLA emergency ops notified",      detail: "+1 (504) 555-0911   EOC activated",    icon: "->" },
-        { label: "MTSA hurricane audit log created",             detail: "Emergency operations record",          icon: "->" },
+        { label: "Coast Guard Sector NOLA - port closure alert", detail: "MARSEC level updated",                icon: "->", type: "SMS"   },
+        { label: "NHC advisory acknowledged + logged",           detail: "Track data ingested   surge model run",icon: "->", type: "DATA"  },
+        { label: "All berths cleared - departure sequence set",  detail: "6h vessel departure window issued",   icon: "->", type: "OPS"   },
+        { label: "Crane booms secured - storm protocol active",  detail: "All terminals confirmed",              icon: "->", type: "OPS"   },
+        { label: "FEMA + Port NOLA emergency ops notified",      detail: "+1 (504) 555-0911   EOC activated",   icon: "->", type: "SMS"   },
+        { label: "MTSA hurricane audit log created",             detail: "Emergency operations record",          icon: "->", type: "AUDIT" },
       ];
     default: // FLOOD
       return [
-        { label: "SMS dispatched to Port Director",              detail: "+1 (504) 555-0147",                    icon: "->" },
-        { label: "SMS dispatched to Pilot Station",              detail: "+1 (504) 555-0293",                    icon: "->" },
-        { label: "CN/KCS Rail API window updated",               detail: "08:45 to 10:15 CST",                   icon: "->" },
-        { label: "Drayage fleet notified via Twilio",            detail: "22 trucks rerouted",                   icon: "->" },
-        { label: "Berth schedule updated in TOS",                detail: "Navis N4 API call",                    icon: "->" },
-        { label: "MTSA audit log entry created",                 detail: "MTSA compliance record",               icon: "->" },
+        { label: "SMS dispatched to Port Director",    detail: "+1 (504) 555-0147",       icon: "->", type: "SMS"   },
+        { label: "SMS dispatched to Pilot Station",    detail: "+1 (504) 555-0293",       icon: "->", type: "SMS"   },
+        { label: "CN/KCS Rail API window updated",     detail: "08:45 to 10:15 CST",      icon: "->", type: "API"   },
+        { label: "Drayage fleet notified via Twilio",  detail: "22 trucks rerouted",       icon: "->", type: "SMS"   },
+        { label: "Berth schedule updated in TOS",      detail: "Navis N4 API call",        icon: "->", type: "API"   },
+        { label: "MTSA audit log entry created",       detail: "MTSA compliance record",   icon: "->", type: "AUDIT" },
       ];
   }
 }
@@ -714,14 +714,26 @@ function ExecutionTicker({ decision }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
         {steps.map((step, i) => {
           const fired = i < firedCount;
+          const typeColors = { SMS: C.teal, API: "#818cf8", OPS: C.amber, DATA: "#67e8f9", AUDIT: C.muted };
+          const typeColor = typeColors[step.type] || C.muted;
           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 5, background: fired ? `${C.teal}0d` : "transparent", border: `1px solid ${fired ? C.teal + "33" : C.border}`, opacity: fired ? 1 : 0.3, transition: "all 0.4s ease" }}>
-              <span style={{ fontSize: 13, flexShrink: 0 }}>{step.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: fired ? C.white : C.muted, fontWeight: fired ? 600 : 400 }}>{step.label}</div>
-                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{step.detail}</div>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderRadius: 5, background: fired ? `${C.teal}0a` : "transparent", border: `1px solid ${fired ? C.teal + "22" : C.border}`, opacity: fired ? 1 : 0.25, transition: "all 0.4s ease" }}>
+              {/* Type badge */}
+              <div style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}33`, borderRadius: 3, padding: "2px 5px", flexShrink: 0, width: 36, textAlign: "center", letterSpacing: "0.04em" }}>
+                {step.type || "->"}
               </div>
-              <span style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, flexShrink: 0 }}>{fired ? `${((i + 1) * 0.8).toFixed(1)}s` : "--"}</span>
+              {/* Label */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 12, color: fired ? C.white : C.muted, fontWeight: fired ? 500 : 400 }}>{step.label}</span>
+              </div>
+              {/* Detail */}
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, flexShrink: 0, textAlign: "right" }}>
+                {step.detail}
+              </div>
+              {/* Timestamp */}
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, flexShrink: 0, width: 28, textAlign: "right" }}>
+                {fired ? `${((i + 1) * 0.8).toFixed(1)}s` : "--"}
+              </div>
             </div>
           );
         })}
