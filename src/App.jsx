@@ -1652,7 +1652,6 @@ function RecordDrawer({ record, onClose, onViewLog }) {
 function ThreatPanel({ label, value, subtext, scenario, expanded, onClick }) {
   const [hovered, setHovered] = useState(false);
   const color = scenario.statusColor;
-  const isActive = expanded;
 
   return (
     <div
@@ -1662,45 +1661,42 @@ function ThreatPanel({ label, value, subtext, scenario, expanded, onClick }) {
       style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "10px 14px", cursor: "pointer",
-        background: isActive ? `${color}10` : hovered ? `${color}07` : "transparent",
+        background: expanded ? `${color}10` : hovered ? `${color}07` : "transparent",
         transition: "background 0.15s ease",
       }}
     >
-      {/* Left: dot + label + simulate hint */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <PulsingDot color={color} size={6} />
-          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color, letterSpacing: "0.08em" }}>{label}</span>
-        </div>
-        <span style={{
-          fontFamily: C.mono, fontSize: 7, letterSpacing: "0.06em",
-          color: hovered || isActive ? color : C.muted,
-          opacity: hovered || isActive ? 1 : 0.6,
-          transition: "all 0.15s ease",
-        }}>
-          {isActive ? "COLLAPSE ∧" : "SIMULATE ›"}
-        </span>
+      {/* Left: dot + label */}
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <PulsingDot color={color} size={6} />
+        <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color, letterSpacing: "0.08em" }}>{label}</span>
       </div>
 
-      {/* Right: value + subtext + chevron */}
+      {/* Right: value + subtext + action pill */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
           <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>{subtext}</div>
         </div>
         <div style={{
-          width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: hovered || isActive ? `${color}18` : `${C.muted}12`,
-          border: `1px solid ${hovered || isActive ? color + "44" : C.border}`,
+          display: "flex", alignItems: "center", gap: 4,
+          padding: "3px 7px", borderRadius: 4, flexShrink: 0,
+          background: hovered || expanded ? `${color}18` : `${C.muted}10`,
+          border: `1px solid ${hovered || expanded ? color + "44" : C.border}`,
           transition: "all 0.15s ease",
         }}>
           <span style={{
-            fontSize: 9, color: hovered || isActive ? color : C.muted,
-            lineHeight: 1,
+            fontFamily: C.mono, fontSize: 8, fontWeight: 700,
+            color: hovered || expanded ? color : C.muted,
+            letterSpacing: "0.04em",
+            transition: "color 0.15s ease",
+          }}>
+            {expanded ? "CLOSE" : "SIM"}
+          </span>
+          <span style={{
+            fontSize: 9, color: hovered || expanded ? color : C.muted,
             display: "inline-block",
-            transform: isActive ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s ease",
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease, color 0.15s ease",
           }}>∨</span>
         </div>
       </div>
@@ -2578,8 +2574,8 @@ export default function DeltaAgentDashboard() {
                     onMouseLeave={e => { e.currentTarget.style.background = `${color}0a`; e.currentTarget.style.borderColor = `${color}33`; e.currentTarget.style.transform = "none"; }}
                   >
                     <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 8 }}>{sublabel}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color, letterSpacing: "0.06em", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 10, color: C.label, marginBottom: 8 }}>{sublabel}</div>
                     <div style={{ fontSize: 12, color: C.body, lineHeight: 1.55 }}>{description}</div>
                     <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 3, padding: "3px 8px", letterSpacing: "0.06em" }}>
