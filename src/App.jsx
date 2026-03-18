@@ -1302,7 +1302,7 @@ export default function DeltaAgentDashboard() {
       ))}
       {overrideQueue.map(ov => (
         <OverrideNotification key={ov.id} decision={ov} onClose={() => setOverrideQueue(q => q.filter(o => o.id !== ov.id))}
-          onClick={() => { setOverrideQueue(q => q.filter(o => o.id !== ov.id)); setActiveTab("inbox"); }} />
+          onClick={() => { setOverrideQueue(q => q.filter(o => o.id !== ov.id)); setActiveTab("log"); }} />
       ))}
 
       <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative", overflow: "hidden" }}>
@@ -1622,8 +1622,21 @@ export default function DeltaAgentDashboard() {
                     <div style={{ fontSize: 13 }}>All decisions actioned. Scroll down to review execution records.</div>
                   </div>
                 )}
-                {/* Render ALL decisions with DecisionCard to preserve ExecutionTicker state */}
-                {sortedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
+                {/* Pending decisions first - sorted by urgency */}
+                {pendingDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
+                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} />
+                ))}
+                {/* Actioned decisions below with divider */}
+                {actionedDecisions.filter(d => !dismissedIds.has(d.id)).length > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
+                    <div style={{ flex: 1, height: 1, background: C.border }} />
+                    <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.08em", flexShrink: 0 }}>
+                      {actionedDecisions.filter(d => !dismissedIds.has(d.id)).length} ACTIONED
+                    </span>
+                    <div style={{ flex: 1, height: 1, background: C.border }} />
+                  </div>
+                )}
+                {actionedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
                   <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} />
                 ))}
               </div>
