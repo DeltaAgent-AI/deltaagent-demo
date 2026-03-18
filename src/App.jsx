@@ -616,7 +616,7 @@ function AgentBadge({ code }) {
           padding: "10px 12px",
           boxShadow: `0 8px 32px rgba(0,0,0,0.9), 0 0 0 1px ${agent.color}22`,
           pointerEvents: "none",
-          animation: "fadeSlideIn 0.15s ease",
+          animation: "tooltipFadeIn 0.15s ease",
           fontFamily: C.sans,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
@@ -1118,16 +1118,25 @@ function CountdownTimer({ advanceWarning }) {
   );
 }
 
-function CorridorRow({ label, value, valueColor, tab, hint, active, small, onNavigate }) {
+function CorridorRow({ label, value, valueColor, tab, hint, active, small, onNavigate, tabsRef }) {
   const [hovered, setHovered] = useState(false);
+  const isClickable = active || hint;
+  function handleClick() {
+    onNavigate(tab);
+    // If we're switching to a new tab or just need to show the tab area, scroll it into view
+    if (tabsRef?.current) {
+      tabsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
   return (
     <div
-      onClick={() => onNavigate(tab)}
-      onMouseEnter={() => setHovered(true)}
+      onClick={isClickable ? handleClick : undefined}
+      onMouseEnter={() => isClickable && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "7px 8px", borderRadius: 5, cursor: "pointer",
+        padding: "7px 8px", borderRadius: 5,
+        cursor: isClickable ? "pointer" : "default",
         background: hovered ? `${valueColor}0d` : "transparent",
         border: `1px solid ${hovered ? valueColor + "22" : "transparent"}`,
         transition: "all 0.15s ease",
@@ -1883,6 +1892,7 @@ export default function DeltaAgentDashboard() {
         @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
         @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } }
         @keyframes pulseText { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes tooltipFadeIn { from { opacity: 0; } to { opacity: 1; } }
         button:hover { filter: brightness(1.15); }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -2287,7 +2297,7 @@ export default function DeltaAgentDashboard() {
                         small: true,
                       },
                     ].map(({ label, value, valueColor, tab, hint, active, small }) => (
-                      <CorridorRow key={label} label={label} value={value} valueColor={valueColor} tab={tab} hint={hint} active={active} small={small} onNavigate={navigateToTab} />
+                      <CorridorRow key={label} label={label} value={value} valueColor={valueColor} tab={tab} hint={hint} active={active} small={small} onNavigate={navigateToTab} tabsRef={tabsRef} />
                     ))}
                   </div>
                 </div>
