@@ -1827,6 +1827,11 @@ export default function DeltaAgentDashboard() {
   const [activeTab, setActiveTab]         = useState("inbox");
   const [confirmedIds, setConfirmedIds]   = useState(new Set());
   const [overriddenIds, setOverriddenIds] = useState(new Set());
+  // Refs so syncDecisions effects always see the latest values
+  const confirmedIdsRef  = useRef(confirmedIds);
+  const overriddenIdsRef = useRef(overriddenIds);
+  useEffect(() => { confirmedIdsRef.current  = confirmedIds;  }, [confirmedIds]);
+  useEffect(() => { overriddenIdsRef.current = overriddenIds; }, [overriddenIds]);
   const [dismissedIds, setDismissedIds]   = useState(new Set());
   const [cardStates, setCardStates]       = useState({}); // persists executing/done/override per card id
   const [alertedIds, setAlertedIds]       = useState(new Set()); // tracks which decisions have fired alert SMS
@@ -1889,22 +1894,19 @@ export default function DeltaAgentDashboard() {
   }
 
   useEffect(() => {
-    syncDecisions(floodScenario.decisions, "flood-", confirmedIds, overriddenIds);
+    syncDecisions(floodScenario.decisions, "flood-", confirmedIdsRef.current, overriddenIdsRef.current);
   }, [floodScenario.scenarioKey]);
 
   useEffect(() => {
-    // Fog IDs: f1, f2 — use exact ID list, prefix "f" is safe since flood uses "flood-"
-    syncDecisions(fogScenario.decisions, "f", confirmedIds, overriddenIds);
+    syncDecisions(fogScenario.decisions, "f", confirmedIdsRef.current, overriddenIdsRef.current);
   }, [fogScenario.status]);
 
   useEffect(() => {
-    // Ice IDs: i1, i2
-    syncDecisions(iceScenario.decisions, "i", confirmedIds, overriddenIds);
+    syncDecisions(iceScenario.decisions, "i", confirmedIdsRef.current, overriddenIdsRef.current);
   }, [iceScenario.status]);
 
   useEffect(() => {
-    // Hurricane IDs: h1, h2
-    syncDecisions(stormScenario.decisions, "h", confirmedIds, overriddenIds);
+    syncDecisions(stormScenario.decisions, "h", confirmedIdsRef.current, overriddenIdsRef.current);
   }, [stormScenario.status]);
 
   const allDecisions = Object.values(decisionStore);
