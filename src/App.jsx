@@ -1066,13 +1066,13 @@ export default function DeltaAgentDashboard() {
   const [simVis, setSimVis]         = useState(8.0);
   const [fogScenario, setFogScenario] = useState(() => buildFogScenario(8.0));
 
-  const [simIce, setSimIce]         = useState(1.0);
-  const [iceScenario, setIceScenario] = useState(() => buildIceScenario(1.0));
+  const [simIce, setSimIce]         = useState(0);
+  const [iceScenario, setIceScenario] = useState(() => buildIceScenario(0));
 
   const [nhcData, setNhcData]       = useState(null);
-  const [simStormDist, setSimStormDist] = useState(800);
+  const [simStormDist, setSimStormDist] = useState(1000);
   const [simStormCat, setSimStormCat]   = useState(2);
-  const [stormScenario, setStormScenario] = useState(() => buildHurricaneScenario(800, 2));
+  const [stormScenario, setStormScenario] = useState(() => buildHurricaneScenario(1000, 2));
 
   //    shared UI state   
   const [time, setTime]                   = useState(new Date());
@@ -1358,7 +1358,7 @@ export default function DeltaAgentDashboard() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 <button
-                  onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); }}
+                  onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setSimIce(0); setIceScenario(buildIceScenario(0)); setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); setDismissedIds(new Set()); }}
                   style={{ padding: "10px 22px", borderRadius: 6, border: `1px solid ${C.teal}`, background: C.teal, color: C.bg, fontFamily: C.mono, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", cursor: "pointer", whiteSpace: "nowrap", boxShadow: `0 0 20px ${C.teal}44` }}>
                   START GUIDED DEMO
                 </button>
