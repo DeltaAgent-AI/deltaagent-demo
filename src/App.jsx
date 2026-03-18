@@ -1704,10 +1704,41 @@ export default function DeltaAgentDashboard() {
                     <div style={{ flex: 1, height: 1, background: C.border }} />
                   </div>
                 )}
-                {actionedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => (
-                  <DecisionCard key={d.id} decision={d} onConfirm={handleConfirm} onOverride={handleOverride} onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))}
-                    cardState={cardStates[d.id] || "pending"} onStateChange={s => setCardStates(prev => ({ ...prev, [d.id]: s }))} />
-                ))}
+                {actionedDecisions.filter(d => !dismissedIds.has(d.id)).map(d => {
+                  const isConfirmed = confirmedIds.has(d.id);
+                  const color = isConfirmed ? C.teal : C.amber;
+                  const [rowExpanded, setRowExpanded] = [false, () => {}]; // placeholder
+                  return (
+                    <div key={d.id} style={{ border: `1px solid ${color}22`, borderLeft: `3px solid ${color}44`, borderRadius: 6, background: `${color}06`, overflow: "hidden" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+                        <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 3, padding: "2px 6px", flexShrink: 0 }}>
+                          {isConfirmed ? "CONFIRMED" : "OVERRIDE"}
+                        </span>
+                        <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, flexShrink: 0 }}>
+                          {d.disruptionType}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.white, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {d.title}
+                        </span>
+                        {isConfirmed && (
+                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.green, flexShrink: 0 }}>
+                            ${d.costAvoided.toLocaleString()} avoided
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setDismissedIds(prev => new Set([...prev, d.id]))}
+                          style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 11, padding: "0 2px", flexShrink: 0 }}>
+                          x
+                        </button>
+                      </div>
+                      {isConfirmed && (
+                        <div style={{ borderTop: `1px solid ${C.border}22` }}>
+                          <ExecutionTicker decision={d} alreadyDone={true} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
