@@ -758,13 +758,11 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
   const [firedCount, setFiredCount] = useState(alreadyDone ? steps.length : 0);
   const [done, setDone]             = useState(alreadyDone);
   const [elapsed, setElapsed]       = useState(alreadyDone ? "5.3" : "0.0");
-  const [collapsed, setCollapsed]   = useState(alreadyDone); // start collapsed if already done
+  const [collapsed, setCollapsed]   = useState(alreadyDone);
   const startRef                    = useRef(Date.now());
-  const hoverRef                    = useRef(false);
-  const collapseRef                 = useRef(null);
 
   useEffect(() => {
-    if (alreadyDone) return; // skip animation if already completed
+    if (alreadyDone) return;
     const clock = setInterval(() => setElapsed(((Date.now() - startRef.current) / 1000).toFixed(1)), 100);
     steps.forEach((_, i) => {
       setTimeout(() => {
@@ -773,56 +771,36 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
           setTimeout(() => {
             setDone(true);
             clearInterval(clock);
-            collapseRef.current = setTimeout(() => {
-              if (!hoverRef.current) setCollapsed(true);
-            }, 8000);
+            setCollapsed(true); // auto-collapse when animation finishes
           }, 500);
         }
       }, (i + 1) * 800);
     });
-    return () => { clearInterval(clock); clearTimeout(collapseRef.current); };
+    return () => clearInterval(clock);
   }, []);
-
-  function handleMouseEnter() {
-    hoverRef.current = true;
-    clearTimeout(collapseRef.current);
-    setCollapsed(false);
-  }
-
-  function handleMouseLeave() {
-    hoverRef.current = false;
-    // Collapse after 3s when mouse leaves (only if done)
-    if (done) {
-      collapseRef.current = setTimeout(() => {
-        if (!hoverRef.current) setCollapsed(true);
-      }, 1000);
-    }
-  }
 
   if (collapsed) {
     return (
       <div
-        onMouseEnter={handleMouseEnter}
-        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-        onClick={() => setCollapsed(false)}>
+        onClick={() => setCollapsed(false)}
+        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION RECORD</span>
           <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{steps.length} actions   {elapsed}s   ${decision.costAvoided.toLocaleString()} avoided</span>
         </div>
-        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>hover to expand</span>
+        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>click to expand</span>
       </div>
     );
   }
 
   return (
-    <div
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
+    <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {done ? <span style={{ color: C.teal }}>+</span> : <PulsingDot color={C.teal} size={8} />}
-          <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>{done ? "EXECUTION RECORD" : "EXECUTING..."}</span>
+          {done
+            ? <span onClick={() => setCollapsed(true)} style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em", cursor: "pointer" }}>- EXECUTION RECORD</span>
+            : <><PulsingDot color={C.teal} size={8} /><span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>EXECUTING...</span></>
+          }
         </div>
         <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>{elapsed}s elapsed</span>
       </div>
