@@ -573,35 +573,43 @@ const AGENT_INFO = {
 
 function AgentBadge({ code }) {
   const [hovered, setHovered] = useState(false);
+  const [pos, setPos]         = useState({ top: 0, left: 0 });
+  const ref                   = useRef(null);
   const agent = AGENT_INFO[code];
   if (!agent) return <Badge color={C.muted} small>{code}</Badge>;
+
+  function handleMouseEnter() {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.top, left: r.left + r.width / 2 });
+    }
+    setHovered(true);
+  }
+
   return (
     <span
+      ref={ref}
       style={{ position: "relative", display: "inline-flex" }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setHovered(false)}
     >
       <Badge color={agent.color} small>{code}</Badge>
       {hovered && (
         <div style={{
-          position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
-          transform: "translateX(-50%)",
-          width: 220, zIndex: 100,
+          position: "fixed",
+          top: pos.top - 12,
+          left: pos.left,
+          transform: "translate(-50%, -100%)",
+          width: 230, zIndex: 9999,
           background: "#0a1a18",
           border: `1px solid ${agent.color}44`,
           borderRadius: 7,
           padding: "10px 12px",
-          boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px ${agent.color}22`,
+          boxShadow: `0 8px 32px rgba(0,0,0,0.9), 0 0 0 1px ${agent.color}22`,
           pointerEvents: "none",
           animation: "fadeSlideIn 0.15s ease",
+          fontFamily: C.sans,
         }}>
-          {/* Arrow */}
-          <div style={{
-            position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)",
-            width: 8, height: 8, background: "#0a1a18",
-            border: `1px solid ${agent.color}44`, borderTop: "none", borderLeft: "none",
-            transform: "translateX(-50%) rotate(45deg)",
-          }} />
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
             <div style={{ width: 22, height: 22, borderRadius: 4, background: `${agent.color}20`, border: `1px solid ${agent.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: agent.color, flexShrink: 0 }}>{code}</div>
             <div>
@@ -610,6 +618,13 @@ function AgentBadge({ code }) {
             </div>
           </div>
           <div style={{ fontSize: 11, color: "#a0c4c0", lineHeight: 1.55 }}>{agent.description}</div>
+          {/* Arrow pointing down */}
+          <div style={{
+            position: "absolute", bottom: -5, left: "50%",
+            width: 8, height: 8, background: "#0a1a18",
+            border: `1px solid ${agent.color}44`, borderTop: "none", borderLeft: "none",
+            transform: "translateX(-50%) rotate(45deg)",
+          }} />
         </div>
       )}
     </span>
@@ -1170,7 +1185,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
   const bgColor     = state === "executing" ? C.tealFaint : state === "done" ? C.tealFaint : severityBg;
 
   return (
-    <div style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "all 0.5s ease, opacity 0.35s ease, transform 0.35s ease", opacity: exiting ? 0 : 1, transform: exiting ? "translateY(-6px) scale(0.98)" : "none", pointerEvents: exiting ? "none" : "auto" }}>
+    <div style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, transition: "all 0.5s ease, opacity 0.35s ease, transform 0.35s ease", opacity: exiting ? 0 : 1, transform: exiting ? "translateY(-6px) scale(0.98)" : "none", pointerEvents: exiting ? "none" : "auto" }}>
       <div style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -1577,9 +1592,6 @@ export default function DeltaAgentDashboard() {
   function navigateToTab(tabId, logId) {
     setActiveTab(tabId);
     setAutoExpandLogId(logId || null);
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 50);
   }
   const [agentLog, setAgentLog] = useState([
     { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled",     cost: "Stage 0.7ft   Nominal   No action required",      severity: "ok" },
@@ -1902,7 +1914,7 @@ export default function DeltaAgentDashboard() {
           }} />
       ))}
 
-      <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative", overflow: "hidden" }}>
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.white, fontFamily: C.sans, position: "relative" }}>
         <div style={{ position: "fixed", inset: 0, backgroundImage: `linear-gradient(${C.border}44 1px,transparent 1px),linear-gradient(90deg,${C.border}44 1px,transparent 1px)`, backgroundSize: "40px 40px", pointerEvents: "none", zIndex: 0, opacity: 0.6 }} />
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 100, background: `linear-gradient(to bottom,transparent,${C.teal}05,transparent)`, pointerEvents: "none", zIndex: 1, animation: "scanline 10s linear infinite" }} />
 
