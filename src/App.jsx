@@ -587,53 +587,54 @@ function GaugeBar({ value, max = 20 }) {
   );
 }
 
+const TOAST_DURATION = 7000;
+
 function SMSNotification({ decision, onClose, onClick }) {
-  const [visible, setVisible]   = useState(false);
-  const [hovered, setHovered]   = useState(false);
-  const [expired, setExpired]   = useState(false);
-  const timerRef                = useRef(null);
+  const [visible, setVisible]     = useState(false);
+  const [hovered, setHovered]     = useState(false);
+  const [progress, setProgress]   = useState(100); // 100 → 0
+  const timerRef                  = useRef(null);
+  const progressRef               = useRef(null);
+  const startTimeRef              = useRef(null);
+  const remainingRef              = useRef(TOAST_DURATION);
+
+  function startDrain() {
+    const start = Date.now();
+    startTimeRef.current = start;
+    // Drain progress bar
+    progressRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.max(0, 100 - (elapsed / remainingRef.current) * 100);
+      setProgress(pct);
+    }, 50);
+    // Close when drained
+    timerRef.current = setTimeout(() => {
+      clearInterval(progressRef.current);
+      setVisible(false);
+      setTimeout(onClose, 400);
+    }, remainingRef.current);
+  }
+
+  function pauseDrain() {
+    clearTimeout(timerRef.current);
+    clearInterval(progressRef.current);
+    // Save how much time is left
+    if (startTimeRef.current) {
+      const elapsed = Date.now() - startTimeRef.current;
+      remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+    }
+  }
 
   useEffect(() => {
-    // Slide in
-    setTimeout(() => setVisible(true), 50);
-    // Stay for 5 seconds then mark expired
-    timerRef.current = setTimeout(() => setExpired(true), 5000);
-    return () => clearTimeout(timerRef.current);
+    setTimeout(() => { setVisible(true); startDrain(); }, 50);
+    return () => { clearTimeout(timerRef.current); clearInterval(progressRef.current); };
   }, []);
 
-  // When expired: close immediately if not hovered, else wait for mouse leave
-  useEffect(() => {
-    if (!expired) return;
-    if (!hovered) {
-      setVisible(false);
-      setTimeout(onClose, 400);
-    }
-  }, [expired]);
-
-  function handleMouseEnter() {
-    setHovered(true);
-    // Pause timer while hovering
-    clearTimeout(timerRef.current);
-  }
-
-  function handleMouseLeave() {
-    setHovered(false);
-    if (expired) {
-      // Already expired while hovering — close now
-      setVisible(false);
-      setTimeout(onClose, 400);
-    } else {
-      // Resume countdown with remaining ~1s grace
-      timerRef.current = setTimeout(() => {
-        setExpired(true);
-        setVisible(false);
-        setTimeout(onClose, 400);
-      }, 1000);
-    }
-  }
-
+  function handleMouseEnter() { setHovered(true); pauseDrain(); }
+  function handleMouseLeave() { setHovered(false); startDrain(); }
   function handleClick() {
     clearTimeout(timerRef.current);
+    clearInterval(progressRef.current);
     onClick();
     setVisible(false);
     setTimeout(onClose, 400);
@@ -645,11 +646,12 @@ function SMSNotification({ decision, onClose, onClick }) {
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.03 : 1})` : "translateX(120%) scale(0.8)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
+      style={{ position: "fixed", top: 20, right: 20, zIndex: 1000, transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)", transform: visible ? `translateX(0) scale(${hovered ? 1.02 : 1})` : "translateX(120%) scale(0.9)", opacity: visible ? 1 : 0, cursor: "pointer" }}>
       <div style={{ width: 340, background: "linear-gradient(150deg,#040f0e,#061a17)", borderRadius: 12, overflow: "hidden", boxShadow: hovered ? `0 32px 80px rgba(0,0,0,0.95),0 0 0 1px ${C.teal}88,0 0 40px ${C.teal}22` : `0 24px 64px rgba(0,0,0,0.9),0 0 0 1px ${C.teal}44`, fontFamily: C.sans, transition: "box-shadow 0.2s ease" }}>
+        {/* Top accent bar */}
         <div style={{ height: 3, background: `linear-gradient(90deg,${C.teal},#0f4547,transparent)` }} />
-        <div style={{ padding: "14px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ padding: "14px 16px 10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg,#0f4547,${C.teal})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 0 12px ${C.teal}44` }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><polygon points="8,2 14,14 8,10 2,14" fill="white" /></svg>
             </div>
@@ -657,20 +659,32 @@ function SMSNotification({ decision, onClose, onClick }) {
               <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>EXECUTION COMPLETE</div>
               <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginTop: 1 }}>{time}   6 alerts dispatched</div>
             </div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.teal, opacity: 0.7 }}>view record</div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.teal, opacity: 0.7 }}>view record →</div>
           </div>
-          <div style={{ background: `${C.teal}0d`, border: `1px solid ${C.teal}33`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+          <div style={{ background: `${C.teal}0d`, border: `1px solid ${C.teal}33`, borderRadius: 8, padding: "9px 12px", marginBottom: 10 }}>
             <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 3 }}>{decision.title}</div>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>Gauge {decision.ft?.toFixed(1)}ft   <span style={{ color: C.green }}>${decision.costAvoided?.toLocaleString()} avoided</span></div>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+              Gauge {decision.ft?.toFixed(1)}ft   <span style={{ color: C.green }}>${decision.costAvoided?.toLocaleString()} avoided</span>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
             {["Port Director","Pilot Station","CN/KCS","Drayage","Berth TOS","Audit"].map((l, i) => (
               <div key={i} style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, background: `${C.teal}12`, border: `1px solid ${C.teal}30`, borderRadius: 3, padding: "3px 6px" }}>{l}</div>
             ))}
           </div>
+          {/* Progress drain bar */}
+          <div style={{ height: 2, background: C.mutedLo, borderRadius: 1, overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${progress}%`,
+              background: hovered ? C.amber : C.teal,
+              transition: hovered ? "background 0.2s ease" : "background 0.2s ease",
+              borderRadius: 1,
+            }} />
+          </div>
           {hovered && (
-            <div style={{ marginTop: 10, fontFamily: C.mono, fontSize: 9, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
-              Click to view full execution record in Agent Log
+            <div style={{ marginTop: 6, fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "center" }}>
+              Click to open Agent Log
             </div>
           )}
         </div>
@@ -806,8 +820,11 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
           setTimeout(() => {
             setDone(true);
             clearInterval(clock);
-            setCollapsed(true);
-            onDone && onDone();
+            // Brief pause so user sees the completed state before card moves
+            setTimeout(() => {
+              setCollapsed(true);
+              onDone && onDone();
+            }, 800);
           }, 500);
         }
       }, (i + 1) * 800);
@@ -831,7 +848,6 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
 
   return (
     <div onClick={() => done && setCollapsed(true)} style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "12px 20px", cursor: done ? "pointer" : "default" }}>
-      {/* Header row - only shown when actively executing */}
       {!done && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -841,7 +857,6 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
           <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{elapsed}s elapsed</span>
         </div>
       )}
-      {/* Step rows — grid: [badge] [label flex] [detail] [time] */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: done ? 10 : 0 }}>
         {steps.map((step, i) => {
           const fired = i < firedCount;
@@ -878,7 +893,6 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
       </div>
       {done && (
         <div style={{ animation: "fadeSlideIn 0.5s ease" }}>
-          {/* Compact summary strip instead of 3 large cards */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 12px", borderRadius: 5, background: `${C.green}09`, border: `1px solid ${C.green}22`, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>AVOIDED</span>
@@ -898,7 +912,7 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
               vs. manual: {getManualComparison(decision.disruptionType)}
             </div>
           </div>
-          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "center" }}>Full record saved to Agent Log — click to collapse</div>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "center" }}>Filing to Agent Log...</div>
         </div>
       )}
     </div>
@@ -906,64 +920,35 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
 }
 
 function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = "pending", onStateChange }) {
-  const [expanded, setExpanded]             = useState(false);
-  const [hovered, setHovered]               = useState(false);
-  const [exiting, setExiting]               = useState(false);
-  const hoveredRef                          = useRef(false);
+  const [expanded, setExpanded] = useState(false);
+  const [exiting, setExiting]   = useState(false);
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
 
   const state = cardState;
   function setState(s) { onStateChange && onStateChange(s); }
 
-  function doConfirm() {
-    setExiting(true);
-    setTimeout(() => onConfirm(decision), 300);
-  }
-
   function handleConfirm() {
     setState("executing");
-    // Ticker will call onTickerDone when all steps complete
-    // If not hovered right now, move immediately
-    if (!hoveredRef.current) {
-      doConfirm();
-    }
-    // If hovered, wait — onTickerDone or handleMouseLeave will trigger doConfirm
   }
 
-  function handleOverride() { setState("override"); onOverride(decision); }
-
-  function handleMouseEnter() {
-    setHovered(true);
-    hoveredRef.current = true;
+  function handleOverride() {
+    setState("override");
+    onOverride(decision);
   }
 
-  function handleMouseLeave() {
-    setHovered(false);
-    hoveredRef.current = false;
-    // If we're mid-execution or done, move to actioned immediately on mouse leave
-    if (state === "executing" || state === "done") {
-      doConfirm();
-    }
-  }
-
+  // Called by ExecutionTicker when all steps complete
   function handleTickerDone() {
     setState("done");
-    // If not hovering when ticker finishes, move to actioned immediately
-    if (!hoveredRef.current) {
-      doConfirm();
-    }
-    // If still hovering, mouseLeave will fire doConfirm
+    setExiting(true);
+    setTimeout(() => onConfirm(decision), 350);
   }
 
-  const borderColor = state === "done" ? C.teal : severityColor;
-  const bgColor     = state === "done" ? C.tealFaint : severityBg;
+  const borderColor = state === "executing" ? C.teal : state === "done" ? C.teal : severityColor;
+  const bgColor     = state === "executing" ? C.tealFaint : state === "done" ? C.tealFaint : severityBg;
 
   return (
-    <div
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "border-color 0.5s ease, background 0.5s ease, opacity 0.3s ease, transform 0.3s ease", opacity: exiting ? 0 : 1, transform: exiting ? "translateX(20px)" : "none", pointerEvents: exiting ? "none" : "auto" }}>
+    <div style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, overflow: "hidden", transition: "all 0.5s ease, opacity 0.35s ease, transform 0.35s ease", opacity: exiting ? 0 : 1, transform: exiting ? "translateY(-6px) scale(0.98)" : "none", pointerEvents: exiting ? "none" : "auto" }}>
       <div style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -1031,9 +1016,9 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
           </div>
         )}
         {state === "executing" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0 2px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0 0" }}>
             <PulsingDot color={C.teal} size={7} />
-            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, fontWeight: 700, letterSpacing: "0.06em" }}>DISPATCHING &amp; EXECUTING...</span>
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, fontWeight: 700, letterSpacing: "0.06em" }}>DISPATCHING ALERTS...</span>
           </div>
         )}
         {state === "override" && (
