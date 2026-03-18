@@ -2768,19 +2768,11 @@ export default function DeltaAgentDashboard() {
                       <span style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{pendingDecisions[0]?.disruptionType} — {pendingDecisions[0]?.disruptionLabel}</span>
                     </div>
                   ) : (
-                    <div style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                      {[
-                        { label: "FLOOD", s: floodScenario, val: `${simGauge.toFixed(1)}ft` },
-                        { label: "FOG",   s: fogScenario,   val: `${simVis.toFixed(1)}nm` },
-                        { label: "ICE",   s: iceScenario,   val: `${(simIce * 10).toFixed(0)}%` },
-                        { label: "HURRICANE", s: stormScenario, val: `${simStormDist}mi` },
-                      ].map(({ label, s, val }) => (
-                        <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <div style={{ width: 5, height: 5, borderRadius: "50%", background: s.statusColor }} />
-                          <span style={{ fontFamily: C.mono, fontSize: 8, color: s.statusColor === C.teal ? C.label : s.statusColor }}>{label}</span>
-                          <span style={{ fontFamily: C.mono, fontSize: 8, color: C.body }}>{val}</span>
-                        </div>
-                      ))}
+                    <div style={{ padding: "0 18px", display: "flex", alignItems: "center", gap: 8 }}>
+                      <PulsingDot color={C.teal} size={6} />
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.teal, letterSpacing: "0.08em", fontWeight: 700 }}>
+                        {allDecisions.length > 0 ? "ALL DECISIONS ACTIONED" : "ALL CLEAR — CORRIDOR NOMINAL"}
+                      </span>
                     </div>
                   )}
                 </div>
