@@ -810,7 +810,7 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
     return (
       <div
         onClick={() => setCollapsed(false)}
-        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION RECORD</span>
           <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{steps.length} actions   {elapsed}s   ${decision.costAvoided.toLocaleString()} avoided</span>
@@ -821,39 +821,46 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
   }
 
   return (
-    <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
-      <div
-        onClick={() => done && setCollapsed(true)}
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, cursor: done ? "pointer" : "default" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {done
-            ? <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>- EXECUTION RECORD</span>
-            : <><PulsingDot color={C.teal} size={8} /><span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>EXECUTING...</span></>
-          }
+    <div onClick={() => done && setCollapsed(true)} style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "12px 20px", cursor: done ? "pointer" : "default" }}>
+      {/* Header row - only shown when actively executing */}
+      {!done && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <PulsingDot color={C.teal} size={7} />
+            <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>EXECUTING...</span>
+          </div>
+          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{elapsed}s elapsed</span>
         </div>
-        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>{elapsed}s elapsed</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+      )}
+      {/* Step rows — grid: [badge] [label flex] [detail] [time] */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: done ? 10 : 0 }}>
         {steps.map((step, i) => {
           const fired = i < firedCount;
           const typeColors = { SMS: C.teal, API: "#818cf8", OPS: C.amber, DATA: "#67e8f9", AUDIT: C.muted };
           const typeColor = typeColors[step.type] || C.muted;
           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderRadius: 5, background: fired ? `${C.teal}0a` : "transparent", border: `1px solid ${fired ? C.teal + "22" : C.border}`, opacity: fired ? 1 : 0.25, transition: "all 0.4s ease" }}>
-              {/* Type badge */}
-              <div style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}33`, borderRadius: 3, padding: "2px 5px", flexShrink: 0, width: 36, textAlign: "center", letterSpacing: "0.04em" }}>
-                {step.type || "->"}
+            <div key={i} style={{
+              display: "grid",
+              gridTemplateColumns: "38px 1fr auto 32px",
+              alignItems: "center",
+              gap: 8,
+              padding: "5px 10px",
+              borderRadius: 4,
+              background: fired ? `${C.teal}09` : "transparent",
+              border: `1px solid ${fired ? C.teal + "1a" : C.border + "88"}`,
+              opacity: fired ? 1 : 0.28,
+              transition: "all 0.4s ease",
+            }}>
+              <div style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, borderRadius: 3, padding: "2px 0", textAlign: "center", letterSpacing: "0.04em" }}>
+                {step.type}
               </div>
-              {/* Label */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 12, color: fired ? C.white : C.muted, fontWeight: fired ? 500 : 400 }}>{step.label}</span>
+              <div style={{ fontSize: 11, color: fired ? C.white : C.muted, fontWeight: fired ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {step.label}
               </div>
-              {/* Detail */}
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, flexShrink: 0, textAlign: "right" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "right", whiteSpace: "nowrap" }}>
                 {step.detail}
               </div>
-              {/* Timestamp */}
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, flexShrink: 0, width: 28, textAlign: "right" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: fired ? C.teal : C.mutedLo, textAlign: "right", whiteSpace: "nowrap" }}>
                 {fired ? `${((i + 1) * 0.8).toFixed(1)}s` : "--"}
               </div>
             </div>
@@ -862,24 +869,27 @@ function ExecutionTicker({ decision, alreadyDone = false }) {
       </div>
       {done && (
         <div style={{ animation: "fadeSlideIn 0.5s ease" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-            {[
-              { label: "COST AVOIDED", value: `$${decision.costAvoided.toLocaleString()}`, color: C.green },
-              { label: "ELAPSED TIME", value: `${elapsed}s`, color: C.teal },
-              { label: "ALERTS SENT",  value: String(steps.length), color: C.teal },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ padding: "10px 12px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}22`, textAlign: "center" }}>
-                <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 3, letterSpacing: "0.08em" }}>{label}</div>
-                <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color }}>{value}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: "8px 12px", borderRadius: 5, background: `${C.muted}0d`, border: `1px solid ${C.border}` }}>
-            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
-              Human review: ~3 sec | Agent execution: {elapsed}s | vs. manual: {getManualComparison(decision.disruptionType)}
+          {/* Compact summary strip instead of 3 large cards */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 12px", borderRadius: 5, background: `${C.green}09`, border: `1px solid ${C.green}22`, marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>AVOIDED</span>
+              <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
+            </div>
+            <div style={{ width: 1, height: 14, background: C.border }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>ELAPSED</span>
+              <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal }}>{elapsed}s</span>
+            </div>
+            <div style={{ width: 1, height: 14, background: C.border }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>ALERTS</span>
+              <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal }}>{steps.length}</span>
+            </div>
+            <div style={{ marginLeft: "auto", fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+              vs. manual: {getManualComparison(decision.disruptionType)}
             </div>
           </div>
-          <div style={{ marginTop: 8, fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "center" }}>Full record saved to Agent Log</div>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, textAlign: "center" }}>Full record saved to Agent Log — click to collapse</div>
         </div>
       )}
     </div>
@@ -997,9 +1007,9 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
           </div>
         )}
         {state === "executing" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0" }}>
-            <PulsingDot color={C.teal} size={8} />
-            <span style={{ fontFamily: C.mono, fontSize: 11, color: C.teal, fontWeight: 700, letterSpacing: "0.06em" }}>DISPATCHING ALERTS...</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0 2px" }}>
+            <PulsingDot color={C.teal} size={7} />
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, fontWeight: 700, letterSpacing: "0.06em" }}>DISPATCHING &amp; EXECUTING...</span>
           </div>
         )}
         {state === "override" && (
