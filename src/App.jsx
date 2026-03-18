@@ -645,47 +645,64 @@ function ExecutionTicker({ decision, forceVisible = false }) {
   const [collapsed, setCollapsed]   = useState(false);
   const startRef                    = useRef(Date.now());
   const collapseRef                 = useRef(null);
+  const hoverRef                    = useRef(false); // ref so timeout callback always sees current value
   const steps = getExecSteps(decision.disruptionType);
+
+  function scheduleCollapse() {
+    clearTimeout(collapseRef.current);
+    collapseRef.current = setTimeout(() => {
+      if (!hoverRef.current) setCollapsed(true);
+    }, 12000);
+  }
 
   useEffect(() => {
     const clock = setInterval(() => setElapsed(((Date.now() - startRef.current) / 1000).toFixed(1)), 100);
     steps.forEach((_, i) => {
       setTimeout(() => {
         setFiredCount(i + 1);
-        if (i === steps.length - 1) setTimeout(() => {
-          setDone(true);
-          clearInterval(clock);
-          // Auto-collapse after 10s once done, unless hovered
-          collapseRef.current = setTimeout(() => setCollapsed(true), 10000);
-        }, 500);
+        if (i === steps.length - 1) {
+          setTimeout(() => {
+            setDone(true);
+            clearInterval(clock);
+            scheduleCollapse();
+          }, 500);
+        }
       }, (i + 1) * 800);
     });
     return () => { clearInterval(clock); clearTimeout(collapseRef.current); };
   }, []);
 
-  // forceVisible from parent hover - keep expanded
+  // Cancel collapse when parent or self is hovered
   useEffect(() => {
     if (forceVisible) {
+      hoverRef.current = true;
       clearTimeout(collapseRef.current);
       setCollapsed(false);
+    } else {
+      hoverRef.current = false;
     }
   }, [forceVisible]);
 
-  if (collapsed && !forceVisible) {
+  if (collapsed) {
     return (
-      <div onClick={() => setCollapsed(false)} style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+      <div
+        onMouseEnter={() => { hoverRef.current = true; setCollapsed(false); }}
+        onClick={() => setCollapsed(false)}
+        style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: C.teal, fontSize: 12 }}>+</span>
           <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal, letterSpacing: "0.06em" }}>EXECUTION RECORD</span>
           <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{steps.length} actions   {elapsed}s   ${decision.costAvoided.toLocaleString()} avoided</span>
         </div>
-        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>hover or click to expand</span>
+        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>hover to expand</span>
       </div>
     );
   }
 
   return (
-    <div style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
+    <div
+      onMouseEnter={() => { hoverRef.current = true; clearTimeout(collapseRef.current); }}
+      onMouseLeave={() => { hoverRef.current = false; if (done) scheduleCollapse(); }}
+      style={{ borderTop: `1px solid ${C.border}`, background: C.panel, padding: "16px 20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {done ? <span style={{ color: C.teal }}>+</span> : <PulsingDot color={C.teal} size={8} />}
