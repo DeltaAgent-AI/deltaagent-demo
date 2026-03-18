@@ -934,11 +934,16 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
       {done && (
         <div style={{ animation: "fadeSlideIn 0.5s ease" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 12px", borderRadius: 5, background: `${C.green}09`, border: `1px solid ${C.green}22`, marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>AVOIDED</span>
-              <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>AVOIDED</span>
+                <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
+              </div>
+              {getCostAnnotation(decision.costAvoided, decision.disruptionType) && (
+                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.tealDim }}>{getCostAnnotation(decision.costAvoided, decision.disruptionType)}</span>
+              )}
             </div>
-            <div style={{ width: 1, height: 14, background: C.border }} />
+            <div style={{ width: 1, height: 24, background: C.border }} />
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.06em" }}>ELAPSED</span>
               <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal }}>{elapsed}s</span>
@@ -957,6 +962,29 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
       )}
     </div>
   );
+}
+
+// Translate dollar cost into operator-meaningful real-world equivalents
+function getCostAnnotation(amount, disruptionType) {
+  if (!amount) return null;
+  // Industry benchmarks for Lower Mississippi operations:
+  // Crane gang:     ~$2,400/hr (operator + equipment + standby crew)
+  // Vessel idle:    ~$8,500/hr (demurrage + crew + fuel at berth)
+  // Drayage truck:  ~$180/hr   (driver + fuel + opportunity cost)
+  // Tug assist:     ~$3,200/hr (tug + captain + assist crew)
+  // Pilot hold:     ~$1,100/hr (pilot standby + vessel delay)
+  switch (disruptionType) {
+    case "FOG":
+      return `≈ ${Math.round(amount / 180)} truck-hours held`;
+    case "HURRICANE":
+      return `≈ ${Math.round(amount / 8500)} vessel-hours at risk`;
+    case "ICE":
+      return `≈ ${Math.round(amount / 3200)} tug-hours standby`;
+    default: // FLOOD
+      if (amount >= 20000) return `≈ ${Math.round(amount / 8500)} vessel idle-hours`;
+      if (amount >= 8000)  return `≈ ${Math.round(amount / 2400)} crane gang-hours`;
+      return `≈ ${Math.round(amount / 2400)} crane gang-hours`;
+  }
 }
 
 function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = "pending", onStateChange }) {
@@ -1026,14 +1054,19 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
           </div>
         </div>
 
-        {/* Reduced cost emphasis - one line instead of two big cards */}
+        {/* Cost strip with real-world annotation */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: `${C.muted}08`, border: `1px solid ${C.border}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>EST. COST AVOIDED</span>
-            <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
+              {getCostAnnotation(decision.costAvoided, decision.disruptionType) && (
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.tealDim }}>{getCostAnnotation(decision.costAvoided, decision.disruptionType)}</span>
+              )}
+            </div>
           </div>
-          <div style={{ width: 1, height: 16, background: C.border }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 1, height: 28, background: C.border }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>IF IGNORED</span>
             <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.red }}>${decision.costIfIgnored.toLocaleString()}</span>
           </div>
@@ -1247,13 +1280,14 @@ function RecordDrawer({ record, onClose, onViewLog }) {
               {/* Summary strip */}
               <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
                 {[
-                  { label: "AVOIDED",  value: `$${record.costAvoided?.toLocaleString()}`, color: C.green },
-                  { label: "ELAPSED",  value: "5.3s",   color: C.teal },
-                  { label: "ALERTS",   value: String(steps.length), color: C.teal },
-                ].map(({ label, value, color }) => (
+                  { label: "AVOIDED",  value: `$${record.costAvoided?.toLocaleString()}`, color: C.green, sub: getCostAnnotation(record.costAvoided, record.disruptionType) },
+                  { label: "ELAPSED",  value: "5.3s",   color: C.teal, sub: "agent execution" },
+                  { label: "ALERTS",   value: String(steps.length), color: C.teal, sub: "dispatched" },
+                ].map(({ label, value, color, sub }) => (
                   <div key={label} style={{ flex: 1, padding: "8px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}22`, textAlign: "center" }}>
                     <div style={{ fontFamily: C.mono, fontSize: 7, color: C.muted, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
                     <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color }}>{value}</div>
+                    {sub && <div style={{ fontFamily: C.mono, fontSize: 8, color: `${color}99`, marginTop: 2 }}>{sub}</div>}
                   </div>
                 ))}
               </div>
