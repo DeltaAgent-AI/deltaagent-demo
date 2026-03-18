@@ -1729,12 +1729,48 @@ export default function DeltaAgentDashboard() {
   ]);
 
   //    Merge all active decisions from all threat types into one unified inbox   
-  const allDecisions = [
-    ...floodScenario.decisions,
-    ...fogScenario.decisions,
-    ...iceScenario.decisions,
-    ...stormScenario.decisions,
-  ];
+  // Decision store — accumulates decisions as thresholds are crossed
+  // Keyed by decision ID so each unique decision is only added once
+  // New threshold crossings add their decisions; confirmed ones remain visible
+  const [decisionStore, setDecisionStore] = useState({});
+
+  // When any scenario's decision list changes, merge new decisions into the store
+  // Never removes decisions — only adds new ones and updates content for pending ones
+  useEffect(() => {
+    const incoming = [
+      ...floodScenario.decisions,
+      ...fogScenario.decisions,
+      ...iceScenario.decisions,
+      ...stormScenario.decisions,
+    ];
+    if (incoming.length === 0) return;
+    setDecisionStore(prev => {
+      const next = { ...prev };
+      let changed = false;
+      incoming.forEach(d => {
+        if (!next[d.id]) {
+          // New decision — add it
+          next[d.id] = d;
+          changed = true;
+        } else if (!confirmedIds.has(d.id) && !overriddenIds.has(d.id)) {
+          // Pending decision — update content so title/reason/cost reflect current gauge
+          next[d.id] = d;
+          changed = true;
+        }
+        // Confirmed/overridden decisions: never overwrite — leave as-is
+      });
+      return changed ? next : prev;
+    });
+  }, [
+    floodScenario.decisions,
+    fogScenario.decisions,
+    iceScenario.decisions,
+    stormScenario.decisions,
+    confirmedIds,
+    overriddenIds,
+  ]);
+
+  const allDecisions = Object.values(decisionStore);
 
   // Sort by time urgency - least time to act goes first (real operational priority)
   // IMMEDIATE and shortest windows bubble to top regardless of severity
@@ -1992,9 +2028,9 @@ export default function DeltaAgentDashboard() {
     setSimVis(8.0);   setFogScenario(buildFogScenario(8.0));
     setSimIce(0);     setIceScenario(buildIceScenario(0));
     setSimStormDist(1000); setSimStormCat(2); setStormScenario(buildHurricaneScenario(1000, 2));
-    setConfirmedIds(new Set()); setOverriddenIds(new Set()); setResolvedIds(new Set());
+    setConfirmedIds(new Set()); setOverriddenIds(new Set()); setResolvedIds(new Set()); setDecisionStore({});
     setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
-    setSessionSavings([]); setAgentLog([
+    setSessionSavings([]); setDecisionStore({}); setAgentLog([
       { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled",     cost: "Stage 0.7ft   Nominal   No action required",      severity: "ok" },
       { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
       { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked",  cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
@@ -2146,7 +2182,7 @@ export default function DeltaAgentDashboard() {
                       setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
                       setSimIce(0); setIceScenario(buildIceScenario(0));
                       setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
-                      setConfirmedIds(new Set()); setOverriddenIds(new Set());
+                      setConfirmedIds(new Set()); setOverriddenIds(new Set()); setDecisionStore({});
                       setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
                       setAgentLog([
                         { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: HIGH WATER EVENT ──", cost: "Carrollton Gauge 11.4ft   High Water Proclamation threshold", severity: "divider" },
@@ -2171,7 +2207,7 @@ export default function DeltaAgentDashboard() {
                       setSimVis(0.3); setFogScenario(buildFogScenario(0.3));
                       setSimIce(0); setIceScenario(buildIceScenario(0));
                       setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
-                      setConfirmedIds(new Set()); setOverriddenIds(new Set());
+                      setConfirmedIds(new Set()); setOverriddenIds(new Set()); setDecisionStore({});
                       setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
                       setAgentLog([
                         { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: DENSE FOG ADVISORY ──", cost: "SW Pass Visibility 0.3nm   Critical threshold", severity: "divider" },
@@ -2196,7 +2232,7 @@ export default function DeltaAgentDashboard() {
                       setSimIce(0); setIceScenario(buildIceScenario(0));
                       const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
                       setSimStormDist(320); setSimStormCat(2); setStormScenario(buildHurricaneScenario(320, 2));
-                      setConfirmedIds(new Set()); setOverriddenIds(new Set());
+                      setConfirmedIds(new Set()); setOverriddenIds(new Set()); setDecisionStore({});
                       setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
                       setAgentLog([
                         { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: HURRICANE APPROACH ──", cost: "Cat 2   320mi from SW Pass   Port Condition YANKEE approaching", severity: "divider" },
