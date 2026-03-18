@@ -1081,21 +1081,31 @@ export default function DeltaAgentDashboard() {
 
           {/* ONBOARDING BANNER */}
           {showBanner && (
-            <div style={{ background: `${C.teal}12`, borderBottom: `1px solid ${C.teal}33`, padding: "10px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: C.teal, fontSize: 14 }}>~</span>
-                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, letterSpacing: "0.06em" }}>
-                  <span style={{ color: C.teal, fontWeight: 700 }}>SIMULATOR MODE</span>
-                  {"   "}Drag any slider to trigger live operational decisions. Hit CONFIRM & DISPATCH to see autonomous coordination in action.
-                </span>
+            <div style={{ background: `linear-gradient(135deg, ${C.teal}18 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}44`, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: `${C.teal}20`, border: `1px solid ${C.teal}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <PulsingDot color={C.teal} size={10} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 4 }}>
+                    LIVE OPERATIONS SIMULATOR
+                  </div>
+                  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
+                    Drag any slider to trigger real operational decisions for the Lower Mississippi corridor.
+                    <span style={{ color: C.white }}> Hit CONFIRM & DISPATCH</span> to see autonomous SMS coordination fire in real time.
+                  </div>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 <button
                   onClick={() => { setShowBanner(false); setGuidedDemo(true); setGuidedStep(0); setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4)); setSimVis(8.0); setFogScenario(buildFogScenario(8.0)); setConfirmedIds(new Set()); setOverriddenIds(new Set()); setAlertedIds(new Set()); }}
-                  style={{ padding: "5px 14px", borderRadius: 4, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: C.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  style={{ padding: "10px 22px", borderRadius: 6, border: `1px solid ${C.teal}`, background: C.teal, color: C.bg, fontFamily: C.mono, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", cursor: "pointer", whiteSpace: "nowrap", boxShadow: `0 0 20px ${C.teal}44` }}>
                   START GUIDED DEMO
                 </button>
-                <button onClick={() => setShowBanner(false)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, padding: "2px 6px" }}>x</button>
+                <button onClick={() => setShowBanner(false)}
+                  style={{ padding: "10px 16px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  EXPLORE FREELY
+                </button>
               </div>
             </div>
           )}
