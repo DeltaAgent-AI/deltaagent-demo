@@ -324,53 +324,106 @@ function buildFogScenario(visNm) {
   return { visNm, status, statusColor, risk, riskColor, decisions, trend };
 }
 
-//    ICE SCENARIO                                                              
-// iceIndex 0-10: severity of upstream ice restriction on Ohio/Upper Mississippi
-// Affects barge tow arrival times and draft capacity
+//    ICE SCENARIO - Lower Mississippi River specific
+// Ice coverage % mapped to 0-10 index (0=clear, 10=severe jamming)
+// LMR ice is frazil ice/chunks flowing from Ohio River - not frozen solid
+// Phases: Trace (1-10%), Intermediate (10-40%), Heavy (40-70%), Severe (70%+)
+// Critical co-factor: low water + ice = saltwater wedge + engine clog nightmare
 function buildIceScenario(iceIndex) {
-  const severe   = iceIndex >= 7;
-  const moderate = iceIndex >= 4;
-  const status      = severe ? "CRITICAL" : moderate ? "ELEVATED" : "NOMINAL";
-  const statusColor = severe ? C.red : moderate ? C.amber : C.teal;
-  const risk        = severe ? "HIGH RISK" : moderate ? "ELEVATED RISK" : "NOMINAL";
-  const riskColor   = statusColor;
-  const delayDays   = severe ? Math.round(iceIndex * 3.2) : moderate ? Math.round(iceIndex * 1.8) : 0;
+  // Map 0-10 index to coverage %: 0=0%, 10=100%
+  const coverage    = iceIndex * 10;
+  const severe      = iceIndex >= 7;  // 70%+ - total loss of control
+  const heavy       = iceIndex >= 4 && iceIndex < 7;  // 40-70% - mooring line snap risk
+  const intermediate = iceIndex >= 1 && iceIndex < 4; // 10-40% - buoy displacement
+  const trace       = iceIndex > 0 && iceIndex < 1;   // 1-10% - intake clog risk
+
+  const status = severe       ? "CRITICAL"
+    : heavy        ? "CRITICAL"
+    : intermediate ? "ELEVATED"
+    : trace        ? "CAUTIONARY"
+    : "NOMINAL";
+
+  const statusColor = (severe || heavy) ? C.red
+    : intermediate ? C.amber
+    : trace        ? C.amber
+    : C.teal;
+
+  const risk = (severe || heavy) ? "HIGH RISK"
+    : intermediate ? "ELEVATED RISK"
+    : trace        ? "MONITOR"
+    : "NOMINAL";
+
+  const riskColor = statusColor;
+
   const decisions = severe ? [
     {
       id: "i1", severity: "critical",
-      disruptionType: "ICE", disruptionLabel: "ICE RESTRICTION",
-      title: "RESEQUENCE - Upstream Ice Delay " + delayDays + " Days",
-      reason: "Corps of Engineers ice restriction index " + iceIndex.toFixed(1) + "/10 on Ohio River above Cairo, IL. Barge tow delays of " + delayDays + "+ days projected. Terminal inventory and rail schedule must be resequenced.",
-      costAvoided: 44000, costIfIgnored: 44000, advanceWarning: "72h",
+      disruptionType: "ICE", disruptionLabel: "RIVER CLOSURE",
+      title: "HALT - Full River Closure Protocol",
+      reason: "Ice coverage at " + coverage.toFixed(0) + "% - severe jamming. River current pushing ice floes with enough force to overwhelm vessel engines. Coast Guard coordination required for immediate closure. Bridge piers at Huey P. Long at risk of ice dam formation.",
+      costAvoided: 96000, costIfIgnored: 96000, advanceWarning: "IMMEDIATE",
       agents: ["RW", "BM", "IS"],
-      actions: ["14 barge tows flagged for " + delayDays + "-day delay - ETA revised", "CN/KCS rail departure windows shifted to compensate upstream delay", "Terminal inventory resequenced - priority cargo identified", "Port Director and commodity traders notified via SMS"],
+      actions: ["Coordinate with Coast Guard Sector NOLA - river closure declaration", "Halt all vessel traffic - no exceptions", "Monitor Huey P. Long Bridge piers for ice jam formation", "Suspend all land-side operations - shut truck gates and rail lines", "Port Director emergency notification - MTSA ice closure protocol activated"],
+    },
+    {
+      id: "i2", severity: "critical",
+      disruptionType: "ICE", disruptionLabel: "LOGISTICS FREEZE",
+      title: "SUSPEND - All Land-Side Operations",
+      reason: "Ships cannot move. Port is now a warehouse that cannot be emptied. Rail and trucking must halt to prevent land-side gridlock on surface streets.",
+      costAvoided: 54000, costIfIgnored: 54000, advanceWarning: "IMMEDIATE",
+      agents: ["BM", "IS"],
+      actions: ["Shut terminal truck gates - prevent surface street gridlock", "Halt CN/KCS rail - cars staged at inland yards", "Terminal inventory freeze - no new cargo movement", "Notify all shipping agents - port closed until ice clears"],
+    },
+  ] : heavy ? [
+    {
+      id: "i1", severity: "critical",
+      disruptionType: "ICE", disruptionLabel: "MOORING RISK",
+      title: "MANDATE - Standby Tugs at All Berths",
+      reason: "Ice coverage at " + coverage.toFixed(0) + "% - ice building between docked ships and wharf. Pressure can snap massive steel mooring lines. Require assist tugs pinned against all docked vessels to maintain pressure.",
+      costAvoided: 48000, costIfIgnored: 48000, advanceWarning: "2h 00m",
+      agents: ["RW", "BM"],
+      actions: ["Mandate standby assist tugs at all berths via Crescent Towing", "Suspend all barge fleeting - loose barge in ice becomes a battering ram", "Notify vessel masters - mooring line snap risk advisory issued", "Increase mooring line checks to every 30 minutes", "SMS dispatch to Port Director + Coast Guard Sector NOLA"],
     },
     {
       id: "i2", severity: "warning",
-      disruptionType: "ICE", disruptionLabel: "DRAFT REDUCTION",
-      title: "ADVISORY - Reduce Barge Draft Capacity",
-      reason: "Ice floe activity reducing navigable channel width at Locks 52/53. Barge tows must reduce to single-cut configuration below Cairo.",
-      costAvoided: 16000, costIfIgnored: 16000, advanceWarning: "48h",
-      agents: ["RW", "IS"],
-      actions: ["Barge operators notified: single-cut restriction below Cairo, IL", "Commodity load plans adjusted for reduced draft capacity", "Arrival window extended +48h for affected tows"],
+      disruptionType: "ICE", disruptionLabel: "BARGE FLEETING",
+      title: "SUSPEND - Barge Fleeting Operations",
+      reason: "Heavy ice coverage makes barge building dangerous. A loose barge in pack ice becomes a battering ram capable of damaging bridge piers or other vessels.",
+      costAvoided: 22000, costIfIgnored: 22000, advanceWarning: "1h 30m",
+      agents: ["BM", "IS"],
+      actions: ["Stop all barge fleeting operations immediately", "Secure all staged barges - additional mooring lines required", "Notify barge operators - Kirby, ACBL, Canal Barge via SMS", "CN/KCS rail windows adjusted for barge fleet delays"],
     },
-  ] : moderate ? [
+  ] : intermediate ? [
     {
       id: "i1", severity: "warning",
-      disruptionType: "ICE", disruptionLabel: "ICE ADVISORY",
-      title: "MONITOR - Upstream Ice Advisory Active",
-      reason: "Ice restriction index " + iceIndex.toFixed(1) + "/10. Upper Mississippi navigation slowing. Estimated " + delayDays + "-day ripple delay to Lower Mississippi arrivals.",
-      costAvoided: 18500, costIfIgnored: 18500, advanceWarning: "36h",
-      agents: ["RW", "IS"],
-      actions: ["Upstream barge ETAs revised +2 days", "Rail and drayage schedules pre-adjusted", "Terminal inventory reviewed for buffer stock"],
+      disruptionType: "ICE", disruptionLabel: "BUOY DISPLACEMENT",
+      title: "DECLARE - Unreliable Aids to Navigation",
+      reason: "Ice coverage at " + coverage.toFixed(0) + "% - moving ice snagging buoy chains and dragging channel markers out of position. Green and red channel markers may not be where they are supposed to be.",
+      costAvoided: 28000, costIfIgnored: 28000, advanceWarning: "3h 00m",
+      agents: ["RW", "BM", "IS"],
+      actions: ["Issue Unreliable Aids to Navigation notice to all vessel pilots", "Restrict navigation to daylight hours - visual channel confirmation required", "Notify Crescent River Port Pilots - buoy displacement advisory active", "SMS dispatch to all inbound vessel agents via Twilio", "Coast Guard buoy tender deployed to reassess channel markers"],
+    },
+  ] : trace ? [
+    {
+      id: "i1", severity: "warning",
+      disruptionType: "ICE", disruptionLabel: "ENGINE INTAKES",
+      title: "ADVISORY - Monitor Vessel Engine Intakes",
+      reason: "Trace ice (frazil slush) detected on Lower Mississippi. Primary risk is sea chest clogging on tugs and ships. Slush can block cooling water intakes causing engines to overheat and fail mid-current.",
+      costAvoided: 14000, costIfIgnored: 14000, advanceWarning: "4h 00m",
+      agents: ["RW"],
+      actions: ["Issue sea chest clog advisory to all vessels in corridor", "Advise vessels to reduce speed - prevent bow thruster ice ingestion", "Notify tug operators - Crescent Towing, Bisso Marine - increased intake monitoring", "Monitor for progression to intermediate ice coverage"],
     },
   ] : [];
+
   const trend = severe
-    ? [1.2, 2.4, 3.8, 5.1, 6.4, 7.2, 7.8, iceIndex]
-    : moderate
-    ? [0.8, 1.4, 2.1, 2.8, 3.4, 3.9, 4.2, iceIndex]
-    : [0.2, 0.3, 0.4, 0.3, 0.2, 0.3, 0.2, iceIndex];
-  return { iceIndex, status, statusColor, risk, riskColor, decisions, trend };
+    ? [2.1, 3.8, 5.2, 6.4, 7.1, 7.6, 7.9, iceIndex]
+    : heavy
+    ? [1.2, 2.1, 3.0, 3.6, 4.1, 4.5, 4.8, iceIndex]
+    : intermediate
+    ? [0.3, 0.6, 0.9, 1.2, 1.5, 1.8, 2.1, iceIndex]
+    : [0.1, 0.1, 0.2, 0.1, 0.2, 0.1, 0.1, iceIndex];
+
+  return { iceIndex, coverage, status, statusColor, risk, riskColor, decisions, trend };
 }
 
 //    HURRICANE SCENARIO                                                         
@@ -601,12 +654,12 @@ function getExecSteps(disruptionType) {
       ];
     case "ICE":
       return [
-        { label: "Corps of Engineers restriction acknowledged", detail: "Navigation notice logged",              icon: "->", type: "DATA"  },
-        { label: "Upstream barge operators notified",           detail: "Draft reduction advisory - 14 tows",   icon: "->", type: "SMS"   },
-        { label: "CN/KCS rail windows shifted",                 detail: "Departure delay +48h logged",           icon: "->", type: "API"   },
-        { label: "Terminal inventory resequenced",              detail: "Priority cargo identified + flagged",   icon: "->", type: "OPS"   },
-        { label: "Commodity traders notified via Twilio",       detail: "Grain + fertilizer stakeholders",       icon: "->", type: "SMS"   },
-        { label: "MTSA audit entry created",                    detail: "Ice restriction compliance record",     icon: "->", type: "AUDIT" },
+        { label: "Coast Guard Sector NOLA - ice advisory issued",  detail: "Navigation notice dispatched",         icon: "->", type: "SMS"   },
+        { label: "Vessel masters notified - sea chest monitoring", detail: "All vessels in corridor alerted",      icon: "->", type: "SMS"   },
+        { label: "Crescent Towing - standby tugs pre-positioned",  detail: "Berths 1-4 covered",                  icon: "->", type: "OPS"   },
+        { label: "CN/KCS rail windows shifted",                    detail: "Barge arrival delay +48h logged",     icon: "->", type: "API"   },
+        { label: "Barge operators notified via Twilio",            detail: "Kirby, ACBL, Canal Barge alerted",    icon: "->", type: "SMS"   },
+        { label: "MTSA ice restriction audit log created",         detail: "Compliance record filed",             icon: "->", type: "AUDIT" },
       ];
     case "HURRICANE":
       return [
@@ -1336,8 +1389,8 @@ export default function DeltaAgentDashboard() {
                     </div>
                     <Badge color={C.muted} small>STANDBY</Badge>
                   </div>
-                  <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: iceScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{simIce.toFixed(1)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>/10</span></div>
-                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Corps Ice Index   Ohio/UMR</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: iceScenario.statusColor, lineHeight: 1, marginBottom: 4 }}>{(simIce * 10).toFixed(0)}<span style={{ fontSize: 11, color: C.muted, marginLeft: 3 }}>%</span></div>
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 6 }}>Ice Coverage   LMR / Ohio River</div>
                   <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
                     <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(simIce / 10) * 100}%`, background: iceScenario.statusColor, transition: "width 1.2s ease" }} />
                     {[4, 7].map((t, i) => <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />)}
@@ -1346,7 +1399,7 @@ export default function DeltaAgentDashboard() {
                     onChange={e => { const v = parseFloat(e.target.value); setSimIce(v); setIceScenario(buildIceScenario(v)); }}
                     style={{ width: "100%", accentColor: "#93c5fd", cursor: "pointer" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted }}>
-                    <span>0</span><span style={{ color: C.amber }}>4</span><span style={{ color: C.red }}>7</span><span>10</span>
+                    <span>0%</span><span style={{ color: C.amber }}>10%</span><span style={{ color: C.amber }}>40%</span><span style={{ color: C.red }}>70%+</span>
                   </div>
                 </div>
 
@@ -1415,7 +1468,7 @@ export default function DeltaAgentDashboard() {
                     {[
                       { label: "FLOOD", s: floodScenario, val: `${simGauge.toFixed(1)}ft` },
                       { label: "FOG",   s: fogScenario,   val: `${simVis.toFixed(1)}nm` },
-                      { label: "ICE",   s: iceScenario,   val: `${simIce.toFixed(1)}/10` },
+                      { label: "ICE",   s: iceScenario,   val: `${(simIce * 10).toFixed(0)}%` },
                       { label: "HURRICANE", s: stormScenario, val: `${simStormDist}mi` },
                     ].map(({ label, s, val }) => (
                       <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
