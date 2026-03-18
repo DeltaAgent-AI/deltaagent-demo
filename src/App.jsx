@@ -16,7 +16,9 @@ const C = {
   green:     "#16a34a",
   greenFaint:"#0a1f0f",
   white:     "#f0faf9",
-  muted:     "#4a7a75",
+  muted:     "#4a7a75",   // chrome, labels, hints — intentionally dim
+  body:      "#7ab8b2",   // body text, secondary info — readable
+  label:     "#5a9490",   // section labels, metadata — slightly above muted
   mutedLo:   "#1e3835",
   mono:      "'JetBrains Mono', monospace",
   sans:      "'Plus Jakarta Sans', sans-serif",
@@ -626,7 +628,7 @@ function AgentBadge({ code }) {
               <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>{agent.role}</div>
             </div>
           </div>
-          <div style={{ fontSize: 11, color: "#a0c4c0", lineHeight: 1.55 }}>{agent.description}</div>
+          <div style={{ fontSize: 11, color: C.body, lineHeight: 1.55 }}>{agent.description}</div>
           {/* Arrow pointing down */}
           <div style={{
             position: "absolute", bottom: -5, left: "50%",
@@ -686,7 +688,7 @@ function CredentialChip({ label, color, title, detail }) {
             transform: "translateX(-50%) rotate(45deg)",
           }} />
           <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.06em", marginBottom: 5 }}>{title}</div>
-          <div style={{ fontSize: 11, color: "#a0c4c0", lineHeight: 1.55 }}>{detail}</div>
+          <div style={{ fontSize: 11, color: C.body, lineHeight: 1.55 }}>{detail}</div>
         </div>
       )}
     </span>
@@ -1058,7 +1060,7 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
               opacity: fired ? 1 : 0.28,
               transition: "all 0.4s ease",
             }}>
-              <div style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, borderRadius: 3, padding: "2px 0", textAlign: "center", letterSpacing: "0.04em" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, borderRadius: 3, padding: "2px 0", textAlign: "center", letterSpacing: "0.04em" }}>
                 {step.type}
               </div>
               <div style={{ fontSize: 11, color: fired ? C.white : C.muted, fontWeight: fired ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1083,7 +1085,7 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
                 <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
               </div>
               {getCostAnnotation(decision.costAvoided, decision.disruptionType) && (
-                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.tealDim }}>{getCostAnnotation(decision.costAvoided, decision.disruptionType)}</span>
+                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.body }}>{getCostAnnotation(decision.costAvoided, decision.disruptionType)}</span>
               )}
             </div>
             <div style={{ width: 1, height: 24, background: C.border }} />
@@ -1158,7 +1160,7 @@ function CountdownTimer({ advanceWarning }) {
 
   return (
     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <span style={{ opacity: 0.65, fontFamily: C.mono, fontSize: 9 }}>ACT WITHIN</span>
+      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>ACT WITHIN</span>
       <span style={{
         fontFamily: C.mono, fontSize: 12, fontWeight: 700, color,
         letterSpacing: "0.04em",
@@ -1286,34 +1288,29 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
                   <CountdownTimer advanceWarning={decision.advanceWarning} />
                 )}
                 {(state === "done" || state === "override") && (
-                  <button
-                    onClick={e => { e.stopPropagation(); onDismiss(); }}
-                    style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, fontFamily: C.mono, fontSize: 10, padding: "2px 8px", borderRadius: 3, cursor: "pointer", letterSpacing: "0.06em" }}
-                    title="Dismiss">
-                    x
-                  </button>
+                  <DismissButton onDismiss={e => { e?.stopPropagation?.(); onDismiss(); }} />
                 )}
               </span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>{decision.title}</div>
-            <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.55 }}>{decision.reason}</div>
+            <div style={{ fontSize: 12, color: C.body, lineHeight: 1.55 }}>{decision.reason}</div>
           </div>
         </div>
 
         {/* Cost strip with real-world annotation */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: `${C.muted}08`, border: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>EST. COST AVOIDED</span>
+            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>EST. COST AVOIDED</span>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
               <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${decision.costAvoided.toLocaleString()}</span>
               {getCostAnnotation(decision.costAvoided, decision.disruptionType) && (
-                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.tealDim }}>{getCostAnnotation(decision.costAvoided, decision.disruptionType)}</span>
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{getCostAnnotation(decision.costAvoided, decision.disruptionType)}</span>
               )}
             </div>
           </div>
           <div style={{ width: 1, height: 28, background: C.border }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em" }}>IF IGNORED</span>
+            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>IF IGNORED</span>
             <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.red }}>${decision.costIfIgnored.toLocaleString()}</span>
           </div>
           <div style={{ marginLeft: "auto", fontFamily: C.mono, fontSize: 9, color: C.muted }}>
@@ -1354,7 +1351,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
               <>
                 <div style={{ padding: "12px 14px", borderRadius: 6, border: `1px solid ${C.amber}44`, background: `${C.amber}0d` }}>
                   <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 4 }}>OVERRIDE LOGGED — MANUAL ACTION REQUIRED</div>
-                  <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5, marginBottom: 10 }}>Your team must manually coordinate with Port Director, Pilot Station, and CN/KCS rail. Mark resolved when complete.</div>
+                  <div style={{ fontSize: 12, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>Your team must manually coordinate with Port Director, Pilot Station, and CN/KCS rail. Mark resolved when complete.</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     {["Port Director", "Pilot Station", "CN/KCS"].map(c => (
                       <span key={c} style={{ fontFamily: C.mono, fontSize: 8, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 3, padding: "2px 7px" }}>{c}</span>
@@ -1378,11 +1375,11 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
       </div>
       {expanded && state === "pending" && (
         <div style={{ borderTop: `1px solid ${C.border}`, padding: "14px 20px", background: C.panel, animation: "fadeSlideIn 0.25s ease" }}>
-          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 10 }}>AGENT ACTIONS QUEUED</div>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 10 }}>AGENT ACTIONS QUEUED</div>
           {decision.actions.map((action, i) => (
             <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8, paddingBottom: 8, borderBottom: i < decision.actions.length - 1 ? `1px solid ${C.border}` : "none" }}>
               <div style={{ fontFamily: C.mono, fontSize: 10, color: severityColor, flexShrink: 0 }}>{String(i + 1).padStart(2, "0")}</div>
-              <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.5 }}>{action}</div>
+              <div style={{ fontSize: 12, color: C.body, lineHeight: 1.5 }}>{action}</div>
             </div>
           ))}
         </div>
@@ -1437,13 +1434,13 @@ function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) 
         <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, flexShrink: 0, paddingTop: 2 }}>{entry.time}</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: entryColor, marginBottom: 2 }}>{entry.action}</div>
-          <div style={{ fontSize: 11, color: C.muted }}>{entry.cost}</div>
+          <div style={{ fontSize: 11, color: C.body }}>{entry.cost}</div>
         </div>
         {isConfirmed && <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, flexShrink: 0, paddingTop: 2 }}>{expanded ? "  hide" : "  details"}</div>}
       </div>
       {expanded && isConfirmed && (
         <div style={{ padding: "0 20px 16px 20px", animation: "fadeSlideIn 0.2s ease" }}>
-          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 10 }}>EXECUTION RECORD</div>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 10 }}>EXECUTION RECORD</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
             {getExecSteps(entry.disruptionType).map((step, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 5, background: `${C.teal}0a`, border: `1px solid ${C.teal}22` }}>
@@ -1570,7 +1567,7 @@ function RecordDrawer({ record, onClose, onViewLog }) {
                   { label: "ALERTS",   value: String(steps.length), color: C.teal, sub: "dispatched" },
                 ].map(({ label, value, color, sub }) => (
                   <div key={label} style={{ flex: 1, padding: "8px 10px", borderRadius: 6, background: `${color}10`, border: `1px solid ${color}22`, textAlign: "center" }}>
-                    <div style={{ fontFamily: C.mono, fontSize: 7, color: C.muted, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
                     <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color }}>{value}</div>
                     {sub && <div style={{ fontFamily: C.mono, fontSize: 8, color: `${color}99`, marginTop: 2 }}>{sub}</div>}
                   </div>
@@ -1578,13 +1575,13 @@ function RecordDrawer({ record, onClose, onViewLog }) {
               </div>
 
               {/* Execution steps */}
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>DISPATCH LOG</div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 8 }}>DISPATCH LOG</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
                 {steps.map((step, i) => {
                   const typeColor = typeColors[step.type] || C.muted;
                   return (
                     <div key={i} style={{ display: "grid", gridTemplateColumns: "34px 1fr auto 28px", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 4, background: `${C.teal}09`, border: `1px solid ${C.teal}1a` }}>
-                      <div style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, borderRadius: 3, padding: "2px 0", textAlign: "center" }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, borderRadius: 3, padding: "2px 0", textAlign: "center" }}>
                         {step.type}
                       </div>
                       <div style={{ fontSize: 11, color: C.white, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{step.label}</div>
@@ -1609,12 +1606,12 @@ function RecordDrawer({ record, onClose, onViewLog }) {
                 <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 6 }}>
                   OVERRIDE LOGGED — MANUAL ACTION REQUIRED
                 </div>
-                <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.6 }}>
+                <div style={{ fontSize: 12, color: C.body, lineHeight: 1.6 }}>
                   Automated dispatch was cancelled. Your team must manually coordinate with the Port Director, Pilot Station, and CN/KCS rail. This decision has been recorded in the MTSA audit trail.
                 </div>
               </div>
 
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 8 }}>CONTACTS REQUIRING MANUAL COORDINATION</div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 8 }}>CONTACTS REQUIRING MANUAL COORDINATION</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
                 {["Port Director — +1 (504) 555-0147", "Pilot Station — +1 (504) 555-0293", "CN/KCS Rail Operations", "Drayage Fleet Dispatcher"].map((contact, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 4, background: `${C.amber}08`, border: `1px solid ${C.amber}22` }}>
@@ -1649,6 +1646,129 @@ function RecordDrawer({ record, onClose, onViewLog }) {
   );
 }
 
+function DismissButton({ onDismiss }) {
+  const [confirming, setConfirming] = useState(false);
+  const timerRef = useRef(null);
+
+  function handleClick(e) {
+    e?.stopPropagation?.();
+    if (!confirming) {
+      setConfirming(true);
+      timerRef.current = setTimeout(() => setConfirming(false), 2500);
+    } else {
+      clearTimeout(timerRef.current);
+      onDismiss(e);
+    }
+  }
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  return (
+    <button
+      onClick={handleClick}
+      style={{
+        background: confirming ? `${C.red}18` : "transparent",
+        border: `1px solid ${confirming ? C.red + "55" : C.border}`,
+        color: confirming ? C.red : C.muted,
+        fontFamily: C.mono, fontSize: 9,
+        padding: confirming ? "2px 8px" : "2px 6px",
+        borderRadius: 3, cursor: "pointer",
+        letterSpacing: "0.06em",
+        transition: "all 0.15s ease",
+        whiteSpace: "nowrap", flexShrink: 0,
+      }}>
+      {confirming ? "CONFIRM ×" : "×"}
+    </button>
+  );
+}
+
+function AgentLogWithFilter({ agentLog, autoExpandLogId }) {
+  const [filter, setFilter] = useState("ALL");
+
+  const filters = [
+    { id: "ALL",      label: "ALL",       color: C.teal },
+    { id: "ALERTS",   label: "ALERTS",    color: C.amber },
+    { id: "CONFIRMED",label: "CONFIRMED", color: C.green },
+    { id: "OVERRIDES",label: "OVERRIDES", color: C.amber },
+    { id: "MONITOR",  label: "MONITOR",   color: C.teal },
+  ];
+
+  const filtered = agentLog.filter(entry => {
+    if (filter === "ALL") return true;
+    if (entry.severity === "divider") return filter === "ALL";
+    const isConfirmed = entry.action.startsWith("CONFIRMED") || entry.action.startsWith("RESOLVED:");
+    const isOverride  = entry.severity === "override";
+    const isAlert     = entry.severity === "critical" || entry.severity === "warning";
+    const isMonitor   = entry.severity === "ok";
+    if (filter === "CONFIRMED") return isConfirmed;
+    if (filter === "OVERRIDES") return isOverride;
+    if (filter === "ALERTS")    return isAlert && !isConfirmed && !isOverride;
+    if (filter === "MONITOR")   return isMonitor;
+    return true;
+  });
+
+  return (
+    <>
+      {/* Filter chips */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginRight: 4 }}>FILTER</span>
+        {filters.map(f => {
+          const active = filter === f.id;
+          // Count entries for this filter
+          const count = f.id === "ALL" ? agentLog.filter(e => e.severity !== "divider").length
+            : agentLog.filter(e => {
+                if (e.severity === "divider") return false;
+                const isConf = e.action.startsWith("CONFIRMED") || e.action.startsWith("RESOLVED:");
+                const isOv   = e.severity === "override";
+                const isAl   = (e.severity === "critical" || e.severity === "warning") && !isConf && !isOv;
+                const isMon  = e.severity === "ok";
+                if (f.id === "CONFIRMED") return isConf;
+                if (f.id === "OVERRIDES") return isOv;
+                if (f.id === "ALERTS")    return isAl;
+                if (f.id === "MONITOR")   return isMon;
+                return false;
+              }).length;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+                fontFamily: C.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
+                border: `1px solid ${active ? f.color + "66" : C.border}`,
+                background: active ? `${f.color}18` : "transparent",
+                color: active ? f.color : C.muted,
+                transition: "all 0.15s ease",
+              }}>
+              {f.label}
+              {count > 0 && (
+                <span style={{ fontFamily: C.mono, fontSize: 8, color: active ? f.color : C.muted, background: active ? `${f.color}20` : `${C.muted}15`, borderRadius: 3, padding: "0 4px" }}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Log entries */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "32px 24px", textAlign: "center", fontFamily: C.mono, fontSize: 11, color: C.muted }}>
+            No {filter.toLowerCase()} entries yet
+          </div>
+        ) : (
+          filtered.map((entry, i) => (
+            <AgentLogEntry key={entry.id || i} entry={entry} isFirst={i === 0} isLast={i === filtered.length - 1}
+              entryId={entry.id} autoExpand={entry.id === autoExpandLogId} />
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
 function ImpactStatCard({ label, value, color, sub, methodology, source }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -1657,7 +1777,7 @@ function ImpactStatCard({ label, value, color, sub, methodology, source }) {
         <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.1em", marginBottom: 6 }}>{label}</div>
         <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color, lineHeight: 1, marginBottom: 4 }}>{value}</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{sub}</div>
+          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>{sub}</div>
           <button
             onClick={() => setExpanded(!expanded)}
             style={{ fontFamily: C.mono, fontSize: 8, color: color, background: `${color}12`, border: `1px solid ${color}30`, borderRadius: 3, padding: "2px 7px", cursor: "pointer", letterSpacing: "0.04em", flexShrink: 0 }}>
@@ -1667,7 +1787,7 @@ function ImpactStatCard({ label, value, color, sub, methodology, source }) {
       </div>
       {expanded && (
         <div style={{ padding: "10px 14px 12px", borderTop: `1px solid ${C.border}`, background: `${color}06`, animation: "fadeSlideIn 0.2s ease" }}>
-          <div style={{ fontSize: 11, color: "#a0c4c0", lineHeight: 1.6, marginBottom: source ? 8 : 0 }}>{methodology}</div>
+          <div style={{ fontSize: 11, color: C.body, lineHeight: 1.6, marginBottom: source ? 8 : 0 }}>{methodology}</div>
           {source && (
             <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, lineHeight: 1.5 }}>
               <span style={{ color: C.teal }}>SOURCE</span>  ·  {source}
@@ -2254,7 +2374,7 @@ export default function DeltaAgentDashboard() {
                     <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
                     <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.08em", marginBottom: 3 }}>{label}</div>
                     <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, marginBottom: 8 }}>{sublabel}</div>
-                    <div style={{ fontSize: 12, color: "#a0c4c0", lineHeight: 1.55 }}>{description}</div>
+                    <div style={{ fontSize: 12, color: C.body, lineHeight: 1.55 }}>{description}</div>
                     <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 3, padding: "3px 8px", letterSpacing: "0.06em" }}>
                         SIMULATE →
@@ -2306,7 +2426,7 @@ export default function DeltaAgentDashboard() {
                           <input type="range" min={0} max={20} step={0.1} value={simGauge}
                             onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); }}
                             style={{ width: "100%", accentColor: C.teal, cursor: "pointer", marginTop: 6 }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted, marginTop: 2 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
                             <span style={{ color: "#93c5fd" }}>LOW</span><span style={{ color: C.amber }}>8ft AP</span><span style={{ color: C.amber }}>11ft</span><span style={{ color: C.red }}>13ft HPL</span><span style={{ color: C.red }}>17ft+</span>
                           </div>
                         </div>
@@ -2330,7 +2450,7 @@ export default function DeltaAgentDashboard() {
                           <input type="range" min={0.05} max={10} step={0.05} value={10 - simVis + 0.05}
                             onChange={e => { const inv = parseFloat(e.target.value); const v = Math.max(0.05, 10 - inv + 0.05); setSimVis(parseFloat(v.toFixed(2))); setFogScenario(buildFogScenario(parseFloat(v.toFixed(2)))); }}
                             style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted, marginTop: 2 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
                             <span>10nm CLEAR</span><span style={{ color: C.amber }}>1.0</span><span style={{ color: C.amber }}>0.5</span><span style={{ color: C.red }}>ZERO-ZERO</span>
                           </div>
                         </div>
@@ -2352,7 +2472,7 @@ export default function DeltaAgentDashboard() {
                           <input type="range" min={0} max={10} step={0.1} value={simIce}
                             onChange={e => { const v = parseFloat(e.target.value); setSimIce(v); setIceScenario(buildIceScenario(v)); }}
                             style={{ width: "100%", accentColor: "#93c5fd", cursor: "pointer" }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted, marginTop: 2 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
                             <span>0%</span><span style={{ color: C.amber }}>10%</span><span style={{ color: C.amber }}>40%</span><span style={{ color: C.red }}>70%+</span>
                           </div>
                         </div>
@@ -2375,7 +2495,7 @@ export default function DeltaAgentDashboard() {
                           <input type="range" min={0} max={950} step={10} value={1000 - simStormDist}
                             onChange={e => { const v = 1000 - parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
                             style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 7, color: C.muted, marginTop: 2 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
                             <span>1000mi</span><span style={{ color: C.amber }}>WHISKEY</span><span style={{ color: C.amber }}>X-RAY</span><span style={{ color: C.red }}>YANKEE</span><span style={{ color: C.red }}>ZULU</span>
                           </div>
                           <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
@@ -2402,7 +2522,7 @@ export default function DeltaAgentDashboard() {
                         </div>
                         <div style={{ textAlign: "right" }}>
                           <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: scenario.statusColor, lineHeight: 1 }}>{value}</div>
-                          <div style={{ fontFamily: C.mono, fontSize: 7, color: C.muted, marginTop: 2 }}>{subtext}</div>
+                          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>{subtext}</div>
                         </div>
                       </div>
                       {/* Expanded slider — shown when this threat is active */}
@@ -2434,8 +2554,8 @@ export default function DeltaAgentDashboard() {
                 >
                   <span style={{ fontFamily: C.mono, fontSize: 32, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.muted, lineHeight: 1, textShadow: pendingCount > 0 ? `0 0 20px ${corridorStatusColor}44` : "none" }}>{pendingCount}</span>
                   <div>
-                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em" }}>DECISIONS</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>AWAITING</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.label, letterSpacing: "0.08em" }}>DECISIONS</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.label }}>AWAITING</div>
                   </div>
                 </div>
 
@@ -2444,8 +2564,8 @@ export default function DeltaAgentDashboard() {
                   {pendingCount > 0 ? (
                     <div style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 12 }}>
                       <CountdownTimer advanceWarning={pendingDecisions[0]?.advanceWarning} />
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>·</span>
-                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{pendingDecisions[0]?.disruptionType} — {pendingDecisions[0]?.disruptionLabel}</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>·</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{pendingDecisions[0]?.disruptionType} — {pendingDecisions[0]?.disruptionLabel}</span>
                     </div>
                   ) : (
                     <div style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 10 }}>
@@ -2457,8 +2577,8 @@ export default function DeltaAgentDashboard() {
                       ].map(({ label, s, val }) => (
                         <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                           <div style={{ width: 5, height: 5, borderRadius: "50%", background: s.statusColor }} />
-                          <span style={{ fontFamily: C.mono, fontSize: 8, color: s.statusColor === C.teal ? C.muted : s.statusColor }}>{label}</span>
-                          <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>{val}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 8, color: s.statusColor === C.teal ? C.label : s.statusColor }}>{label}</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 8, color: C.body }}>{val}</span>
                         </div>
                       ))}
                     </div>
@@ -2471,7 +2591,7 @@ export default function DeltaAgentDashboard() {
                     <div onClick={() => navigateToTab("impact")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", cursor: "pointer", borderRight: `1px solid ${C.border}` }}
                       onMouseEnter={e => e.currentTarget.style.background = `${C.green}0d`}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>SAVED</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 8, color: C.label }}>SAVED</span>
                       <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.green }}>${confirmedSavings.toLocaleString()}</span>
                     </div>
                   )}
@@ -2479,7 +2599,7 @@ export default function DeltaAgentDashboard() {
                     <div onClick={() => navigateToTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", cursor: "pointer" }}
                       onMouseEnter={e => e.currentTarget.style.background = `${C.teal}0d`}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>AT STAKE</span>
+                      <span style={{ fontFamily: C.mono, fontSize: 8, color: C.label }}>AT STAKE</span>
                       <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.teal }}>${pendingSavings.toLocaleString()}</span>
                     </div>
                   )}
@@ -2520,7 +2640,7 @@ export default function DeltaAgentDashboard() {
                         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
                           4 threats monitored — flood, fog, ice, hurricane. No thresholds breached.
                           {sessionSavings.length > 0 && (
-                            <span style={{ color: "#a0c4c0" }}> Last event actioned {sessionSavings[sessionSavings.length - 1]?.time}.</span>
+                            <span style={{ color: C.body }}> Last event actioned {sessionSavings[sessionSavings.length - 1]?.time}.</span>
                           )}
                         </div>
                         <div style={{ marginTop: 8, fontFamily: C.mono, fontSize: 9, color: C.muted }}>
@@ -2604,11 +2724,7 @@ export default function DeltaAgentDashboard() {
                             team confirmed ✓
                           </span>
                         )}
-                        <button
-                          onClick={() => setDismissedIds(prev => new Set([...prev, d.id]))}
-                          style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 11, padding: "0 2px", flexShrink: 0 }}>
-                          x
-                        </button>
+                        <DismissButton onDismiss={() => setDismissedIds(prev => new Set([...prev, d.id]))} />
                       </div>
                       {isConfirmed && (
                         <div style={{ borderTop: `1px solid ${C.border}22` }}>
@@ -2630,11 +2746,9 @@ export default function DeltaAgentDashboard() {
 
             {/*    AGENT LOG    */}
             {activeTab === "log" && (
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-                {agentLog.map((entry, i) => (
-                  <AgentLogEntry key={i} entry={entry} isFirst={i === 0} isLast={i === agentLog.length - 1}
-                    entryId={entry.id} autoExpand={entry.id === autoExpandLogId} />
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* Filter chips */}
+                <AgentLogWithFilter agentLog={agentLog} autoExpandLogId={autoExpandLogId} />
               </div>
             )}
 
@@ -2699,7 +2813,7 @@ export default function DeltaAgentDashboard() {
                 ) : (
                   <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em" }}>CONFIRMED ACTIONS — SESSION HISTORY</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em" }}>CONFIRMED ACTIONS — SESSION HISTORY</div>
                       <div style={{ fontFamily: C.mono, fontSize: 9, color: C.green }}>${sessionTotal.toLocaleString()} total avoided</div>
                     </div>
                     {sessionSavings.slice().reverse().map((s, i) => (
@@ -2714,7 +2828,7 @@ export default function DeltaAgentDashboard() {
                         </div>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
                           <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.green }}>${s.amount.toLocaleString()}</div>
-                          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.tealDim }}>{getCostAnnotation(s.amount, s.disruptionType)}</div>
+                          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{getCostAnnotation(s.amount, s.disruptionType)}</div>
                         </div>
                       </div>
                     ))}
@@ -2727,7 +2841,7 @@ export default function DeltaAgentDashboard() {
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 16 }}>
                       <div>
                         <div style={{ fontFamily: C.mono, fontSize: 9, color: C.green, letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>PILOT ROI PROJECTION</div>
-                        <div style={{ fontSize: 13, color: "#a0c4c0", lineHeight: 1.7, maxWidth: 560 }}>
+                        <div style={{ fontSize: 13, color: C.body, lineHeight: 1.7, maxWidth: 560 }}>
                           This session confirmed <span style={{ color: C.green, fontWeight: 600 }}>${sessionTotal.toLocaleString()}</span> in cost avoidance across <span style={{ color: C.white, fontWeight: 600 }}>{sessionSavings.length} {sessionSavings.length === 1 ? "event" : "events"}</span>.
                           The Lower Mississippi experiences <span style={{ color: C.white, fontWeight: 600 }}>15–20 disruption events per season</span> requiring active coordination (USACE 2024).
                           At this rate, a single terminal operator could realize:
@@ -2783,7 +2897,7 @@ export default function DeltaAgentDashboard() {
             {activeTab === "status" && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
-                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
                   {[
                     { label: "NOAA Carrollton Gauge",           status: gaugeData ? "live" : "sim",  detail: gaugeData ? `${simGauge.toFixed(2)}ft live` : "Simulated — NOAA API proxied" },
                     { label: "NDBC BURL1 — SW Pass Visibility", status: fogData ? "live" : "sim",    detail: fogData ? `${fogData.toFixed(2)}nm live` : "Simulated — NDBC buoy data" },
@@ -2795,7 +2909,7 @@ export default function DeltaAgentDashboard() {
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div>
                         <div style={{ fontSize: 12, color: C.white }}>{label}</div>
-                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{detail}</div>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>{detail}</div>
                       </div>
                       <Badge color={status === "live" ? C.teal : C.muted} small>
                         {status === "live" ? "LIVE" : "SIMULATED"}
@@ -2804,7 +2918,7 @@ export default function DeltaAgentDashboard() {
                   ))}
                 </div>
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
-                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>AGENT NETWORK</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 14 }}>AGENT NETWORK</div>
                   {Object.entries(AGENT_INFO).map(([code, ag]) => (
                     <div key={code} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 6, border: `1px solid ${ag.color}22`, background: `${ag.color}08`, marginBottom: 8 }}>
                       <div style={{ width: 28, height: 28, borderRadius: 6, background: `${ag.color}20`, border: `1px solid ${ag.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: ag.color, flexShrink: 0, marginTop: 1 }}>{code}</div>
@@ -2813,7 +2927,7 @@ export default function DeltaAgentDashboard() {
                           <span style={{ fontSize: 12, fontWeight: 600, color: C.white }}>{ag.name}</span>
                           <span style={{ fontFamily: C.mono, fontSize: 8, color: ag.color, background: `${ag.color}15`, border: `1px solid ${ag.color}30`, borderRadius: 3, padding: "1px 5px" }}>{ag.role}</span>
                         </div>
-                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, lineHeight: 1.5 }}>{ag.description}</div>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body, lineHeight: 1.5 }}>{ag.description}</div>
                       </div>
                       <PulsingDot color={ag.color} size={7} />
                     </div>
