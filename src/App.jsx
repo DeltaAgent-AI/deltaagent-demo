@@ -1201,9 +1201,20 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
 
   const borderColor = state === "executing" ? C.teal : state === "done" ? C.teal : severityColor;
   const bgColor     = state === "executing" ? C.tealFaint : state === "done" ? C.tealFaint : severityBg;
+  const isCritical  = decision.severity === "critical" && state === "pending";
 
   return (
-    <div style={{ border: `1px solid ${borderColor}44`, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: bgColor, transition: "all 0.5s ease, opacity 0.35s ease, transform 0.35s ease", opacity: exiting ? 0 : 1, transform: exiting ? "translateY(-6px) scale(0.98)" : "none", pointerEvents: exiting ? "none" : "auto" }}>
+    <div style={{
+      border: `1px solid ${borderColor}${isCritical ? "66" : "44"}`,
+      borderLeft: `${isCritical ? "4px" : "3px"} solid ${borderColor}`,
+      borderRadius: 8, background: bgColor,
+      transition: "all 0.5s ease, opacity 0.35s ease, transform 0.35s ease",
+      opacity: exiting ? 0 : 1,
+      transform: exiting ? "translateY(-6px) scale(0.98)" : "none",
+      pointerEvents: exiting ? "none" : "auto",
+      boxShadow: isCritical ? `0 0 0 1px ${C.red}22, 0 4px 24px ${C.red}18` : "none",
+      animation: isCritical ? "criticalPulse 3s ease-in-out infinite" : "none",
+    }}>
       <div style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -1265,8 +1276,8 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
             <button onClick={handleOverride} style={{ flex: 1, padding: "11px 0", borderRadius: 6, border: `1px solid ${C.amber}`, background: `${C.amber}10`, color: C.amber, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
                 OVERRIDE
             </button>
-            <button onClick={() => setExpanded(!expanded)} style={{ padding: "11px 16px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 11, cursor: "pointer" }}>
-              {expanded ? "-" : "+"}
+            <button onClick={() => setExpanded(!expanded)} style={{ padding: "11px 14px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+              {expanded ? "HIDE" : "DETAILS"}
             </button>
           </div>
         )}
@@ -1331,6 +1342,21 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
 function AgentLogEntry({ entry, isFirst, isLast, autoExpand = false, entryId }) {
   const [expanded, setExpanded] = useState(autoExpand);
   const ref = useRef(null);
+
+  // Scenario divider — special rendering
+  if (entry.severity === "divider") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", borderBottom: !isLast ? `1px solid ${C.border}` : "none", background: `${C.teal}06` }}>
+        <div style={{ flex: 1, height: 1, background: C.border }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: "0.1em" }}>{entry.action.replace(/──\s?/g, "").replace(/\s?──/g, "")}</span>
+          <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>{entry.time}</span>
+        </div>
+        <div style={{ flex: 1, height: 1, background: C.border }} />
+      </div>
+    );
+  }
+
   const isConfirmed = entry.action.startsWith("CONFIRMED");
   const isOverride  = entry.severity === "override";
   const isResolved  = entry.action.startsWith("RESOLVED:");
@@ -1876,7 +1902,23 @@ export default function DeltaAgentDashboard() {
     }, ...prev]);
   }
 
-  function removeSms(id) { setSmsQueue(q => q.filter(s => s.id !== id)); }
+  function handleReset() {
+    setShowBanner(true);
+    setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
+    setSimVis(8.0);   setFogScenario(buildFogScenario(8.0));
+    setSimIce(0);     setIceScenario(buildIceScenario(0));
+    setSimStormDist(1000); setSimStormCat(2); setStormScenario(buildHurricaneScenario(1000, 2));
+    setConfirmedIds(new Set()); setOverriddenIds(new Set()); setResolvedIds(new Set());
+    setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+    setSessionSavings([]); setAgentLog([
+      { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled",     cost: "Stage 0.7ft   Nominal   No action required",      severity: "ok" },
+      { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
+      { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked",  cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
+      { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed",     cost: "Berth 2 nominal   Crane gang confirmed",           severity: "ok" },
+    ]);
+    setActiveTab("inbox");
+    setSmsQueue([]); setOverrideQueue([]);
+  }
 
   // Threat type color lookup for badges
   const threatColor = { FLOOD: C.red, FOG: C.teal, ICE: "#93c5fd", HURRICANE: "#a78bfa" };
@@ -1892,6 +1934,7 @@ export default function DeltaAgentDashboard() {
         @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
         @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } }
         @keyframes pulseText { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes criticalPulse { 0%,100% { box-shadow: 0 0 0 1px ${C.red}22, 0 4px 24px ${C.red}18; } 50% { box-shadow: 0 0 0 1px ${C.red}44, 0 4px 32px ${C.red}30; } }
         @keyframes tooltipFadeIn { from { opacity: 0; } to { opacity: 1; } }
         button:hover { filter: brightness(1.15); }
         ::-webkit-scrollbar { width: 3px; }
@@ -1952,6 +1995,11 @@ export default function DeltaAgentDashboard() {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={handleReset}
+                style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ fontSize: 11 }}>↺</span> NEW SCENARIO
+              </button>
               <div onClick={() => pendingCount > 0 && navigateToTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${corridorStatusColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? corridorStatusColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default" }}>
                 <PulsingDot color={pendingCount > 0 ? corridorStatusColor : C.teal} size={7} />
                 <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: pendingCount > 0 ? corridorStatusColor : C.teal, letterSpacing: "0.08em" }}>
@@ -1994,6 +2042,7 @@ export default function DeltaAgentDashboard() {
                     description: "High Water Proclamation triggered. Barge fleeting restrictions, daylight mooring orders, and CN/KCS rail re-sequencing required.",
                     color: C.red,
                     action: () => {
+                      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
                       setShowBanner(false);
                       setSimGauge(11.4); setFloodScenario(buildFloodScenario(11.4));
                       setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
@@ -2001,6 +2050,13 @@ export default function DeltaAgentDashboard() {
                       setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
                       setConfirmedIds(new Set()); setOverriddenIds(new Set());
                       setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+                      setAgentLog([
+                        { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: HIGH WATER EVENT ──", cost: "Carrollton Gauge 11.4ft   High Water Proclamation threshold", severity: "divider" },
+                        { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft   Nominal   No action required", severity: "ok" },
+                        { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
+                        { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
+                        { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
+                      ]);
                       setActiveTab("inbox");
                     },
                   },
@@ -2011,6 +2067,7 @@ export default function DeltaAgentDashboard() {
                     description: "Critical visibility at Southwest Pass. One-way traffic restrictions, pilot boarding suspended, 22 drayage trucks on hold.",
                     color: C.teal,
                     action: () => {
+                      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
                       setShowBanner(false);
                       setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
                       setSimVis(0.3); setFogScenario(buildFogScenario(0.3));
@@ -2018,6 +2075,13 @@ export default function DeltaAgentDashboard() {
                       setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
                       setConfirmedIds(new Set()); setOverriddenIds(new Set());
                       setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+                      setAgentLog([
+                        { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: DENSE FOG ADVISORY ──", cost: "SW Pass Visibility 0.3nm   Critical threshold", severity: "divider" },
+                        { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft   Nominal   No action required", severity: "ok" },
+                        { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
+                        { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
+                        { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
+                      ]);
                       setActiveTab("inbox");
                     },
                   },
@@ -2032,9 +2096,17 @@ export default function DeltaAgentDashboard() {
                       setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
                       setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
                       setSimIce(0); setIceScenario(buildIceScenario(0));
+                      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
                       setSimStormDist(320); setSimStormCat(2); setStormScenario(buildHurricaneScenario(320, 2));
                       setConfirmedIds(new Set()); setOverriddenIds(new Set());
                       setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
+                      setAgentLog([
+                        { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: HURRICANE APPROACH ──", cost: "Cat 2   320mi from SW Pass   Port Condition YANKEE approaching", severity: "divider" },
+                        { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft   Nominal   No action required", severity: "ok" },
+                        { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
+                        { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
+                        { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
+                      ]);
                       setActiveTab("inbox");
                     },
                   },
@@ -2484,8 +2556,13 @@ export default function DeltaAgentDashboard() {
                 {sessionSavings.length === 0 ? (
                   <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "48px 24px", textAlign: "center", color: C.muted }}>
                     <div style={{ fontSize: 28, opacity: 0.2, marginBottom: 12 }}>$</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em", marginBottom: 8 }}>NO CONFIRMED SAVINGS YET</div>
-                    <div style={{ fontSize: 13 }}>Confirm decisions in the inbox to track cost avoidance here</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 12, letterSpacing: "0.08em", marginBottom: 8, color: C.white }}>NO CONFIRMED SAVINGS YET</div>
+                    <div style={{ fontSize: 13, marginBottom: 20 }}>Confirm decisions in the inbox to track cost avoidance here</div>
+                    <button
+                      onClick={() => navigateToTab("inbox")}
+                      style={{ padding: "9px 20px", borderRadius: 6, border: `1px solid ${C.teal}`, background: `${C.teal}18`, color: C.teal, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
+                      → GO TO DECISION INBOX
+                    </button>
                   </div>
                 ) : (
                   <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
@@ -2532,19 +2609,21 @@ export default function DeltaAgentDashboard() {
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
                   {[
-                    { label: "NOAA Carrollton Gauge",           ok: !!gaugeData,  detail: gaugeData ? `${simGauge.toFixed(2)}ft live` : "simulated" },
-                    { label: "NDBC BURL1 - SW Pass Visibility", ok: !!fogData,    detail: fogData ? `${fogData.toFixed(2)}nm live` : "simulated" },
-                    { label: "Corps Ice Index",                  ok: false,        detail: "Simulated - Corps RSS feed" },
-                    { label: "NHC Active Storms",               ok: !!nhcData,    detail: nhcData ? "Live storm data" : "No active storms / simulated" },
-                    { label: "AIS Vessel Track",                ok: true,         detail: "MV Delta Voyager   SW Pass" },
-                    { label: "SMS Gateway (Twilio)",            ok: true,         detail: "Ready to dispatch" },
-                  ].map(({ label, ok, detail }) => (
+                    { label: "NOAA Carrollton Gauge",           status: gaugeData ? "live" : "sim",  detail: gaugeData ? `${simGauge.toFixed(2)}ft live` : "Simulated — NOAA API proxied" },
+                    { label: "NDBC BURL1 — SW Pass Visibility", status: fogData ? "live" : "sim",    detail: fogData ? `${fogData.toFixed(2)}nm live` : "Simulated — NDBC buoy data" },
+                    { label: "Corps Ice Index",                  status: "sim",                        detail: "Simulated — Corps of Engineers RSS" },
+                    { label: "NHC Active Storms",               status: nhcData ? "live" : "sim",    detail: nhcData ? "Live storm track active" : "Simulated — no active storms" },
+                    { label: "AIS Vessel Track",                status: "live",                       detail: "MV Delta Voyager   SW Pass ETA 04:20 CST" },
+                    { label: "SMS Gateway (Twilio)",            status: "live",                       detail: "Ready to dispatch alerts" },
+                  ].map(({ label, status, detail }) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div>
                         <div style={{ fontSize: 12, color: C.white }}>{label}</div>
                         <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{detail}</div>
                       </div>
-                      <Badge color={ok ? C.teal : C.amber} small> {ok ? "ONLINE" : "STANDBY"}</Badge>
+                      <Badge color={status === "live" ? C.teal : C.muted} small>
+                        {status === "live" ? "LIVE" : "SIMULATED"}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -2568,13 +2647,44 @@ export default function DeltaAgentDashboard() {
             )}
 
             {/*    FOOTER    */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTop: `1px solid ${C.border}`, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                <Badge color={C.teal}>TWIC-CLEARED FOUNDERS</Badge>
-                <Badge color={C.tealDim}>MTSA ALIGNED</Badge>
-                <Badge color={C.muted}>NEWLAB NEW ORLEANS</Badge>
+            <div style={{ marginTop: 8, padding: "16px 0 4px", borderTop: `1px solid ${C.border}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+                {[
+                  {
+                    badge: "TWIC-CLEARED",
+                    color: C.teal,
+                    title: "Transportation Worker Identification Credential",
+                    detail: "Federal security clearance required for unescorted access to US maritime facilities. 5-year TSA background check.",
+                  },
+                  {
+                    badge: "MTSA ALIGNED",
+                    color: C.tealDim,
+                    title: "Maritime Transportation Security Act",
+                    detail: "Decision audit trails and automated dispatch logs are structured for MTSA compliance and Coast Guard record-keeping requirements.",
+                  },
+                  {
+                    badge: "NEWLAB NEW ORLEANS",
+                    color: C.muted,
+                    title: "In Residence at Newlab New Orleans",
+                    detail: "Building at the intersection of Mississippi River infrastructure and industrial AI at Newlab's Bywater innovation hub.",
+                  },
+                ].map(({ badge, color, title, detail }) => (
+                  <div key={badge} style={{ padding: "10px 12px", borderRadius: 6, background: `${color}08`, border: `1px solid ${color}18` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, letterSpacing: "0.08em" }}>{badge}</span>
+                    </div>
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.white, marginBottom: 3 }}>{title}</div>
+                    <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, lineHeight: 1.5 }}>{detail}</div>
+                  </div>
+                ))}
               </div>
-              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>2026 DELTAAGENT AI, LLC   deltaagent.ai   BETA</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>
+                  © 2026 DeltaAgent AI, LLC   ·   deltaagent.ai   ·   New Orleans, LA
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>BETA   ·   Operations Command v0.1</div>
+              </div>
             </div>
           </div>
         </div>
