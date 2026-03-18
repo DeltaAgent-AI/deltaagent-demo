@@ -1854,39 +1854,57 @@ export default function DeltaAgentDashboard() {
   // Each threshold band has unique IDs (flood-al-d1, flood-hw-d1 etc.)
   const [decisionStore, setDecisionStore] = useState({});
 
-  function mergeDecisions(incoming) {
-    if (!incoming.length) return;
+  // Sync store with the current active scenario band:
+  // - Adds new decisions from the current band
+  // - Removes pending decisions from the same threat type that no longer match the current band
+  // - Confirmed/overridden decisions are never removed
+  function syncDecisions(incoming, typePrefix, confirmedSet, overriddenSet) {
     setDecisionStore(prev => {
       const next = { ...prev };
       let changed = false;
+
+      // Remove pending decisions for this threat type not in the current band
+      // (runs even if incoming is empty — e.g. slider back to NOMINAL)
+      const currentIds = new Set(incoming.map(d => d.id));
+      Object.keys(next).forEach(id => {
+        if (id.startsWith(typePrefix)) {
+          const isActioned = confirmedSet.has(id) || overriddenSet.has(id);
+          if (!isActioned && !currentIds.has(id)) {
+            delete next[id];
+            changed = true;
+          }
+        }
+      });
+
+      // Add new decisions from the current band
       incoming.forEach(d => {
         if (!next[d.id]) {
           next[d.id] = d;
           changed = true;
         }
       });
+
       return changed ? next : prev;
     });
   }
 
-  // Flood — fire when scenarioKey changes (each band has a unique key: al, hw, bw, cr, fs, lw)
   useEffect(() => {
-    mergeDecisions(floodScenario.decisions);
+    syncDecisions(floodScenario.decisions, "flood-", confirmedIds, overriddenIds);
   }, [floodScenario.scenarioKey]);
 
-  // Fog
   useEffect(() => {
-    mergeDecisions(fogScenario.decisions);
+    // Fog IDs: f1, f2 — use exact ID list, prefix "f" is safe since flood uses "flood-"
+    syncDecisions(fogScenario.decisions, "f", confirmedIds, overriddenIds);
   }, [fogScenario.status]);
 
-  // Ice
   useEffect(() => {
-    mergeDecisions(iceScenario.decisions);
+    // Ice IDs: i1, i2
+    syncDecisions(iceScenario.decisions, "i", confirmedIds, overriddenIds);
   }, [iceScenario.status]);
 
-  // Hurricane
   useEffect(() => {
-    mergeDecisions(stormScenario.decisions);
+    // Hurricane IDs: h1, h2
+    syncDecisions(stormScenario.decisions, "h", confirmedIds, overriddenIds);
   }, [stormScenario.status]);
 
   const allDecisions = Object.values(decisionStore);
