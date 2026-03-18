@@ -1869,7 +1869,35 @@ export default function DeltaAgentDashboard() {
     return FLOOD_BAND_ORDER.indexOf(key);
   }
 
-  // Add decisions to store (never removes — only adds new IDs)
+  // Single atomic store update: prune IDs above currentIdx for typePrefix, then add incoming
+  function pruneAndAdd(typePrefix, order, currentKey, incoming) {
+    const currentIdx = order.indexOf(currentKey);
+    setDecisionStore(prev => {
+      const next = { ...prev };
+      let changed = false;
+
+      // Prune pending decisions above current band for this type
+      Object.keys(next).forEach(id => {
+        if (!id.startsWith(typePrefix)) return;
+        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
+        if (isActioned) return;
+        const bandKey = id.split("-")[1];
+        if (order.indexOf(bandKey) > currentIdx) {
+          delete next[id];
+          changed = true;
+        }
+      });
+
+      // Add new decisions from current band
+      incoming.forEach(d => {
+        if (!next[d.id]) { next[d.id] = d; changed = true; }
+      });
+
+      return changed ? next : prev;
+    });
+  }
+
+  // Add-only (no prune) — used when moving up
   function addDecisions(incoming) {
     if (!incoming.length) return;
     setDecisionStore(prev => {
@@ -1882,48 +1910,19 @@ export default function DeltaAgentDashboard() {
     });
   }
 
-  // Remove pending decisions whose band index is ABOVE the current band
-  // Confirmed/overridden decisions are always preserved
-  function pruneFloodAbove(currentKey) {
-    const currentIdx = floodBandIndex(currentKey);
-    setDecisionStore(prev => {
-      const next = { ...prev };
-      let changed = false;
-      Object.keys(next).forEach(id => {
-        if (!id.startsWith("flood-")) return;
-        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
-        if (isActioned) return;
-        // Extract band key from id like "flood-hw-d1" → "hw"
-        const parts = id.split("-"); // ["flood", "hw", "d1"]
-        const bandKey = parts[1];
-        if (floodBandIndex(bandKey) > currentIdx) {
-          delete next[id];
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }
-
-  // Flood: add when crossing into a new band; prune bands above when sliding back down
+  // Flood
   const prevFloodBandRef = useRef("nm");
   useEffect(() => {
     const currentKey = floodScenario.scenarioKey;
     const prevKey    = prevFloodBandRef.current;
-    const currentIdx = floodBandIndex(currentKey);
-    const prevIdx    = floodBandIndex(prevKey);
-
     if (currentKey === prevKey) return;
     prevFloodBandRef.current = currentKey;
-
+    const currentIdx = floodBandIndex(currentKey);
+    const prevIdx    = floodBandIndex(prevKey);
     if (currentIdx > prevIdx) {
-      // Moving up — add this band's decisions
       addDecisions(floodScenario.decisions);
     } else {
-      // Moving down — prune pending decisions from bands above current level
-      pruneFloodAbove(currentKey);
-      // Also add the current band's decisions in case we skipped back into an active band
-      addDecisions(floodScenario.decisions);
+      pruneAndAdd("flood-", FLOOD_BAND_ORDER, currentKey, floodScenario.decisions);
     }
   }, [floodScenario.scenarioKey]);
 
@@ -1932,26 +1931,6 @@ export default function DeltaAgentDashboard() {
   const STORM_BAND_ORDER = ["nm", "wh", "xr", "ya", "zu"];
 
   function bandIndex(order, key) { return order.indexOf(key); }
-
-  function pruneAbove(typePrefix, order, currentKey) {
-    const currentIdx = bandIndex(order, currentKey);
-    setDecisionStore(prev => {
-      const next = { ...prev };
-      let changed = false;
-      Object.keys(next).forEach(id => {
-        if (!id.startsWith(typePrefix)) return;
-        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
-        if (isActioned) return;
-        const parts = id.split("-");
-        const bandKey = parts[1]; // e.g. "fog-cr-d1" → "cr"
-        if (bandIndex(order, bandKey) > currentIdx) {
-          delete next[id];
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }
 
   // Fog
   const prevFogBandRef = useRef("nm");
@@ -1965,8 +1944,7 @@ export default function DeltaAgentDashboard() {
     if (currentIdx > prevIdx) {
       addDecisions(fogScenario.decisions);
     } else {
-      pruneAbove("fog-", FOG_BAND_ORDER, currentKey);
-      addDecisions(fogScenario.decisions);
+      pruneAndAdd("fog-", FOG_BAND_ORDER, currentKey, fogScenario.decisions);
     }
   }, [fogScenario.fogBandKey]);
 
@@ -1982,8 +1960,7 @@ export default function DeltaAgentDashboard() {
     if (currentIdx > prevIdx) {
       addDecisions(iceScenario.decisions);
     } else {
-      pruneAbove("ice-", ICE_BAND_ORDER, currentKey);
-      addDecisions(iceScenario.decisions);
+      pruneAndAdd("ice-", ICE_BAND_ORDER, currentKey, iceScenario.decisions);
     }
   }, [iceScenario.iceBandKey]);
 
@@ -1999,8 +1976,7 @@ export default function DeltaAgentDashboard() {
     if (currentIdx > prevIdx) {
       addDecisions(stormScenario.decisions);
     } else {
-      pruneAbove("storm-", STORM_BAND_ORDER, currentKey);
-      addDecisions(stormScenario.decisions);
+      pruneAndAdd("storm-", STORM_BAND_ORDER, currentKey, stormScenario.decisions);
     }
   }, [stormScenario.stormBandKey]);
 
