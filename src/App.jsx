@@ -573,7 +573,8 @@ const AGENT_INFO = {
 
 function AgentBadge({ code }) {
   const [hovered, setHovered] = useState(false);
-  const [pos, setPos]         = useState({ top: 0, left: 0 });
+  const posRef                = useRef({ top: 0, left: 0 });
+  const [posReady, setPosReady] = useState(false);
   const ref                   = useRef(null);
   const agent = AGENT_INFO[code];
   if (!agent) return <Badge color={C.muted} small>{code}</Badge>;
@@ -581,20 +582,28 @@ function AgentBadge({ code }) {
   function handleMouseEnter() {
     if (ref.current) {
       const r = ref.current.getBoundingClientRect();
-      setPos({ top: r.top, left: r.left + r.width / 2 });
+      posRef.current = { top: r.top, left: r.left + r.width / 2 };
+      setPosReady(true);
     }
     setHovered(true);
   }
+
+  function handleMouseLeave() {
+    setHovered(false);
+    setPosReady(false);
+  }
+
+  const pos = posRef.current;
 
   return (
     <span
       ref={ref}
       style={{ position: "relative", display: "inline-flex" }}
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={handleMouseLeave}
     >
       <Badge color={agent.color} small>{code}</Badge>
-      {hovered && (
+      {hovered && posReady && (
         <div style={{
           position: "fixed",
           top: pos.top - 12,
@@ -2262,11 +2271,11 @@ export default function DeltaAgentDashboard() {
                       },
                       {
                         label: "POTENTIAL SAVINGS",
-                        value: pendingSavings > 0 ? `$${pendingSavings.toLocaleString()}` : "--",
-                        valueColor: pendingSavings > 0 ? C.green : C.muted,
-                        tab: "inbox",
-                        hint: pendingSavings > 0 ? "Action decisions →" : null,
-                        active: pendingSavings > 0,
+                        value: pendingSavings > 0 ? `$${pendingSavings.toLocaleString()}` : confirmedSavings > 0 ? `$${confirmedSavings.toLocaleString()}` : "--",
+                        valueColor: pendingSavings > 0 ? C.green : confirmedSavings > 0 ? C.teal : C.muted,
+                        tab: pendingSavings > 0 ? "inbox" : "impact",
+                        hint: pendingSavings > 0 ? "Action decisions →" : confirmedSavings > 0 ? "View impact →" : null,
+                        active: pendingSavings > 0 || confirmedSavings > 0,
                       },
                       {
                         label: "NEXT VESSEL",
