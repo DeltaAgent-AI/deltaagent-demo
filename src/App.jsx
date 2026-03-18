@@ -753,17 +753,18 @@ function getManualComparison(disruptionType) {
   }
 }
 
-function ExecutionTicker({ decision }) {
-  const [firedCount, setFiredCount] = useState(0);
-  const [done, setDone]             = useState(false);
-  const [elapsed, setElapsed]       = useState("0.0");
+function ExecutionTicker({ decision, alreadyDone = false }) {
+  const steps = getExecSteps(decision.disruptionType);
+  const [firedCount, setFiredCount] = useState(alreadyDone ? steps.length : 0);
+  const [done, setDone]             = useState(alreadyDone);
+  const [elapsed, setElapsed]       = useState(alreadyDone ? "5.3" : "0.0");
   const [collapsed, setCollapsed]   = useState(false);
   const startRef                    = useRef(Date.now());
   const hoverRef                    = useRef(false);
   const collapseRef                 = useRef(null);
-  const steps = getExecSteps(decision.disruptionType);
 
   useEffect(() => {
+    if (alreadyDone) return; // skip animation if already completed
     const clock = setInterval(() => setElapsed(((Date.now() - startRef.current) / 1000).toFixed(1)), 100);
     steps.forEach((_, i) => {
       setTimeout(() => {
@@ -772,7 +773,6 @@ function ExecutionTicker({ decision }) {
           setTimeout(() => {
             setDone(true);
             clearInterval(clock);
-            // Start collapse timer after execution completes
             collapseRef.current = setTimeout(() => {
               if (!hoverRef.current) setCollapsed(true);
             }, 8000);
@@ -1007,7 +1007,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, cardState = 
           ))}
         </div>
       )}
-      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} />}
+      {(state === "executing" || state === "done") && <ExecutionTicker decision={decision} alreadyDone={state === "done"} />}
     </div>
   );
 }
