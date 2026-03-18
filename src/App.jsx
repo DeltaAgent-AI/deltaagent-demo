@@ -1859,54 +1859,125 @@ export default function DeltaAgentDashboard() {
   // Each threshold band has unique IDs (flood-al-d1, flood-hw-d1 etc.)
   const [decisionStore, setDecisionStore] = useState({});
 
-  // Sync store with the current active scenario band:
-  // - Adds new decisions from the current band
-  // - Removes pending decisions from the same threat type that no longer match the current band
-  // - Confirmed/overridden decisions are never removed
-  function syncDecisions(incoming, typePrefix, confirmedSet, overriddenSet) {
+  // Flood band severity order — used to determine which bands are "above" current level
+  const FLOOD_BAND_ORDER = ["nm", "lw", "al", "hw", "bw", "cr", "fs"];
+
+  function floodBandIndex(key) {
+    return FLOOD_BAND_ORDER.indexOf(key);
+  }
+
+  // Add decisions to store (never removes — only adds new IDs)
+  function addDecisions(incoming) {
+    if (!incoming.length) return;
     setDecisionStore(prev => {
       const next = { ...prev };
       let changed = false;
-
-      // Remove pending decisions for this threat type not in the current band
-      // (runs even if incoming is empty — e.g. slider back to NOMINAL)
-      const currentIds = new Set(incoming.map(d => d.id));
-      Object.keys(next).forEach(id => {
-        if (id.startsWith(typePrefix)) {
-          const isActioned = confirmedSet.has(id) || overriddenSet.has(id);
-          if (!isActioned && !currentIds.has(id)) {
-            delete next[id];
-            changed = true;
-          }
-        }
-      });
-
-      // Add new decisions from the current band
       incoming.forEach(d => {
-        if (!next[d.id]) {
-          next[d.id] = d;
-          changed = true;
-        }
+        if (!next[d.id]) { next[d.id] = d; changed = true; }
       });
-
       return changed ? next : prev;
     });
   }
 
+  // Remove pending decisions whose band index is ABOVE the current band
+  // Confirmed/overridden decisions are always preserved
+  function pruneFloodAbove(currentKey) {
+    const currentIdx = floodBandIndex(currentKey);
+    setDecisionStore(prev => {
+      const next = { ...prev };
+      let changed = false;
+      Object.keys(next).forEach(id => {
+        if (!id.startsWith("flood-")) return;
+        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
+        if (isActioned) return;
+        // Extract band key from id like "flood-hw-d1" → "hw"
+        const parts = id.split("-"); // ["flood", "hw", "d1"]
+        const bandKey = parts[1];
+        if (floodBandIndex(bandKey) > currentIdx) {
+          delete next[id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }
+
+  // Remove all pending decisions for a non-flood type when it returns to NOMINAL
+  function pruneTypeOnNominal(typePrefix) {
+    setDecisionStore(prev => {
+      const next = { ...prev };
+      let changed = false;
+      Object.keys(next).forEach(id => {
+        if (!id.startsWith(typePrefix)) return;
+        const isActioned = confirmedIdsRef.current.has(id) || overriddenIdsRef.current.has(id);
+        if (!isActioned) { delete next[id]; changed = true; }
+      });
+      return changed ? next : prev;
+    });
+  }
+
+  // Flood: add when crossing into a new band; prune bands above when sliding back down
+  const prevFloodBandRef = useRef("nm");
   useEffect(() => {
-    syncDecisions(floodScenario.decisions, "flood-", confirmedIdsRef.current, overriddenIdsRef.current);
+    const currentKey = floodScenario.scenarioKey;
+    const prevKey    = prevFloodBandRef.current;
+    const currentIdx = floodBandIndex(currentKey);
+    const prevIdx    = floodBandIndex(prevKey);
+
+    if (currentKey === prevKey) return;
+    prevFloodBandRef.current = currentKey;
+
+    if (currentIdx > prevIdx) {
+      // Moving up — add this band's decisions
+      addDecisions(floodScenario.decisions);
+    } else {
+      // Moving down — prune pending decisions from bands above current level
+      pruneFloodAbove(currentKey);
+      // Also add the current band's decisions in case we skipped back into an active band
+      addDecisions(floodScenario.decisions);
+    }
   }, [floodScenario.scenarioKey]);
 
+  // Fog: add on new status; prune all pending fog on NOMINAL
+  const prevFogStatusRef = useRef("NOMINAL");
   useEffect(() => {
-    syncDecisions(fogScenario.decisions, "f", confirmedIdsRef.current, overriddenIdsRef.current);
+    const curr = fogScenario.status;
+    const prev = prevFogStatusRef.current;
+    if (curr === prev) return;
+    prevFogStatusRef.current = curr;
+    if (curr === "NOMINAL") {
+      pruneTypeOnNominal("f");
+    } else {
+      addDecisions(fogScenario.decisions);
+    }
   }, [fogScenario.status]);
 
+  // Ice: add on new status; prune all pending ice on NOMINAL
+  const prevIceStatusRef = useRef("NOMINAL");
   useEffect(() => {
-    syncDecisions(iceScenario.decisions, "i", confirmedIdsRef.current, overriddenIdsRef.current);
+    const curr = iceScenario.status;
+    const prev = prevIceStatusRef.current;
+    if (curr === prev) return;
+    prevIceStatusRef.current = curr;
+    if (curr === "NOMINAL") {
+      pruneTypeOnNominal("i");
+    } else {
+      addDecisions(iceScenario.decisions);
+    }
   }, [iceScenario.status]);
 
+  // Hurricane: add on new status; prune all pending storm on NOMINAL
+  const prevStormStatusRef = useRef("NOMINAL");
   useEffect(() => {
-    syncDecisions(stormScenario.decisions, "h", confirmedIdsRef.current, overriddenIdsRef.current);
+    const curr = stormScenario.status;
+    const prev = prevStormStatusRef.current;
+    if (curr === prev) return;
+    prevStormStatusRef.current = curr;
+    if (curr === "NOMINAL") {
+      pruneTypeOnNominal("h");
+    } else {
+      addDecisions(stormScenario.decisions);
+    }
   }, [stormScenario.status]);
 
   const allDecisions = Object.values(decisionStore);
@@ -2175,6 +2246,11 @@ export default function DeltaAgentDashboard() {
       { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked",  cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
       { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed",     cost: "Berth 2 nominal   Crane gang confirmed",           severity: "ok" },
     ]);
+    // Reset band tracking refs so scenario restarts cleanly
+    prevFloodBandRef.current  = "nm";
+    prevFogStatusRef.current  = "NOMINAL";
+    prevIceStatusRef.current  = "NOMINAL";
+    prevStormStatusRef.current = "NOMINAL";
     setActiveTab("inbox");
     setSmsQueue([]); setOverrideQueue([]);
   }
@@ -2331,6 +2407,10 @@ export default function DeltaAgentDashboard() {
                         { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
                       ]);
                       setActiveTab("inbox");
+                      prevFloodBandRef.current  = "nm";
+                      prevFogStatusRef.current  = "NOMINAL";
+                      prevIceStatusRef.current  = "NOMINAL";
+                      prevStormStatusRef.current = "NOMINAL";
                     },
                   },
                   {
@@ -2356,6 +2436,10 @@ export default function DeltaAgentDashboard() {
                         { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
                       ]);
                       setActiveTab("inbox");
+                      prevFloodBandRef.current  = "nm";
+                      prevFogStatusRef.current  = "NOMINAL";
+                      prevIceStatusRef.current  = "NOMINAL";
+                      prevStormStatusRef.current = "NOMINAL";
                     },
                   },
                   {
@@ -2381,6 +2465,10 @@ export default function DeltaAgentDashboard() {
                         { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
                       ]);
                       setActiveTab("inbox");
+                      prevFloodBandRef.current  = "nm";
+                      prevFogStatusRef.current  = "NOMINAL";
+                      prevIceStatusRef.current  = "NOMINAL";
+                      prevStormStatusRef.current = "NOMINAL";
                     },
                   },
                 ].map(({ icon, label, sublabel, description, color, action }) => (
