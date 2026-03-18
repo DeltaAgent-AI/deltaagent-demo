@@ -1145,74 +1145,78 @@ export default function DeltaAgentDashboard() {
     });
   }, [pendingDecisions.map(d => d.id).join(",")]);
 
-  // Log threshold crossings in agent log as sliders move
-  const prevFloodStatus = useRef(floodScenario.status);
-  const prevFogStatus   = useRef(fogScenario.status);
-  const prevIceStatus   = useRef(iceScenario.status);
-  const prevStormStatus = useRef(stormScenario.status);
+  // Log threshold crossings - refs initialized to NOMINAL so any crossing gets logged
+  const prevFloodStatus = useRef("NOMINAL");
+  const prevFogStatus   = useRef("NOMINAL");
+  const prevIceStatus   = useRef("NOMINAL");
+  const prevStormStatus = useRef("NOMINAL");
+
+  function logEntry(entry) {
+    setAgentLog(prev => [entry, ...prev]);
+  }
+
+  function nowTS() {
+    return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
+  }
 
   useEffect(() => {
-    if (floodScenario.status !== prevFloodStatus.current) {
-      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-      const crossed = floodScenario.status !== "NOMINAL";
-      setAgentLog(prev => [{
-        id: `flood-status-${Date.now()}`,
-        time: ts,
-        action: `RIVER WARDEN: Carrollton Gauge - ${prevFloodStatus.current} - ${floodScenario.status}`,
-        cost: `${simGauge.toFixed(1)}ft   ${crossed ? floodScenario.decisions[0]?.disruptionLabel || floodScenario.status : "All clear - no action required"}`,
-        severity: crossed ? "warning" : "ok",
-        disruptionType: "FLOOD",
-      }, ...prev]);
-      prevFloodStatus.current = floodScenario.status;
-    }
+    const prev = prevFloodStatus.current;
+    if (floodScenario.status === prev) return;
+    prevFloodStatus.current = floodScenario.status;
+    const crossed = floodScenario.status !== "NOMINAL";
+    logEntry({
+      id: `flood-${Date.now()}`,
+      time: nowTS(),
+      action: `RIVER WARDEN: Carrollton Gauge - ${prev} - ${floodScenario.status}`,
+      cost: `${simGauge.toFixed(1)}ft   ${crossed ? floodScenario.decisions[0]?.disruptionLabel || floodScenario.status : "All clear - no action required"}`,
+      severity: crossed ? "warning" : "ok",
+      disruptionType: "FLOOD",
+    });
   }, [floodScenario.status]);
 
   useEffect(() => {
-    if (fogScenario.status !== prevFogStatus.current) {
-      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-      const crossed = fogScenario.status !== "NOMINAL";
-      setAgentLog(prev => [{
-        id: `fog-status-${Date.now()}`,
-        time: ts,
-        action: `RIVER WARDEN: SW Pass Visibility - ${prevFogStatus.current} - ${fogScenario.status}`,
-        cost: `${simVis.toFixed(2)}nm   ${crossed ? fogScenario.decisions[0]?.disruptionLabel || fogScenario.status : "Visibility clear - no restriction"}`,
-        severity: crossed ? "warning" : "ok",
-        disruptionType: "FOG",
-      }, ...prev]);
-      prevFogStatus.current = fogScenario.status;
-    }
+    const prev = prevFogStatus.current;
+    if (fogScenario.status === prev) return;
+    prevFogStatus.current = fogScenario.status;
+    const crossed = fogScenario.status !== "NOMINAL";
+    logEntry({
+      id: `fog-${Date.now()}`,
+      time: nowTS(),
+      action: `RIVER WARDEN: SW Pass Visibility - ${prev} - ${fogScenario.status}`,
+      cost: `${simVis.toFixed(2)}nm   ${crossed ? fogScenario.decisions[0]?.disruptionLabel || fogScenario.status : "Visibility clear - no restriction"}`,
+      severity: crossed ? "warning" : "ok",
+      disruptionType: "FOG",
+    });
   }, [fogScenario.status]);
 
   useEffect(() => {
-    if (iceScenario.status !== prevIceStatus.current) {
-      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-      const crossed = iceScenario.status !== "NOMINAL";
-      setAgentLog(prev => [{
-        id: `ice-status-${Date.now()}`,
-        time: ts,
-        action: `RIVER WARDEN: Ice Coverage - ${prevIceStatus.current} - ${iceScenario.status}`,
-        cost: `${(simIce * 10).toFixed(0)}% coverage   ${crossed ? iceScenario.decisions[0]?.disruptionLabel || iceScenario.status : "No ice restriction"}`,
-        severity: crossed ? "warning" : "ok",
-        disruptionType: "ICE",
-      }, ...prev]);
-      prevIceStatus.current = iceScenario.status;
-    }
+    const prev = prevIceStatus.current;
+    if (iceScenario.status === prev) return;
+    prevIceStatus.current = iceScenario.status;
+    const crossed = iceScenario.status !== "NOMINAL";
+    logEntry({
+      id: `ice-${Date.now()}`,
+      time: nowTS(),
+      action: `RIVER WARDEN: LMR Ice Coverage - ${prev} - ${iceScenario.status}`,
+      cost: `${(simIce * 10).toFixed(0)}% coverage   ${crossed ? iceScenario.decisions[0]?.disruptionLabel || iceScenario.status : "No ice restriction"}`,
+      severity: crossed ? "warning" : "ok",
+      disruptionType: "ICE",
+    });
   }, [iceScenario.status]);
 
   useEffect(() => {
-    if (stormScenario.status !== prevStormStatus.current) {
-      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-      const crossed = stormScenario.status !== "NOMINAL";
-      setAgentLog(prev => [{
-        id: `storm-status-${Date.now()}`,
-        time: ts,
-        action: `RIVER WARDEN: Hurricane Track - ${prevStormStatus.current} - ${stormScenario.status}`,
-        cost: `${simStormDist}mi from SW Pass   Port Condition ${stormScenario.portCondition}   ${crossed ? "Action required" : "No threat"}`,
-        severity: crossed ? "warning" : "ok",
-        disruptionType: "HURRICANE",
-      }, ...prev]);
-      prevStormStatus.current = stormScenario.status;
-    }
+    const prev = prevStormStatus.current;
+    if (stormScenario.status === prev) return;
+    prevStormStatus.current = stormScenario.status;
+    const crossed = stormScenario.status !== "NOMINAL";
+    logEntry({
+      id: `storm-${Date.now()}`,
+      time: nowTS(),
+      action: `RIVER WARDEN: Hurricane Track - ${prev} - ${stormScenario.status}`,
+      cost: `${simStormDist}mi from SW Pass   Port Condition ${stormScenario.portCondition}   ${crossed ? "Action required" : "No threat"}`,
+      severity: crossed ? "warning" : "ok",
+      disruptionType: "HURRICANE",
+    });
   }, [stormScenario.status]);
 
   // Overall corridor status - worst active threat drives the header
