@@ -1298,7 +1298,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
       boxShadow: isCritical ? `0 0 0 1px ${C.red}22, 0 4px 24px ${C.red}18` : "none",
       animation: isCritical ? "criticalPulse 3s ease-in-out infinite" : "none",
     }}>
-      <div style={{ padding: "16px 20px" }}>
+      <div className="card-inner" style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
           <div style={{ flexShrink: 0, paddingTop: 2 }}>
             {state === "done" ? <span style={{ color: C.teal, fontSize: 16 }}> </span> : <PulsingDot color={severityColor} size={10} />}
@@ -1336,7 +1336,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
         </div>
 
         {/* Cost strip */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: `${C.muted}08`, border: `1px solid ${C.border}` }}>
+        <div className="cost-strip" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: `${C.muted}08`, border: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>EST. COST AVOIDED</span>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -1388,7 +1388,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
 
             {/* Main action row */}
             {overrideStep !== "reason" && (
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="card-actions" style={{ display: "flex", gap: 8 }}>
                 {/* CONFIRM — with recipient sub-label */}
                 <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 3 }}>
                   <button onClick={handleConfirm}
@@ -2510,7 +2510,64 @@ export default function DeltaAgentDashboard() {
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: ${C.borderHi}; border-radius: 2px; }
-        @media (max-width: 640px) { .hero-grid { grid-template-columns: 1fr !important; } .hide-sm { display: none !important; } }
+        @media (max-width: 640px) {
+          .hero-grid { grid-template-columns: 1fr !important; }
+          .hide-sm { display: none !important; }
+
+          /* Layout */
+          .page-pad   { padding-left: 14px !important; padding-right: 14px !important; }
+          .header-pad { padding: 10px 14px !important; }
+          .banner-pad { padding: 16px 14px !important; }
+
+          /* Grids → single column */
+          .grid-4col  { grid-template-columns: 1fr 1fr !important; }
+          .grid-3col  { grid-template-columns: 1fr !important; }
+          .grid-2col  { grid-template-columns: 1fr !important; }
+
+          /* Threat strip: 2 cols on mobile instead of 4 */
+          .threat-grid { grid-template-columns: 1fr 1fr !important; }
+
+          /* Context bar: stack vertically */
+          .context-bar { grid-template-columns: 1fr !important; }
+          .context-bar > div { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
+
+          /* Tabs: scrollable row */
+          .tab-row { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; white-space: nowrap !important; }
+          .tab-row button { padding: 10px 12px !important; font-size: 9px !important; }
+
+          /* Decision card action buttons: stack */
+          .card-actions { flex-direction: column !important; }
+          .card-actions > div,
+          .card-actions > button { width: 100% !important; }
+
+          /* Decision card padding */
+          .card-inner { padding: 12px 14px !important; }
+
+          /* Cost strip: wrap on small screens */
+          .cost-strip { flex-wrap: wrap !important; gap: 10px !important; }
+
+          /* Header: hide clock */
+          .header-clock { display: none !important; }
+
+          /* Scenario banner: single col */
+          .scenario-grid { grid-template-columns: 1fr !important; }
+          .scenario-banner-row { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+
+          /* Agent activity cards */
+          .agent-grid { grid-template-columns: 1fr !important; }
+
+          /* Impact stats */
+          .impact-stats { grid-template-columns: 1fr 1fr !important; }
+
+          /* System status: single col */
+          .status-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 420px) {
+          .grid-4col    { grid-template-columns: 1fr !important; }
+          .threat-grid  { grid-template-columns: 1fr !important; }
+          .impact-stats { grid-template-columns: 1fr !important; }
+          .context-bar  { display: flex !important; flex-direction: column !important; }
+        }
       `}</style>
 
       {drawerRecord && (
@@ -2552,7 +2609,7 @@ export default function DeltaAgentDashboard() {
 
         <div style={{ position: "relative", zIndex: 2, paddingBottom: 40 }}>
           {/*    HEADER    */}
-          <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 28px", borderBottom: `1px solid ${C.border}`, background: `${C.panel}f0`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
+          <header className="header-pad" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 28px", borderBottom: `1px solid ${C.border}`, background: `${C.panel}f0`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
                 <polygon points="16,3 30,28 2,28" fill="none" stroke={C.teal} strokeWidth="2" strokeLinejoin="round"/>
@@ -2590,7 +2647,7 @@ export default function DeltaAgentDashboard() {
                   {pendingCount > 0 ? `${corridorStatus}   ${pendingCount} PENDING` : corridorStatus}
                 </span>
               </div>
-              <div className="hide-sm" style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>
+              <div className="header-clock hide-sm" style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>
                 {time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" })} CST
               </div>
               {/* LIVE indicator — shows CONNECTING on first load */}
@@ -2611,8 +2668,8 @@ export default function DeltaAgentDashboard() {
 
           {/* SCENARIO SELECTOR BANNER */}
           {showBanner && (
-            <div style={{ background: `linear-gradient(135deg, ${C.teal}10 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}33`, padding: "24px 28px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div className="banner-pad" style={{ background: `linear-gradient(135deg, ${C.teal}10 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}33`, padding: "24px 28px" }}>
+              <div className="scenario-banner-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 6 }}>
                     OPERATIONS SIMULATOR — LOWER MISSISSIPPI CORRIDOR
@@ -2630,7 +2687,7 @@ export default function DeltaAgentDashboard() {
                   EXPLORE FREELY
                 </button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div className="scenario-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 {[
                   {
                     icon: "🌊",
@@ -2760,14 +2817,14 @@ export default function DeltaAgentDashboard() {
             </div>
           )}
 
-          <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="page-pad" style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
 
             {/*    COMPACT THREAT STRIP + CONTEXT BAR    */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
 
               {/* Threat strip — compact by default, click any threat to expand its slider */}
               <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0 }}>
+                <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0 }}>
                   {[
                     {
                       key: "flood", label: "FLOOD", value: `${simGauge.toFixed(1)}ft`, subtext: "Carrollton Gauge",
@@ -2899,7 +2956,7 @@ export default function DeltaAgentDashboard() {
               </div>
 
               {/* Slim context bar — decisions + threats + corridor in one line */}
-              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+              <div className="context-bar" style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
                 {/* Left: pending count */}
                 <div
                   onClick={() => pendingCount > 0 && navigateToTab("inbox")}
@@ -2958,7 +3015,7 @@ export default function DeltaAgentDashboard() {
             </div>
 
             {/*    TABS    */}
-            <div ref={tabsRef} style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 54, zIndex: 40, background: `${C.bg}f5`, backdropFilter: "blur(12px)" }}>
+            <div ref={tabsRef} className="tab-row" style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 54, zIndex: 40, background: `${C.bg}f5`, backdropFilter: "blur(12px)" }}>
               {[
                 { id: "inbox",  label: pendingCount > 0 ? `⬤ DECISIONS (${pendingCount})` : "DECISIONS" },
                 { id: "log",    label: "ACTIVITY LOG" },
@@ -2990,7 +3047,7 @@ export default function DeltaAgentDashboard() {
                     </div>
 
                     {/* Live agent activity */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    <div className="agent-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                       {[
                         {
                           agent: "RW", name: "River Warden", color: C.teal,
@@ -3119,7 +3176,7 @@ export default function DeltaAgentDashboard() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
                 {/* Stat cards with expandable methodology */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+                <div className="impact-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
                   {[
                     {
                       label: "SESSION TOTAL AVOIDED",
@@ -3219,7 +3276,7 @@ export default function DeltaAgentDashboard() {
                     </div>
 
                     {/* Methodology breakdown */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    <div className="grid-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
                       {[
                         {
                           label: "AVG COST / EVENT",
@@ -3257,7 +3314,7 @@ export default function DeltaAgentDashboard() {
 
             {/*    SYSTEM STATUS    */}
             {activeTab === "status" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="status-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
 
                 {/* DATA FEEDS — rebuilt with groups, prominent values, operational notes */}
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
