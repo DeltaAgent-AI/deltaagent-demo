@@ -3,11 +3,14 @@
 // via aisstream.io WebSocket API, returns latest snapshot as JSON REST endpoint
 //
 // aisstream.io bounding box: Lower Mississippi corridor
-// SW: 28.8°N, -90.5°W (below Southwest Pass)
-// NE: 30.5°N, -88.5°W (above Baton Rouge)
+// SW: 28.5°N, -91.0°W (Gulf of Mexico approach)
+// NE: 30.8°N, -88.0°W (above Baton Rouge)
 //
 // Sign up for free API key at: https://aisstream.io/
 // Add AISSTREAM_API_KEY to Vercel environment variables
+
+// Extend Vercel function timeout to 30s (default is 10s, not enough for WS collection)
+export const config = { maxDuration: 30 };
 
 import { WebSocket } from "ws";
 
@@ -18,7 +21,8 @@ let cacheTime   = 0;
 const CACHE_TTL = 60 * 1000; // 60 seconds
 
 // Bounding box for Lower Mississippi River corridor
-const BOUNDING_BOX = [[28.8, -90.5], [30.5, -88.5]];
+// Wider box: SW Pass Gulf entrance up through Baton Rouge + some Gulf coverage
+const BOUNDING_BOX = [[28.5, -91.0], [30.8, -88.0]];
 
 // Ship type codes that are operationally relevant for the demo
 const RELEVANT_TYPES = new Set([
@@ -41,11 +45,11 @@ function fetchVesselsFromStream(apiKey) {
         BoundingBoxes: [BOUNDING_BOX],
         FilterMessageTypes: ["PositionReport", "ShipStaticData"],
       }));
-      // Collect for 5 seconds then close
+      // Collect for 15 seconds then close — gives time to receive broadcasts
       timeout = setTimeout(() => {
         ws.close();
         resolve([...vessels.values()]);
-      }, 5000);
+      }, 15000);
     });
 
     ws.on("message", (data) => {
