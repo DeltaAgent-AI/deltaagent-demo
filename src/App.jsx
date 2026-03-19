@@ -1745,7 +1745,23 @@ function RecordDrawer({ record, onClose, onViewLog }) {
   );
 }
 
-function ThreatPanel({ label, value, subtext, scenario, expanded, onClick }) {
+// Shows a shimmer placeholder until live data arrives, then fades in the real value
+function LiveValue({ value, isLive, fontSize = 14, color }) {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => { if (isLive) setRevealed(true); }, [isLive]);
+  if (!revealed) {
+    return (
+      <div style={{ width: 48, height: fontSize + 4, borderRadius: 3, background: `${C.muted}18`, animation: "shimmer 1.4s ease-in-out infinite" }} />
+    );
+  }
+  return (
+    <span style={{ fontFamily: C.mono, fontSize, fontWeight: 700, color, lineHeight: 1, animation: "fadeSlideIn 0.4s ease" }}>
+      {value}
+    </span>
+  );
+}
+
+function ThreatPanel({ label, value, subtext, scenario, expanded, onClick, isLive = false }) {
   const [hovered, setHovered] = useState(false);
   const color = scenario.statusColor;
 
@@ -1769,8 +1785,8 @@ function ThreatPanel({ label, value, subtext, scenario, expanded, onClick }) {
 
       {/* Right: value + subtext + action pill */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+        <div style={{ textAlign: "right", minWidth: 56 }}>
+          <LiveValue value={value} isLive={isLive} fontSize={14} color={color} />
           <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>{subtext}</div>
         </div>
         <div style={{
@@ -2488,6 +2504,8 @@ export default function DeltaAgentDashboard() {
         @keyframes pulseText { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes criticalPulse { 0%,100% { box-shadow: 0 0 0 1px rgba(220,38,38,0.13), 0 4px 24px rgba(220,38,38,0.09); } 50% { box-shadow: 0 0 0 1px rgba(220,38,38,0.27), 0 4px 32px rgba(220,38,38,0.19); } }
         @keyframes tooltipFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes shimmer { 0% { opacity: 0.3; } 50% { opacity: 0.7; } 100% { opacity: 0.3; } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         button:hover { filter: brightness(1.15); }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -2543,7 +2561,7 @@ export default function DeltaAgentDashboard() {
               </svg>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em" }}>DELTAAGENT<span style={{ color: C.teal }}> AI</span></div>
-                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>OPERATIONS COMMAND   BETA</div>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>OPERATIONS COMMAND BETA</div>
               </div>
               <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
                 <CredentialChip
@@ -2560,7 +2578,7 @@ export default function DeltaAgentDashboard() {
                 />
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 onClick={handleReset}
                 style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
@@ -2575,9 +2593,18 @@ export default function DeltaAgentDashboard() {
               <div className="hide-sm" style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>
                 {time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" })} CST
               </div>
+              {/* LIVE indicator — shows CONNECTING on first load */}
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <PulsingDot color={C.teal} size={7} />
-                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal }}>LIVE</span>
+                {(!gaugeData && !fogData) ? (
+                  <>
+                    <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.06em", animation: "pulse 1.5s ease-in-out infinite" }}>CONNECTING...</span>
+                  </>
+                ) : (
+                  <>
+                    <PulsingDot color={C.teal} size={7} />
+                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.teal }}>LIVE</span>
+                  </>
+                )}
               </div>
             </div>
           </header>
@@ -2585,13 +2612,17 @@ export default function DeltaAgentDashboard() {
           {/* SCENARIO SELECTOR BANNER */}
           {showBanner && (
             <div style={{ background: `linear-gradient(135deg, ${C.teal}10 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}33`, padding: "24px 28px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 6 }}>
                     OPERATIONS SIMULATOR — LOWER MISSISSIPPI CORRIDOR
                   </div>
-                  <div style={{ fontSize: 14, color: C.body }}>
-                    Select a real scenario to see DeltaAgent respond autonomously — or explore freely.
+                  {/* One-sentence explainer for cold visitors */}
+                  <div style={{ fontSize: 14, color: C.white, fontWeight: 600, marginBottom: 4 }}>
+                    DeltaAgent monitors your corridor in real time and generates operational decisions before disruptions cost you money.
+                  </div>
+                  <div style={{ fontSize: 13, color: C.body }}>
+                    Select a scenario below to see it respond autonomously — or adjust any simulator to explore freely.
                   </div>
                 </div>
                 <button onClick={() => setShowBanner(false)}
@@ -2844,6 +2875,7 @@ export default function DeltaAgentDashboard() {
                         scenario={scenario}
                         expanded={expandedThreat === key}
                         onClick={() => setExpandedThreat(expandedThreat === key ? null : key)}
+                        isLive={live}
                       />
                       {/* Expanded slider — shown when this threat is active */}
                       {expandedThreat === key && slider}
@@ -2928,10 +2960,10 @@ export default function DeltaAgentDashboard() {
             {/*    TABS    */}
             <div ref={tabsRef} style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 54, zIndex: 40, background: `${C.bg}f5`, backdropFilter: "blur(12px)" }}>
               {[
-                { id: "inbox",  label: `DECISION INBOX${pendingCount > 0 ? ` (${pendingCount})` : ""}` },
-                { id: "log",    label: "AGENT LOG" },
-                { id: "impact", label: "IMPACT" },
-                { id: "status", label: "SYSTEM STATUS" },
+                { id: "inbox",  label: pendingCount > 0 ? `⬤ DECISIONS (${pendingCount})` : "DECISIONS" },
+                { id: "log",    label: "ACTIVITY LOG" },
+                { id: "impact", label: "SAVINGS" },
+                { id: "status", label: "DATA FEEDS" },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "10px 18px", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${C.teal}` : "2px solid transparent", background: "transparent", color: activeTab === tab.id ? C.teal : C.muted, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.2s ease", marginBottom: -1 }}>
                   {tab.label}
@@ -3363,7 +3395,7 @@ export default function DeltaAgentDashboard() {
             {/*    FOOTER    */}
             <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>© 2026 DeltaAgent AI, LLC · deltaagent.ai · New Orleans, LA</div>
-              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>BETA · Operations Command v0.1</div>
+              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>BETA · Operations Command</div>
             </div>
           </div>
         </div>
