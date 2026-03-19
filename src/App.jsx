@@ -1745,6 +1745,70 @@ function RecordDrawer({ record, onClose, onViewLog }) {
   );
 }
 
+// InstrumentPanel — the new flight-deck style instrument replacing ThreatPanel
+// Shows a prominent live reading with source info and consequence on click
+function InstrumentPanel({ label, value, source, consequence, scenario, live, expanded, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  const color = scenario.statusColor;
+  const isNominal = scenario.status === "NOMINAL";
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: "14px 16px",
+        cursor: "pointer",
+        background: expanded ? `${color}0d` : hovered ? `${color}06` : "transparent",
+        transition: "background 0.15s ease",
+      }}
+    >
+      {/* Top row: label + live badge + chevron */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <PulsingDot color={color} size={5} />
+          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: C.label, letterSpacing: "0.1em" }}>{label}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
+            {live ? "● LIVE" : "○ SIM"}
+          </span>
+          <span style={{
+            fontFamily: C.mono, fontSize: 9,
+            color: hovered || expanded ? color : C.muted,
+            display: "inline-block",
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease, color 0.15s ease",
+          }}>∨</span>
+        </div>
+      </div>
+
+      {/* The reading — hero element */}
+      <LiveValue value={value} isLive={live || true} fontSize={22} color={color} />
+
+      {/* Status badge below reading */}
+      <div style={{ marginTop: 6 }}>
+        <span style={{
+          fontFamily: C.mono, fontSize: 8, fontWeight: 700,
+          color: isNominal ? C.muted : color,
+          letterSpacing: "0.06em",
+        }}>
+          {scenario.status}
+        </span>
+      </div>
+
+      {/* Source + consequence — shown when expanded */}
+      {expanded && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${color}22`, animation: "fadeSlideIn 0.2s ease" }}>
+          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, marginBottom: 4 }}>{source}</div>
+          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.body, lineHeight: 1.55 }}>{consequence}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Shows a shimmer placeholder until live data arrives, then fades in the real value
 function LiveValue({ value, isLive, fontSize = 14, color }) {
   const [revealed, setRevealed] = useState(false);
@@ -1992,9 +2056,7 @@ export default function DeltaAgentDashboard() {
 
   //    shared UI state   
   const [time, setTime]                   = useState(new Date());
-  const [showBanner, setShowBanner]       = useState(true);
-  const [guidedDemo, setGuidedDemo]       = useState(false);
-  const [guidedStep, setGuidedStep]       = useState(0);
+  const [expandedInstrument, setExpandedInstrument] = useState(null); // which instrument panel is expanded
   const [smsQueue, setSmsQueue]           = useState([]);
   const [overrideQueue, setOverrideQueue] = useState([]);
   const [activeTab, setActiveTab]         = useState("inbox");
@@ -2012,7 +2074,7 @@ export default function DeltaAgentDashboard() {
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
   const [drawerRecord, setDrawerRecord]       = useState(null);
-  const [expandedThreat, setExpandedThreat]   = useState(null);
+  // expandedInstrument tracked above with showBanner replacement
   const tabsRef = useRef(null);
 
   function navigateToTab(tabId, logId) {
@@ -2377,23 +2439,6 @@ export default function DeltaAgentDashboard() {
   }, []);
 
   // Guided demo automation - walks through Algiers Point flood scenario
-  const guidedSteps = [
-    { label: "Monitoring nominal conditions...", duration: 1500, action: () => {} },
-    { label: "Simulating rising river stage...", duration: 2000, action: () => { setSimGauge(5.0); setFloodScenario(buildFloodScenario(5.0)); } },
-    { label: "River approaching Algiers Point threshold...", duration: 2000, action: () => { setSimGauge(7.2); setFloodScenario(buildFloodScenario(7.2)); } },
-    { label: "Algiers Point restriction triggered!", duration: 2500, action: () => { setSimGauge(8.3); setFloodScenario(buildFloodScenario(8.3)); setActiveTab("inbox"); } },
-    { label: "Adding fog advisory...", duration: 2000, action: () => { const v = 0.8; setSimVis(v); setFogScenario(buildFogScenario(v)); } },
-    { label: "Review decisions in inbox and hit CONFIRM & DISPATCH", duration: 99999, action: () => {} },
-  ];
-
-  useEffect(() => {
-    if (!guidedDemo) return;
-    if (guidedStep >= guidedSteps.length) { setGuidedDemo(false); setGuidedStep(0); return; }
-    guidedSteps[guidedStep].action();
-    const timer = setTimeout(() => setGuidedStep(s => s + 1), guidedSteps[guidedStep].duration);
-    return () => clearTimeout(timer);
-  }, [guidedDemo, guidedStep]);
-
   function handleConfirm(decision) {
     const logId = `log-${decision.id}-${Date.now()}`;
     setConfirmedIds(prev => new Set([...prev, decision.id]));
@@ -2466,7 +2511,7 @@ export default function DeltaAgentDashboard() {
   }
 
   function handleReset() {
-    setShowBanner(true);
+    setExpandedInstrument(null);
     setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
     setSimVis(8.0);   setFogScenario(buildFogScenario(8.0));
     setSimIce(0);     setIceScenario(buildIceScenario(0));
@@ -2666,280 +2711,22 @@ export default function DeltaAgentDashboard() {
             </div>
           </header>
 
-          {/* SCENARIO SELECTOR BANNER */}
-          {showBanner && (
-            <div className="banner-pad" style={{ background: `linear-gradient(135deg, ${C.teal}10 0%, ${C.panel} 100%)`, borderBottom: `1px solid ${C.teal}33`, padding: "24px 28px" }}>
-              <div className="scenario-banner-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.teal, letterSpacing: "0.1em", marginBottom: 6 }}>
-                    OPERATIONS SIMULATOR — LOWER MISSISSIPPI CORRIDOR
-                  </div>
-                  {/* One-sentence explainer for cold visitors */}
-                  <div style={{ fontSize: 14, color: C.white, fontWeight: 600, marginBottom: 4 }}>
-                    DeltaAgent monitors your corridor in real time and generates operational decisions before disruptions cost you money.
-                  </div>
-                  <div style={{ fontSize: 13, color: C.body }}>
-                    Select a scenario below to see it respond autonomously — or adjust any simulator to explore freely.
-                  </div>
-                </div>
-                <button onClick={() => setShowBanner(false)}
-                  style={{ padding: "7px 14px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-                  EXPLORE FREELY
-                </button>
-              </div>
-              <div className="scenario-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                {[
-                  {
-                    icon: "🌊",
-                    label: "HIGH WATER EVENT",
-                    sublabel: "Carrollton Gauge — 11.4ft",
-                    description: "High Water Proclamation triggered. Barge fleeting restrictions, daylight mooring orders, and CN/KCS rail re-sequencing required.",
-                    color: C.red,
-                    action: () => {
-                      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-                      setShowBanner(false);
-                      setSimGauge(11.4); setFloodScenario(buildFloodScenario(11.4));
-                      setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
-                      setSimIce(0); setIceScenario(buildIceScenario(0));
-                      setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
-                      setConfirmedIds(new Set()); setOverriddenIds(new Set()); setDecisionStore({});
-                      setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
-                      setAgentLog([
-                        { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: HIGH WATER EVENT ──", cost: "Carrollton Gauge 11.4ft   High Water Proclamation threshold", severity: "divider" },
-                        { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft   Nominal   No action required", severity: "ok" },
-                        { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
-                        { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
-                        { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
-                      ]);
-                      setActiveTab("inbox");
-                      prevFloodBandRef.current  = "nm";
-                      prevFogBandRef.current    = "nm";
-                      prevIceBandRef.current    = "nm";
-                      prevStormBandRef.current  = "nm";
-                    },
-                  },
-                  {
-                    icon: "🌫️",
-                    label: "DENSE FOG ADVISORY",
-                    sublabel: "SW Pass Visibility — 0.3nm",
-                    description: "Critical visibility at Southwest Pass. One-way traffic restrictions, pilot boarding suspended, 22 drayage trucks on hold.",
-                    color: C.teal,
-                    action: () => {
-                      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-                      setShowBanner(false);
-                      setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
-                      setSimVis(0.3); setFogScenario(buildFogScenario(0.3));
-                      setSimIce(0); setIceScenario(buildIceScenario(0));
-                      setSimStormDist(1000); setStormScenario(buildHurricaneScenario(1000, 2));
-                      setConfirmedIds(new Set()); setOverriddenIds(new Set()); setDecisionStore({});
-                      setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
-                      setAgentLog([
-                        { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: DENSE FOG ADVISORY ──", cost: "SW Pass Visibility 0.3nm   Critical threshold", severity: "divider" },
-                        { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft   Nominal   No action required", severity: "ok" },
-                        { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
-                        { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
-                        { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
-                      ]);
-                      setActiveTab("inbox");
-                      prevFloodBandRef.current  = "nm";
-                      prevFogBandRef.current    = "nm";
-                      prevIceBandRef.current    = "nm";
-                      prevStormBandRef.current  = "nm";
-                    },
-                  },
-                  {
-                    icon: "🌀",
-                    label: "HURRICANE APPROACH",
-                    sublabel: "Cat 2 — 320mi from SW Pass",
-                    description: "Port Condition YANKEE imminent. Inbound traffic closure, storm mooring plan verification, RNA enforcement required.",
-                    color: "#a78bfa",
-                    action: () => {
-                      setShowBanner(false);
-                      setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
-                      setSimVis(8.0); setFogScenario(buildFogScenario(8.0));
-                      setSimIce(0); setIceScenario(buildIceScenario(0));
-                      const ts = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" });
-                      setSimStormDist(320); setSimStormCat(2); setStormScenario(buildHurricaneScenario(320, 2));
-                      setConfirmedIds(new Set()); setOverriddenIds(new Set()); setDecisionStore({});
-                      setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
-                      setAgentLog([
-                        { id: `scenario-${Date.now()}`, time: ts, action: "── SCENARIO: HURRICANE APPROACH ──", cost: "Cat 2   320mi from SW Pass   Port Condition YANKEE approaching", severity: "divider" },
-                        { id: "bg1", time: "05:14:22", action: "MONITORING: Carrollton Gauge polled", cost: "Stage 0.7ft   Nominal   No action required", severity: "ok" },
-                        { id: "bg2", time: "05:00:00", action: "MONITORING: AIS vessel position updated", cost: "MV Delta Voyager   ETA Southwest Pass 04:20 CST", severity: "ok" },
-                        { id: "bg3", time: "04:45:11", action: "MONITORING: CN/KCS rail status checked", cost: "14 intermodal cars staged   Yard 3   On schedule", severity: "ok" },
-                        { id: "bg4", time: "04:30:00", action: "MONITORING: Berth schedule reviewed", cost: "Berth 2 nominal   Crane gang confirmed", severity: "ok" },
-                      ]);
-                      setActiveTab("inbox");
-                      prevFloodBandRef.current  = "nm";
-                      prevFogBandRef.current    = "nm";
-                      prevIceBandRef.current    = "nm";
-                      prevStormBandRef.current  = "nm";
-                    },
-                  },
-                ].map(({ icon, label, sublabel, description, color, action }) => (
-                  <div
-                    key={label}
-                    onClick={action}
-                    style={{ background: `${color}0a`, border: `1px solid ${color}33`, borderRadius: 8, padding: "16px 18px", cursor: "pointer", transition: "all 0.2s ease" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.borderColor = `${color}66`; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = `${color}0a`; e.currentTarget.style.borderColor = `${color}33`; e.currentTarget.style.transform = "none"; }}
-                  >
-                    <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color, letterSpacing: "0.06em", marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 10, color: C.label, marginBottom: 8 }}>{sublabel}</div>
-                    <div style={{ fontSize: 12, color: C.body, lineHeight: 1.55 }}>{description}</div>
-                    <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 3, padding: "3px 8px", letterSpacing: "0.06em" }}>
-                        SIMULATE →
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* GUIDED DEMO PROGRESS BAR */}
-          {guidedDemo && guidedStep < guidedSteps.length && (
-            <div style={{ background: `${C.amber}10`, borderBottom: `1px solid ${C.amber}33`, padding: "8px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <PulsingDot color={C.amber} size={6} />
-                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.amber, letterSpacing: "0.06em", fontWeight: 700 }}>
-                  GUIDED DEMO{"   "}{guidedStep + 1}/{guidedSteps.length}{"   "}
-                </span>
-                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>
-                  {guidedSteps[guidedStep]?.label}
-                </span>
-              </div>
-              <button onClick={() => { setGuidedDemo(false); setGuidedStep(0); }} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, fontFamily: C.mono, fontSize: 9, padding: "3px 10px", borderRadius: 4, cursor: "pointer", letterSpacing: "0.06em" }}>
-                EXIT DEMO
-              </button>
-            </div>
-          )}
-
+          {/* INSTRUMENT PANEL — replaces scenario banner + threat strip */}
           <div className="page-pad" style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-            {/*    COMPACT THREAT STRIP + CONTEXT BAR    */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Live corridor instruments */}
+            <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
 
-              {/* Threat strip — compact by default, click any threat to expand its slider */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-                <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0 }}>
-                  {[
-                    {
-                      key: "flood", label: "FLOOD", value: `${simGauge.toFixed(1)}ft`, subtext: "Carrollton Gauge",
-                      scenario: floodScenario, live: !!gaugeData,
-                      slider: (
-                        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${C.border}` }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>Drag to simulate river stage</span>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: floodScenario.statusColor }}>{floodScenario.status}</span>
-                          </div>
-                          <GaugeBar value={simGauge} />
-                          <input type="range" min={0} max={20} step={0.1} value={simGauge}
-                            onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); }}
-                            style={{ width: "100%", accentColor: C.teal, cursor: "pointer", marginTop: 6 }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
-                            <span style={{ color: "#93c5fd" }}>LOW</span><span style={{ color: C.amber }}>8ft AP</span><span style={{ color: C.amber }}>11ft</span><span style={{ color: C.red }}>13ft HPL</span><span style={{ color: C.red }}>17ft+</span>
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "fog", label: "FOG", value: `${simVis.toFixed(1)}nm`, subtext: "SW Pass Visibility",
-                      scenario: fogScenario, live: !!fogData,
-                      slider: (
-                        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${C.border}` }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>Drag to simulate visibility</span>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: fogScenario.statusColor }}>{fogScenario.status}</span>
-                          </div>
-                          <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 9.95) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 0.3s ease" }} />
-                            {[2.0, 1.0, 0.5, 0.25].map((t, i) => (
-                              <div key={i} style={{ position: "absolute", left: `${((10 - t) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: i < 2 ? C.amber : C.red, opacity: 0.6 }} />
-                            ))}
-                          </div>
-                          <input type="range" min={0.05} max={10} step={0.05} value={10 - simVis + 0.05}
-                            onChange={e => { const inv = parseFloat(e.target.value); const v = Math.max(0.05, 10 - inv + 0.05); setSimVis(parseFloat(v.toFixed(2))); setFogScenario(buildFogScenario(parseFloat(v.toFixed(2)))); }}
-                            style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
-                            <span>10nm CLEAR</span><span style={{ color: C.amber }}>1.0</span><span style={{ color: C.amber }}>0.5</span><span style={{ color: C.red }}>ZERO-ZERO</span>
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "ice", label: "ICE", value: `${(simIce * 10).toFixed(0)}%`, subtext: "LMR / Ohio River",
-                      scenario: iceScenario, live: false,
-                      slider: (
-                        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${C.border}` }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>Drag to simulate ice coverage</span>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: iceScenario.statusColor }}>{iceScenario.status}</span>
-                          </div>
-                          <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(simIce / 10) * 100}%`, background: iceScenario.statusColor, transition: "width 1.2s ease" }} />
-                            {[4, 7].map((t, i) => <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />)}
-                          </div>
-                          <input type="range" min={0} max={10} step={0.1} value={simIce}
-                            onChange={e => { const v = parseFloat(e.target.value); setSimIce(v); setIceScenario(buildIceScenario(v)); }}
-                            style={{ width: "100%", accentColor: "#93c5fd", cursor: "pointer" }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
-                            <span>0%</span><span style={{ color: C.amber }}>10%</span><span style={{ color: C.amber }}>40%</span><span style={{ color: C.red }}>70%+</span>
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "hurricane", label: "HURRICANE", value: `${simStormDist}mi`, subtext: `SW Pass · Cat ${simStormCat}`,
-                      scenario: stormScenario, live: !!nhcData,
-                      slider: (
-                        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${C.border}` }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>Drag to simulate storm approach</span>
-                            <span style={{ fontFamily: C.mono, fontSize: 8, color: stormScenario.statusColor }}>{stormScenario.portCondition !== "NOMINAL" ? `PORT COND. ${stormScenario.portCondition}` : stormScenario.status}</span>
-                          </div>
-                          <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 950) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 0.3s ease" }} />
-                            <div style={{ position: "absolute", left: `${((1000 - 400) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.amber, opacity: 0.6 }} />
-                            <div style={{ position: "absolute", left: `${((1000 - 200) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.red, opacity: 0.6 }} />
-                          </div>
-                          <input type="range" min={0} max={950} step={10} value={1000 - simStormDist}
-                            onChange={e => { const v = 1000 - parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
-                            style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 2 }}>
-                            <span>1000mi</span><span style={{ color: C.amber }}>WHISKEY</span><span style={{ color: C.amber }}>X-RAY</span><span style={{ color: C.red }}>YANKEE</span><span style={{ color: C.red }}>ZULU</span>
-                          </div>
-                          <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
-                            {[0,1,2,3,4,5].map(cat => (
-                              <button key={cat} onClick={() => { setSimStormCat(cat); setStormScenario(buildHurricaneScenario(simStormDist, cat)); }}
-                                style={{ flex: 1, padding: "2px 0", borderRadius: 2, border: `1px solid ${simStormCat === cat ? "#a78bfa" : C.border}`, background: simStormCat === cat ? "#a78bfa22" : "transparent", color: simStormCat === cat ? "#a78bfa" : C.muted, fontFamily: C.mono, fontSize: 7, cursor: "pointer" }}>
-                                {cat === 0 ? "TS" : `C${cat}`}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ),
-                    },
-                  ].map(({ key, label, value, subtext, scenario, live, slider }, i, arr) => (
-                    <div key={key} style={{ borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                      {/* Compact header row — always visible */}
-                      <ThreatPanel
-                        label={label}
-                        value={value}
-                        subtext={subtext}
-                        scenario={scenario}
-                        expanded={expandedThreat === key}
-                        onClick={() => setExpandedThreat(expandedThreat === key ? null : key)}
-                        isLive={live}
-                      />
-                      {/* Expanded slider — shown when this threat is active */}
-                      {expandedThreat === key && slider}
-                    </div>
-                  ))}
+              {/* Instrument header bar */}
+              <div style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <PulsingDot color={C.teal} size={6} />
+                  <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.teal, letterSpacing: "0.1em" }}>
+                    LOWER MISSISSIPPI CORRIDOR
+                  </span>
+                  <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>· 4 threats monitored</span>
                 </div>
-                <div style={{ padding: "4px 14px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {[
                     { label: "FLOOD",     live: !!gaugeData },
                     { label: "FOG",       live: !!fogData },
@@ -2955,8 +2742,151 @@ export default function DeltaAgentDashboard() {
                 </div>
               </div>
 
-              {/* Slim context bar — decisions + threats + corridor in one line */}
-              <div className="context-bar" style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+              {/* Four instruments */}
+              <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0 }}>
+                {[
+                  {
+                    key: "flood",
+                    label: "RIVER STAGE",
+                    value: `${simGauge.toFixed(1)}ft`,
+                    source: "NOAA Carrollton Gauge · Station 8761927",
+                    consequence: "Triggers barge restriction, High Water Proclamation, levee protocols",
+                    scenario: floodScenario,
+                    live: !!gaugeData,
+                    slider: (
+                      <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>Adjust river stage</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: floodScenario.statusColor }}>{floodScenario.status}</span>
+                        </div>
+                        <GaugeBar value={simGauge} />
+                        <input type="range" min={0} max={20} step={0.1} value={simGauge}
+                          onChange={e => { const v = parseFloat(e.target.value); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); }}
+                          style={{ width: "100%", accentColor: C.teal, cursor: "pointer", marginTop: 6 }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
+                          <span style={{ color: "#93c5fd" }}>LOW</span><span style={{ color: C.amber }}>8ft AP</span><span style={{ color: C.amber }}>11ft</span><span style={{ color: C.red }}>13ft HPL</span><span style={{ color: C.red }}>17ft+</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "fog",
+                    label: "SW PASS VIS",
+                    value: `${simVis.toFixed(1)}nm`,
+                    source: "NDBC Buoy BURL1 · Southwest Pass 28.9°N",
+                    consequence: "Triggers one-way traffic, pilot suspension, mooring halt at dense fog",
+                    scenario: fogScenario,
+                    live: !!fogData,
+                    slider: (
+                      <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>Adjust visibility</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: fogScenario.statusColor }}>{fogScenario.status}</span>
+                        </div>
+                        <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
+                          <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 9.95) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 0.3s ease" }} />
+                          {[2.0, 1.0, 0.5, 0.25].map((t, i) => (
+                            <div key={i} style={{ position: "absolute", left: `${((10 - t) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: i < 2 ? C.amber : C.red, opacity: 0.6 }} />
+                          ))}
+                        </div>
+                        <input type="range" min={0.05} max={10} step={0.05} value={10 - simVis + 0.05}
+                          onChange={e => { const inv = parseFloat(e.target.value); const v = Math.max(0.05, 10 - inv + 0.05); setSimVis(parseFloat(v.toFixed(2))); setFogScenario(buildFogScenario(parseFloat(v.toFixed(2)))); }}
+                          style={{ width: "100%", accentColor: C.teal, cursor: "pointer" }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
+                          <span>10nm CLEAR</span><span style={{ color: C.amber }}>1.0</span><span style={{ color: C.amber }}>0.5</span><span style={{ color: C.red }}>ZERO-ZERO</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "ice",
+                    label: "ICE COVERAGE",
+                    value: `${(simIce * 10).toFixed(0)}%`,
+                    source: "LMR / Ohio River upstream · Simulated",
+                    consequence: "Triggers barge fleeting suspension, tug assist requirements",
+                    scenario: iceScenario,
+                    live: false,
+                    slider: (
+                      <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>Adjust ice coverage</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: iceScenario.statusColor }}>{iceScenario.status}</span>
+                        </div>
+                        <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
+                          <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(simIce / 10) * 100}%`, background: iceScenario.statusColor, transition: "width 1.2s ease" }} />
+                          {[4, 7].map((t, i) => <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />)}
+                        </div>
+                        <input type="range" min={0} max={10} step={0.1} value={simIce}
+                          onChange={e => { const v = parseFloat(e.target.value); setSimIce(v); setIceScenario(buildIceScenario(v)); }}
+                          style={{ width: "100%", accentColor: "#93c5fd", cursor: "pointer" }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
+                          <span>0%</span><span style={{ color: C.amber }}>10%</span><span style={{ color: C.amber }}>40%</span><span style={{ color: C.red }}>70%+</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "hurricane",
+                    label: "STORM TRACK",
+                    value: `${simStormDist}mi`,
+                    source: `NHC · SW Pass · Cat ${simStormCat}${nhcData ? " · LIVE" : ""}`,
+                    consequence: "Port Condition declarations, inbound traffic closure, mooring plan activation",
+                    scenario: stormScenario,
+                    live: !!nhcData,
+                    slider: (
+                      <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>Adjust storm distance</span>
+                          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: stormScenario.statusColor }}>
+                            {stormScenario.portCondition !== "NOMINAL" ? `PORT COND. ${stormScenario.portCondition}` : stormScenario.status}
+                          </span>
+                        </div>
+                        <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
+                          <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((1000 - simStormDist) / 950) * 100, 100)}%`, background: stormScenario.statusColor, transition: "width 0.3s ease" }} />
+                          <div style={{ position: "absolute", left: `${((1000 - 400) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.amber, opacity: 0.6 }} />
+                          <div style={{ position: "absolute", left: `${((1000 - 200) / 950) * 100}%`, top: 0, height: "100%", width: 1, background: C.red, opacity: 0.6 }} />
+                        </div>
+                        <input type="range" min={0} max={950} step={10} value={1000 - simStormDist}
+                          onChange={e => { const v = 1000 - parseFloat(e.target.value); setSimStormDist(v); setStormScenario(buildHurricaneScenario(v, simStormCat)); }}
+                          style={{ width: "100%", accentColor: "#a78bfa", cursor: "pointer" }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
+                          <span>1000mi</span><span style={{ color: C.amber }}>WHISKEY</span><span style={{ color: C.amber }}>X-RAY</span><span style={{ color: C.red }}>YANKEE</span><span style={{ color: C.red }}>ZULU</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
+                          {[0,1,2,3,4,5].map(cat => (
+                            <button key={cat} onClick={() => { setSimStormCat(cat); setStormScenario(buildHurricaneScenario(simStormDist, cat)); }}
+                              style={{ flex: 1, padding: "2px 0", borderRadius: 2, border: `1px solid ${simStormCat === cat ? "#a78bfa" : C.border}`, background: simStormCat === cat ? "#a78bfa22" : "transparent", color: simStormCat === cat ? "#a78bfa" : C.muted, fontFamily: C.mono, fontSize: 7, cursor: "pointer" }}>
+                              {cat === 0 ? "TS" : `C${cat}`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  },
+                ].map(({ key, label, value, source, consequence, scenario, live, slider }, i, arr) => (
+                  <div key={key} style={{ borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                    <InstrumentPanel
+                      label={label}
+                      value={value}
+                      source={source}
+                      consequence={consequence}
+                      scenario={scenario}
+                      live={live}
+                      expanded={expandedInstrument === key}
+                      onClick={() => setExpandedInstrument(expandedInstrument === key ? null : key)}
+                    />
+                    {expandedInstrument === key && slider}
+                  </div>
+                ))}
+              </div>
+            </div>{/* end instrument panel outer */}
+          </div>{/* end page-pad - instruments section */}
+
+          {/* Slim context bar + tabs wrapper */}
+          <div className="page-pad" style={{ padding: "0 28px", display: "flex", flexDirection: "column", gap: 8 }}>
+
+            {/* Slim context bar — decisions + corridor status */}
+            <div className="context-bar" style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
                 {/* Left: pending count */}
                 <div
                   onClick={() => pendingCount > 0 && navigateToTab("inbox")}
@@ -3456,7 +3386,6 @@ export default function DeltaAgentDashboard() {
             </div>
           </div>
         </div>
-      </div>
     </>
   );
 }
