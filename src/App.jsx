@@ -1236,6 +1236,8 @@ function getCostAnnotation(amount, disruptionType) {
 function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, resolved = false, cardState = "pending", onStateChange }) {
   const [expanded, setExpanded] = useState(false);
   const [exiting, setExiting]   = useState(false);
+  const [overrideStep, setOverrideStep] = useState("idle"); // idle | confirm | reason
+  const [overrideReason, setOverrideReason] = useState("");
   const severityColor = decision.severity === "critical" ? C.red : C.amber;
   const severityBg    = decision.severity === "critical" ? C.redFaint : C.amberFaint;
 
@@ -1246,9 +1248,23 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
     setState("executing");
   }
 
-  function handleOverride() {
+  function handleOverrideClick() {
+    if (overrideStep === "idle") {
+      setOverrideStep("confirm");
+    } else if (overrideStep === "confirm") {
+      setOverrideStep("reason");
+    }
+  }
+
+  function handleOverrideSubmit() {
     setState("override");
     onOverride(decision);
+    setOverrideStep("idle");
+  }
+
+  function handleOverrideCancel() {
+    setOverrideStep("idle");
+    setOverrideReason("");
   }
 
   // Called by ExecutionTicker when all steps complete
@@ -1261,6 +1277,14 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
   const borderColor = state === "executing" ? C.teal : state === "done" ? C.teal : severityColor;
   const bgColor     = state === "executing" ? C.tealFaint : state === "done" ? C.tealFaint : severityBg;
   const isCritical  = decision.severity === "critical" && state === "pending";
+
+  // Who gets notified on confirm — derived from decision agents
+  const recipients = [
+    decision.agents.includes("RW") && "River Warden",
+    decision.agents.includes("BM") && "Port Director",
+    decision.agents.includes("IS") && "CN/KCS Rail",
+    "Pilot Station",
+  ].filter(Boolean);
 
   return (
     <div style={{
@@ -1281,7 +1305,8 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-              <Badge color={state === "done" ? C.teal : severityColor}>{state === "done" ? "CONFIRMED" : decision.severity}</Badge>              {decision.disruptionType && (
+              <Badge color={state === "done" ? C.teal : severityColor}>{state === "done" ? "CONFIRMED" : decision.severity}</Badge>
+              {decision.disruptionType && (
                 <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: C.muted, background: `${C.muted}15`, border: `1px solid ${C.muted}33`, borderRadius: 3, padding: "1px 6px", letterSpacing: "0.06em" }}>
                   {decision.disruptionType} &middot; {decision.disruptionLabel}
                 </span>
@@ -1298,10 +1323,19 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 6, lineHeight: 1.3 }}>{decision.title}</div>
             <div style={{ fontSize: 12, color: C.body, lineHeight: 1.55 }}>{decision.reason}</div>
+
+            {/* Consequence if ignored — new */}
+            {state === "pending" && decision.costIfIgnored > 0 && (
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.red, opacity: 0.8 }}>
+                  ⚠ If ignored: ${decision.costIfIgnored.toLocaleString()} exposure + manual coordination required
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Cost strip with real-world annotation */}
+        {/* Cost strip */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: `${C.muted}08`, border: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.06em" }}>EST. COST AVOIDED</span>
@@ -1323,16 +1357,75 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
         </div>
 
         {state === "pending" && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleConfirm} style={{ flex: 1, padding: "11px 0", borderRadius: 6, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
-                CONFIRM &amp; DISPATCH
-            </button>
-            <button onClick={handleOverride} style={{ flex: 1, padding: "11px 0", borderRadius: 6, border: `1px solid ${C.amber}`, background: `${C.amber}10`, color: C.amber, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
-                OVERRIDE
-            </button>
-            <button onClick={() => setExpanded(!expanded)} style={{ padding: "11px 14px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-              {expanded ? "HIDE" : "DETAILS"}
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+
+            {/* Override reason input — shown when in reason step */}
+            {overrideStep === "reason" && (
+              <div style={{ padding: "12px 14px", borderRadius: 6, background: `${C.amber}0a`, border: `1px solid ${C.amber}44`, animation: "fadeSlideIn 0.2s ease" }}>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 8 }}>
+                  OVERRIDE REASON — required for MTSA audit log
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                  {["Conditions improving", "Already coordinating manually", "Pilot discretion", "Shore-side instruction"].map(r => (
+                    <button key={r} onClick={() => setOverrideReason(r)}
+                      style={{ padding: "3px 10px", borderRadius: 4, border: `1px solid ${overrideReason === r ? C.amber + "88" : C.border}`, background: overrideReason === r ? `${C.amber}18` : "transparent", color: overrideReason === r ? C.amber : C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer" }}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={handleOverrideCancel}
+                    style={{ padding: "7px 14px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer" }}>
+                    CANCEL
+                  </button>
+                  <button onClick={handleOverrideSubmit} disabled={!overrideReason}
+                    style={{ flex: 1, padding: "7px 0", borderRadius: 5, border: `1px solid ${overrideReason ? C.amber + "66" : C.border}`, background: overrideReason ? `${C.amber}15` : "transparent", color: overrideReason ? C.amber : C.muted, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", cursor: overrideReason ? "pointer" : "default" }}>
+                    CONFIRM OVERRIDE
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Main action row */}
+            {overrideStep !== "reason" && (
+              <div style={{ display: "flex", gap: 8 }}>
+                {/* CONFIRM — with recipient sub-label */}
+                <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 3 }}>
+                  <button onClick={handleConfirm}
+                    style={{ width: "100%", padding: "11px 0", borderRadius: 6, border: `1px solid ${C.teal}`, background: `${C.teal}20`, color: C.teal, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}>
+                    CONFIRM &amp; DISPATCH
+                  </button>
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, textAlign: "center" }}>
+                    SMS → {recipients.slice(0, 3).join(" · ")}{recipients.length > 3 ? ` + ${recipients.length - 3} more` : ""}
+                  </div>
+                </div>
+
+                {/* OVERRIDE — two-step, visually distinct */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+                  <button onClick={handleOverrideClick}
+                    style={{
+                      width: "100%", padding: "11px 0", borderRadius: 6,
+                      border: `1px solid ${overrideStep === "confirm" ? C.red + "88" : C.border}`,
+                      background: overrideStep === "confirm" ? `${C.red}12` : "transparent",
+                      color: overrideStep === "confirm" ? C.red : C.muted,
+                      fontFamily: C.mono, fontSize: overrideStep === "confirm" ? 11 : 12,
+                      fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}>
+                    {overrideStep === "confirm" ? "CONFIRM OVERRIDE?" : "OVERRIDE"}
+                  </button>
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, textAlign: "center" }}>
+                    {overrideStep === "confirm" ? "Click again to proceed" : "Manual coordination required"}
+                  </div>
+                </div>
+
+                {/* DETAILS */}
+                <button onClick={() => setExpanded(!expanded)}
+                  style={{ padding: "11px 14px", borderRadius: 6, border: `1px solid ${C.border}`, background: expanded ? `${C.teal}08` : "transparent", color: expanded ? C.teal : C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                  {expanded ? "HIDE" : `${decision.actions.length} ACTIONS`}
+                </button>
+              </div>
+            )}
           </div>
         )}
         {state === "executing" && (
@@ -1355,6 +1448,9 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
               <>
                 <div style={{ padding: "12px 14px", borderRadius: 6, border: `1px solid ${C.amber}44`, background: `${C.amber}0d` }}>
                   <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.amber, letterSpacing: "0.06em", marginBottom: 4 }}>OVERRIDE LOGGED — MANUAL ACTION REQUIRED</div>
+                  {overrideReason && (
+                    <div style={{ fontFamily: C.mono, fontSize: 9, color: C.amber, opacity: 0.8, marginBottom: 6 }}>Reason: {overrideReason}</div>
+                  )}
                   <div style={{ fontSize: 12, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>Your team must manually coordinate with Port Director, Pilot Station, and CN/KCS rail. Mark resolved when complete.</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     {["Port Director", "Pilot Station", "CN/KCS"].map(c => (
@@ -1366,8 +1462,7 @@ function DecisionCard({ decision, onConfirm, onOverride, onDismiss, onResolve, r
                   <div style={{ flex: 1, padding: "8px 12px", borderRadius: 5, background: `${C.red}08`, border: `1px solid ${C.red}22` }}>
                     <div style={{ fontFamily: C.mono, fontSize: 9, color: C.red }}>~45 min / 20 manual calls vs. 4.8s automated</div>
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); onResolve && onResolve(decision); }}
+                  <button onClick={e => { e.stopPropagation(); onResolve && onResolve(decision); }}
                     style={{ padding: "8px 16px", borderRadius: 5, border: `1px solid ${C.green}55`, background: `${C.green}12`, color: C.green, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", cursor: "pointer", whiteSpace: "nowrap" }}>
                     MARK RESOLVED ✓
                   </button>
