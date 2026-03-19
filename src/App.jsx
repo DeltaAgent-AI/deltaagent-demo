@@ -3131,28 +3131,121 @@ export default function DeltaAgentDashboard() {
             {/*    SYSTEM STATUS    */}
             {activeTab === "status" && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+                {/* DATA FEEDS — rebuilt with groups, prominent values, operational notes */}
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
-                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 16 }}>DATA FEEDS</div>
+
+                  {/* GROUP 1: Environmental */}
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.1em", marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${C.border}` }}>
+                    ENVIRONMENTAL
+                  </div>
+
                   {[
-                    { label: "NOAA Carrollton Gauge",           status: gaugeData ? "live" : "sim",                detail: gaugeData ? `${simGauge.toFixed(2)}ft live` : "Simulated — NOAA CO-OPS station 8761927" },
-                    { label: "NDBC BURL1 — SW Pass Visibility", status: fogData ? "live" : "sim",                  detail: fogData ? `${fogData.toFixed(2)}nm live` : "Simulated — NDBC buoy BURL1" },
-                    { label: "Corps Ice Index",                  status: "sim",                                      detail: "Simulated — Corps of Engineers (LMR ice rare)" },
-                    { label: "NHC Active Storms",               status: nhcData ? "live" : "sim",                  detail: nhcData ? "Live storm track active" : "Simulated — no active NHC advisories" },
-                    { label: "AIS Vessel Track",                status: aisData && !aisData.simulated ? "live" : "sim", detail: aisData && !aisData.simulated ? `${aisData.vessels?.length || 0} vessels   LMR corridor   aisstream.io` : "Simulated — add AISSTREAM_API_KEY to enable" },
-                    { label: "NWS Wind — KMSY",                 status: windData && !windData.simulated ? "live" : "sim", detail: windData ? `${windData.wind?.speedKnots}kt ${windData.wind?.directionCompass}   ${windData.wind?.status}` : "Simulated — api.weather.gov" },
-                    { label: "SMS Gateway (Twilio)",            status: "live",                                     detail: "Ready to dispatch — TWILIO_ENABLED=false (pending verification)" },
-                  ].map(({ label, status, detail }) => (
-                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 12, color: C.white }}>{label}</div>
-                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>{detail}</div>
+                    {
+                      label: "NOAA Carrollton Gauge",
+                      purpose: "River stage — triggers flood threshold alerts",
+                      value: `${simGauge.toFixed(1)}ft`,
+                      valueColor: floodScenario.status !== "NOMINAL" ? floodScenario.statusColor : C.teal,
+                      status: gaugeData ? "live" : "sim",
+                      badge: gaugeData ? "LIVE" : "SIMULATED",
+                    },
+                    {
+                      label: "NDBC BURL1 — SW Pass",
+                      purpose: "Visibility — triggers fog restriction decisions",
+                      value: `${simVis.toFixed(1)}nm`,
+                      valueColor: fogScenario.status !== "NOMINAL" ? fogScenario.statusColor : C.teal,
+                      status: fogData ? "live" : "sim",
+                      badge: fogData ? "LIVE" : "SIMULATED",
+                    },
+                    {
+                      label: "NWS Wind — KMSY",
+                      purpose: "Wind speed & direction — vessel speed restrictions above 25kt",
+                      value: windData ? `${windData.wind?.speedKnots}kt ${windData.wind?.directionCompass}` : "--",
+                      valueColor: windData?.wind?.status !== "NOMINAL" ? C.amber : C.teal,
+                      status: windData && !windData.simulated ? "live" : "sim",
+                      badge: windData && !windData.simulated ? "LIVE" : "SIMULATED",
+                    },
+                    {
+                      label: "NHC Active Storms",
+                      purpose: "Hurricane track — drives port condition declarations",
+                      value: nhcData ? `${simStormDist}mi` : "NONE ACTIVE",
+                      valueColor: nhcData ? stormScenario.statusColor : C.teal,
+                      status: nhcData ? "live" : "sim",
+                      badge: nhcData ? "LIVE" : "SIMULATED",
+                    },
+                    {
+                      label: "Corps Ice Index",
+                      purpose: "Ice coverage — barge fleeting and navigation restrictions",
+                      value: `${(simIce * 10).toFixed(0)}%`,
+                      valueColor: iceScenario.status !== "NOMINAL" ? iceScenario.statusColor : C.teal,
+                      status: "sim",
+                      badge: "SIMULATED",
+                    },
+                  ].map(({ label, purpose, value, valueColor, status, badge }) => (
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: C.white, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+                        <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{purpose}</div>
                       </div>
-                      <Badge color={status === "live" ? C.teal : C.muted} small>
-                        {status === "live" ? "LIVE" : "SIMULATED"}
-                      </Badge>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: valueColor, lineHeight: 1, marginBottom: 4 }}>{value}</div>
+                        <Badge color={status === "live" ? C.teal : C.muted} small>{badge}</Badge>
+                      </div>
                     </div>
                   ))}
+
+                  {/* GROUP 2: Operational */}
+                  <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.1em", margin: "14px 0 10px", paddingBottom: 6, borderBottom: `1px solid ${C.border}` }}>
+                    OPERATIONAL
+                  </div>
+
+                  {/* AIS */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: C.white, fontWeight: 600, marginBottom: 2 }}>AIS Vessel Track</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+                        Live vessel positions — berth sequencing and intermodal timing
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.teal, lineHeight: 1, marginBottom: 4 }}>
+                        {aisData && !aisData.simulated
+                          ? `${aisData.vessels?.length || 0} vessel${(aisData.vessels?.length || 0) !== 1 ? "s" : ""}`
+                          : aisData?.simulated
+                          ? "4 vessels"
+                          : "polling..."}
+                      </div>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4 }}>
+                        {aisData && !aisData.simulated
+                          ? "LMR corridor — aisstream.io"
+                          : "LMR corridor — simulated"}
+                      </div>
+                      <Badge color={aisData && !aisData.simulated ? C.teal : C.muted} small>
+                        {aisData && !aisData.simulated ? "LIVE" : "SIMULATED"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* SMS */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: C.white, fontWeight: 600, marginBottom: 2 }}>SMS Gateway (Twilio)</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+                        Alert dispatch — notifies Port Director, pilots, and rail on confirmation
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: C.amber, lineHeight: 1, marginBottom: 4 }}>PENDING</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, marginBottom: 4 }}>
+                        Carrier verification in progress
+                      </div>
+                      <Badge color={C.amber} small>ACTIVATING</Badge>
+                    </div>
+                  </div>
                 </div>
+
+                {/* AGENT NETWORK — unchanged */}
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 14 }}>AGENT NETWORK</div>
                   {Object.entries(AGENT_INFO).map(([code, ag]) => (
