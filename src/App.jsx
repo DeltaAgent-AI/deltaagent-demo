@@ -25,14 +25,11 @@ const C = {
 };
 
 //    DATA SOURCES                                                             
-const NOAA_URL = "/api/noaa";
-
-// NDBC BURL1 - Southwest Pass, LA (28.906N 89.429W)
-// Proxied via /api/fog to avoid CORS
+const NOAA_URL     = "/api/noaa";
 const NDBC_FOG_URL = "/api/fog";
-
-// NHC active storms - proxied via /api/hurricane
-const NHC_URL = "/api/hurricane";
+const NHC_URL      = "/api/hurricane";
+const AIS_URL      = "/api/ais";
+const WIND_URL     = "/api/wind";
 
 //    DISRUPTION TYPE DEFINITIONS                                              
 const DISRUPTION_TYPES = [
@@ -1879,6 +1876,9 @@ export default function DeltaAgentDashboard() {
   const [simStormCat, setSimStormCat]   = useState(2);
   const [stormScenario, setStormScenario] = useState(() => buildHurricaneScenario(1000, 2));
 
+  const [aisData, setAisData]       = useState(null);  // { vessels: [], simulated: bool }
+  const [windData, setWindData]     = useState(null);  // { wind: { speedKnots, directionCompass, status, color } }
+
   //    shared UI state   
   const [time, setTime]                   = useState(new Date());
   const [showBanner, setShowBanner]       = useState(true);
@@ -2239,6 +2239,30 @@ export default function DeltaAgentDashboard() {
     fetch(NHC_URL).then(r => r.json()).then(d => {
       if (d?.activeStorms?.length) setNhcData(d.activeStorms[0]);
     }).catch(() => {});
+  }, []);
+
+  // AIS vessel positions — poll every 90 seconds
+  useEffect(() => {
+    function fetchAIS() {
+      fetch(AIS_URL).then(r => r.json()).then(d => {
+        if (d?.ok) setAisData(d);
+      }).catch(() => {});
+    }
+    fetchAIS();
+    const t = setInterval(fetchAIS, 90 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Wind observations — poll every 5 minutes (NWS updates ~hourly)
+  useEffect(() => {
+    function fetchWind() {
+      fetch(WIND_URL).then(r => r.json()).then(d => {
+        if (d?.ok) setWindData(d);
+      }).catch(() => {});
+    }
+    fetchWind();
+    const t = setInterval(fetchWind, 5 * 60 * 1000);
+    return () => clearInterval(t);
   }, []);
 
   // Guided demo automation - walks through Algiers Point flood scenario
@@ -2733,10 +2757,12 @@ export default function DeltaAgentDashboard() {
                 </div>
                 <div style={{ padding: "4px 14px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
                   {[
-                    { label: "FLOOD", live: !!gaugeData },
-                    { label: "FOG",   live: !!fogData },
-                    { label: "ICE",   live: false },
+                    { label: "FLOOD",     live: !!gaugeData },
+                    { label: "FOG",       live: !!fogData },
+                    { label: "ICE",       live: false },
                     { label: "HURRICANE", live: !!nhcData },
+                    { label: "AIS",       live: !!(aisData && !aisData.simulated) },
+                    { label: "WIND",      live: !!(windData && !windData.simulated) },
                   ].map(({ label, live }) => (
                     <span key={label} style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
                       {label} {live ? "● LIVE" : "○ SIM"}
@@ -2839,10 +2865,21 @@ export default function DeltaAgentDashboard() {
                     {/* Live agent activity */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                       {[
-                        { agent: "RW", name: "River Warden", color: C.teal,   activity: `Carrollton Gauge polling — ${simGauge.toFixed(1)}ft`, status: floodScenario.status },
-                        { agent: "BM", name: "Berth Master", color: C.tealDim, activity: "Berth schedule nominal — MV Delta Voyager ETA 04:20", status: "NOMINAL" },
-                        { agent: "IS", name: "Intermodal Sync", color: "#818cf8", activity: "CN/KCS rail windows confirmed — 14 cars staged Yard 3", status: "NOMINAL" },
-                      ].map(({ agent, name, color, activity, status }) => (
+                        {
+                          agent: "RW", name: "River Warden", color: C.teal,
+                          activity: `Gauge: ${simGauge.toFixed(1)}ft   Vis: ${simVis.toFixed(1)}nm${windData ? `   Wind: ${windData.wind?.speedKnots}kt ${windData.wind?.directionCompass}` : "   Wind: loading..."}`,
+                        },
+                        {
+                          agent: "BM", name: "Berth Master", color: C.tealDim,
+                          activity: aisData?.vessels?.length
+                            ? `${aisData.vessels.length} vessels in LMR corridor${aisData.simulated ? " (sim)" : " — live AIS"}`
+                            : "AIS feed loading — MV Delta Voyager ETA 04:20 CST",
+                        },
+                        {
+                          agent: "IS", name: "Intermodal Sync", color: "#818cf8",
+                          activity: "CN/KCS rail windows confirmed — 14 intermodal cars staged Yard 3",
+                        },
+                      ].map(({ agent, name, color, activity }) => (
                         <div key={agent} style={{ padding: "12px 14px", borderRadius: 6, background: C.panel, border: `1px solid ${C.border}` }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                             <div style={{ width: 24, height: 24, borderRadius: 5, background: `${color}18`, border: `1px solid ${color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, flexShrink: 0 }}>{agent}</div>
@@ -3097,12 +3134,13 @@ export default function DeltaAgentDashboard() {
                 <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "16px 20px" }}>
                   <div style={{ fontFamily: C.mono, fontSize: 9, color: C.label, letterSpacing: "0.1em", marginBottom: 14 }}>DATA FEEDS</div>
                   {[
-                    { label: "NOAA Carrollton Gauge",           status: gaugeData ? "live" : "sim",  detail: gaugeData ? `${simGauge.toFixed(2)}ft live` : "Simulated — NOAA API proxied" },
-                    { label: "NDBC BURL1 — SW Pass Visibility", status: fogData ? "live" : "sim",    detail: fogData ? `${fogData.toFixed(2)}nm live` : "Simulated — NDBC buoy data" },
-                    { label: "Corps Ice Index",                  status: "sim",                        detail: "Simulated — Corps of Engineers RSS" },
-                    { label: "NHC Active Storms",               status: nhcData ? "live" : "sim",    detail: nhcData ? "Live storm track active" : "Simulated — no active storms" },
-                    { label: "AIS Vessel Track",                status: "live",                       detail: "MV Delta Voyager   SW Pass ETA 04:20 CST" },
-                    { label: "SMS Gateway (Twilio)",            status: "live",                       detail: "Ready to dispatch alerts" },
+                    { label: "NOAA Carrollton Gauge",           status: gaugeData ? "live" : "sim",                detail: gaugeData ? `${simGauge.toFixed(2)}ft live` : "Simulated — NOAA CO-OPS station 8761927" },
+                    { label: "NDBC BURL1 — SW Pass Visibility", status: fogData ? "live" : "sim",                  detail: fogData ? `${fogData.toFixed(2)}nm live` : "Simulated — NDBC buoy BURL1" },
+                    { label: "Corps Ice Index",                  status: "sim",                                      detail: "Simulated — Corps of Engineers (LMR ice rare)" },
+                    { label: "NHC Active Storms",               status: nhcData ? "live" : "sim",                  detail: nhcData ? "Live storm track active" : "Simulated — no active NHC advisories" },
+                    { label: "AIS Vessel Track",                status: aisData && !aisData.simulated ? "live" : "sim", detail: aisData && !aisData.simulated ? `${aisData.vessels?.length || 0} vessels   LMR corridor   aisstream.io` : "Simulated — add AISSTREAM_API_KEY to enable" },
+                    { label: "NWS Wind — KMSY",                 status: windData && !windData.simulated ? "live" : "sim", detail: windData ? `${windData.wind?.speedKnots}kt ${windData.wind?.directionCompass}   ${windData.wind?.status}` : "Simulated — api.weather.gov" },
+                    { label: "SMS Gateway (Twilio)",            status: "live",                                     detail: "Ready to dispatch — TWILIO_ENABLED=false (pending verification)" },
                   ].map(({ label, status, detail }) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <div>
