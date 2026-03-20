@@ -1778,17 +1778,17 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
         cursor: "pointer",
         background: expanded ? `${color}0d` : hovered ? `${color}06` : "transparent",
         transition: "background 0.15s ease",
-        minHeight: 90,
+        minHeight: 120,
       }}
     >
       {/* Top row: label left, live+chevron right */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <PulsingDot color={color} size={isNominal ? 5 : 7} />
-          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: isNominal ? C.label : color, letterSpacing: "0.1em" }}>{label}</span>
+          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: isNominal ? C.label : color, letterSpacing: "0.1em" }}>{label}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
+          <span style={{ fontFamily: C.mono, fontSize: 8, color: live ? C.teal : C.mutedLo }}>
             {live ? "● LIVE" : "○ SIM"}
           </span>
           <span style={{
@@ -1802,13 +1802,13 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
       </div>
 
       {/* Hero reading */}
-      <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color, lineHeight: 1, marginBottom: 5 }}>
+      <div style={{ fontFamily: C.mono, fontSize: 30, fontWeight: 700, color, lineHeight: 1, marginBottom: 6 }}>
         {value}
       </div>
 
       {/* Status */}
       <span style={{
-        fontFamily: C.mono, fontSize: 8, fontWeight: 700,
+        fontFamily: C.mono, fontSize: 9, fontWeight: 700,
         color: isNominal ? C.muted : color,
         letterSpacing: "0.06em",
       }}>
@@ -1816,7 +1816,7 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
       </span>
       {/* Updated ago — only for live feeds */}
       {live && updatedAgo && (
-        <div style={{ fontFamily: C.mono, fontSize: 7, color: C.mutedLo, marginTop: 3 }}>
+        <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, marginTop: 3 }}>
           updated {updatedAgo}
         </div>
       )}
@@ -2645,7 +2645,7 @@ export default function DeltaAgentDashboard() {
         <div style={{ position: "fixed", inset: 0, backgroundImage: `linear-gradient(${C.border}44 1px,transparent 1px),linear-gradient(90deg,${C.border}44 1px,transparent 1px)`, backgroundSize: "40px 40px", pointerEvents: "none", zIndex: 0, opacity: 0.6 }} />
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 100, background: `linear-gradient(to bottom,transparent,${C.teal}05,transparent)`, pointerEvents: "none", zIndex: 1, animation: "scanline 10s linear infinite" }} />
 
-        <div style={{ position: "relative", zIndex: 2, paddingBottom: 40 }}>
+        <div style={{ position: "relative", zIndex: 2, paddingBottom: 40, maxWidth: 1400, margin: "0 auto" }}>
           {/*    HEADER    */}
           <header className="header-pad" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 28px", borderBottom: `1px solid ${C.border}`, background: `${C.panel}f0`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2660,26 +2660,12 @@ export default function DeltaAgentDashboard() {
                   OPERATIONS COMMAND BETA
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
-                <CredentialChip
-                  label="TWIC"
-                  color={C.teal}
-                  title="TWIC-Cleared Founders"
-                  detail="Transportation Worker Identification Credential — federal TSA background clearance required for unescorted access to all US maritime terminals and port facilities."
-                />
-                <CredentialChip
-                  label="MTSA"
-                  color={C.tealDim}
-                  title="MTSA Aligned"
-                  detail="Maritime Transportation Security Act — all agent decision logs, dispatch records, and override audits are structured for MTSA compliance and Coast Guard record-keeping."
-                />
-              </div>
             </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 onClick={handleReset}
                 style={{ padding: "5px 12px", borderRadius: 5, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, fontFamily: C.mono, fontSize: 9, cursor: "pointer", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ fontSize: 11 }}>↺</span> NEW SCENARIO
+                <span style={{ fontSize: 11 }}>↺</span> RESET CORRIDOR
               </button>
               <div onClick={() => pendingCount > 0 && navigateToTab("inbox")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: pendingCount > 0 ? `${pendingCountColor}18` : `${C.teal}10`, border: `1px solid ${pendingCount > 0 ? pendingCountColor + "55" : C.teal + "33"}`, animation: pendingCount > 0 ? "pulseGlow 2s ease-in-out infinite" : "none", cursor: pendingCount > 0 ? "pointer" : "default" }}>
                 <PulsingDot color={pendingCount > 0 ? pendingCountColor : C.teal} size={7} />
@@ -2711,7 +2697,7 @@ export default function DeltaAgentDashboard() {
             <div style={{ borderBottom: `1px solid ${C.border}`, background: `${C.panel}cc`, padding: "5px 28px", display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <PulsingDot color={C.teal} size={5} />
-                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em" }}>LMR CORRIDOR</span>
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.08em" }}>LMR CORRIDOR</span>
               </div>
               {[
                 { label: "Carrollton", value: `${simGauge.toFixed(1)}ft`, color: floodScenario.status !== "NOMINAL" ? floodScenario.statusColor : C.teal },
@@ -2720,12 +2706,12 @@ export default function DeltaAgentDashboard() {
                 windData?.wind?.speedKnots != null && { label: "Wind", value: `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}`, color: windData.wind.speedKnots >= 25 ? C.amber : C.teal },
               ].filter(Boolean).map(({ label, value, color }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>{label}</span>
-                  <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color }}>{value}</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{label}</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color }}>{value}</span>
                 </div>
               ))}
               {gaugeAgo && gaugeAgo !== "--" && (
-                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, marginLeft: "auto" }}>
+                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.mutedLo, marginLeft: "auto" }}>
                   updated {gaugeAgo}
                 </span>
               )}
@@ -3011,10 +2997,10 @@ export default function DeltaAgentDashboard() {
                     {/* Status line */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
                       <PulsingDot color={C.teal} size={8} />
-                      <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>
                         MONITORING 3 THREATS — ALL NOMINAL
                       </span>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: C.label }}>
+                      <span style={{ fontFamily: C.mono, fontSize: 12, color: C.label }}>
                         · {sessionSavings.length > 0
                           ? `Last event actioned ${sessionSavings[sessionSavings.length - 1]?.time}. Agents watching for new threshold crossings.`
                           : "Adjust any instrument above to simulate a disruption event."}
@@ -3057,8 +3043,8 @@ export default function DeltaAgentDashboard() {
                         }}>
                           <div style={{ width: 22, height: 22, borderRadius: 4, background: `${color}18`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 8, fontWeight: 700, color, flexShrink: 0, marginTop: 1 }}>{agent}</div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, letterSpacing: "0.04em", marginBottom: 2 }}>{action}</div>
-                            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{detail}</div>
+                            <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.04em", marginBottom: 3 }}>{action}</div>
+                            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.body }}>{detail}</div>
                           </div>
                           <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, flexShrink: 0 }}>
                             {new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" })}
