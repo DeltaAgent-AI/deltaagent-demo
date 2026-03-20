@@ -1784,8 +1784,8 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
       {/* Top row: label left, live+chevron right */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <PulsingDot color={color} size={5} />
-          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: C.label, letterSpacing: "0.1em" }}>{label}</span>
+          <PulsingDot color={color} size={isNominal ? 5 : 7} />
+          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: isNominal ? C.label : color, letterSpacing: "0.1em" }}>{label}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
@@ -2061,6 +2061,7 @@ export default function DeltaAgentDashboard() {
   //    All four threat simulators run simultaneously   
   const [gaugeData, setGaugeData]   = useState(null);
   const [lastGaugeUpdate, setLastGaugeUpdate] = useState(null);
+  const [lastFogUpdate, setLastFogUpdate]     = useState(null);
   const [lastAisUpdate, setLastAisUpdate]     = useState(null);
   const [simGauge, setSimGauge]     = useState(4.4);
   const [floodScenario, setFloodScenario] = useState(() => buildFloodScenario(4.4));
@@ -2350,6 +2351,7 @@ export default function DeltaAgentDashboard() {
 
   // Live "updated Xs ago" counters for each feed
   const gaugeAgo = useAgo(lastGaugeUpdate);
+  const fogAgo   = useAgo(lastFogUpdate);
   const aisAgo   = useAgo(lastAisUpdate);
   const hasCritical = allStatuses.some(s => s.status === "CRITICAL");
   const hasElevated = allStatuses.some(s => s.status === "ELEVATED");
@@ -2392,6 +2394,7 @@ export default function DeltaAgentDashboard() {
         setFogData(vis);
         setSimVis(vis);
         setFogScenario(buildFogScenario(vis));
+        setLastFogUpdate(Date.now());
       }
     }).catch(() => {});
   }, []);
@@ -2827,7 +2830,7 @@ export default function DeltaAgentDashboard() {
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: windData.wind?.speedKnots >= 25 ? C.amber : C.teal }}>
-                                {windData.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : "CALM"}
+                                {windData.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : "0.0kt CALM"}
                               </span>
                               <span style={{ fontFamily: C.mono, fontSize: 7, color: windData.simulated ? C.mutedLo : C.teal }}>
                                 {windData.simulated ? "○ SIM" : "● LIVE"}
@@ -2840,7 +2843,7 @@ export default function DeltaAgentDashboard() {
                   },
                   {
                     key: "fog",
-                    updatedAgo: fogData ? gaugeAgo : null,
+                    updatedAgo: fogData ? fogAgo : null,
                     value: `${simVis.toFixed(1)}nm`,
                     source: "NDBC Buoy BURL1 · Southwest Pass 28.9°N",
                     consequence: "Triggers one-way traffic, pilot suspension, mooring halt at dense fog",
@@ -3028,7 +3031,7 @@ export default function DeltaAgentDashboard() {
                       {[
                         {
                           agent: "RW", name: "River Warden", color: C.teal,
-                          activity: `Gauge: ${simGauge.toFixed(1)}ft   Vis: ${simVis.toFixed(1)}nm` + (windData?.wind?.speedKnots != null ? `   Wind: ${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "   Wind: calm" : ""),
+                          activity: `Gauge: ${simGauge.toFixed(1)}ft   Vis: ${simVis.toFixed(1)}nm` + (windData?.wind?.speedKnots != null ? `   Wind: ${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "   Wind: 0.0kt CALM" : ""),
                         },
                         {
                           agent: "BM", name: "Berth Master", color: C.tealDim,
@@ -3331,7 +3334,7 @@ export default function DeltaAgentDashboard() {
                     {
                       label: "NWS Wind — KMSY",
                       purpose: "Wind speed & direction — vessel speed restrictions above 25kt",
-                      value: windData?.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "CALM" : "--",
+                      value: windData?.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "0.0kt CALM" : "--",
                       valueColor: windData?.wind?.status !== "NOMINAL" ? C.amber : C.teal,
                       status: windData && !windData.simulated ? "live" : "sim",
                       badge: windData && !windData.simulated ? "LIVE" : "SIMULATED",
