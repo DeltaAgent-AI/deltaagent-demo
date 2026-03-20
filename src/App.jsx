@@ -557,7 +557,7 @@ const AGENT_INFO = {
     name: "River Warden",
     color: C.teal,
     role: "Environmental monitoring",
-    description: "Watches NOAA gauge data, visibility, ice index, and NHC storm tracks. Triggers threshold alerts and classifies disruption severity.",
+    description: "Watches NOAA gauge data, SW Pass visibility, wind, and NHC storm tracks. Triggers threshold alerts and classifies disruption severity.",
   },
   BM: {
     name: "Berth Master",
@@ -3041,7 +3041,7 @@ export default function DeltaAgentDashboard() {
                           background: i % 2 === 0 ? `${C.muted}04` : "transparent",
                           borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
                         }}>
-                          <div style={{ width: 22, height: 22, borderRadius: 4, background: `${color}18`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 8, fontWeight: 700, color, flexShrink: 0, marginTop: 1 }}>{agent}</div>
+                          <AgentBadge code={agent} />
                           <div style={{ flex: 1 }}>
                             <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.04em", marginBottom: 3 }}>{action}</div>
                             <div style={{ fontFamily: C.mono, fontSize: 10, color: C.body }}>{detail}</div>
