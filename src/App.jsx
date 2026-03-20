@@ -2656,40 +2656,8 @@ export default function DeltaAgentDashboard() {
               </svg>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em" }}>DELTAAGENT<span style={{ color: C.teal }}> AI</span></div>
-                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.08em" }}>
-                  {gaugeData || fogData ? (
-                    <span>
-                      <span style={{ color: floodScenario.status !== "NOMINAL" ? floodScenario.statusColor : C.teal }}>
-                        {simGauge.toFixed(1)}ft
-                      </span>
-                      <span style={{ color: C.mutedLo }}> · </span>
-                      <span style={{ color: fogScenario.status !== "NOMINAL" ? fogScenario.statusColor : C.teal }}>
-                        {simVis.toFixed(1)}nm
-                      </span>
-                      {aisData?.vessels?.length > 0 && (
-                        <>
-                          <span style={{ color: C.mutedLo }}> · </span>
-                          <span style={{ color: C.teal }}>{aisData.vessels.length} vessel{aisData.vessels.length !== 1 ? "s" : ""}</span>
-                        </>
-                      )}
-                      {windData?.wind?.speedKnots != null && (
-                        <>
-                          <span style={{ color: C.mutedLo }}> · </span>
-                          <span style={{ color: windData.wind.speedKnots >= 25 ? C.amber : C.teal }}>
-                            {windData.wind.speedKnots}kt {windData.wind.directionCompass}
-                          </span>
-                        </>
-                      )}
-                      {gaugeAgo && gaugeAgo !== "--" && (
-                        <>
-                          <span style={{ color: C.mutedLo }}> · </span>
-                          <span style={{ color: C.mutedLo }}>updated {gaugeAgo}</span>
-                        </>
-                      )}
-                    </span>
-                  ) : (
-                    <span style={{ letterSpacing: "0.12em" }}>OPERATIONS COMMAND BETA</span>
-                  )}
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>
+                  OPERATIONS COMMAND BETA
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
@@ -2737,6 +2705,32 @@ export default function DeltaAgentDashboard() {
               </div>
             </div>
           </header>
+
+          {/* LIVE CORRIDOR STATUS STRIP */}
+          {(gaugeData || fogData) && (
+            <div style={{ borderBottom: `1px solid ${C.border}`, background: `${C.panel}cc`, padding: "5px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <PulsingDot color={C.teal} size={5} />
+                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted, letterSpacing: "0.08em" }}>LMR CORRIDOR</span>
+              </div>
+              {[
+                { label: "Carrollton", value: `${simGauge.toFixed(1)}ft`, color: floodScenario.status !== "NOMINAL" ? floodScenario.statusColor : C.teal },
+                { label: "SW Pass", value: `${simVis.toFixed(1)}nm`, color: fogScenario.status !== "NOMINAL" ? fogScenario.statusColor : C.teal },
+                aisData?.vessels?.length > 0 && { label: "Vessels", value: `${aisData.vessels.length} tracked`, color: C.teal },
+                windData?.wind?.speedKnots != null && { label: "Wind", value: `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}`, color: windData.wind.speedKnots >= 25 ? C.amber : C.teal },
+              ].filter(Boolean).map(({ label, value, color }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ fontFamily: C.mono, fontSize: 8, color: C.muted }}>{label}</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color }}>{value}</span>
+                </div>
+              ))}
+              {gaugeAgo && gaugeAgo !== "--" && (
+                <span style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, marginLeft: "auto" }}>
+                  updated {gaugeAgo}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* DISPATCH BANNER — fires on CONFIRM & DISPATCH, fades after 4s */}
           {dispatchBanner && (
@@ -2843,6 +2837,7 @@ export default function DeltaAgentDashboard() {
                   },
                   {
                     key: "fog",
+                    label: "SW PASS VIS",
                     updatedAgo: fogData ? fogAgo : null,
                     value: `${simVis.toFixed(1)}nm`,
                     source: "NDBC Buoy BURL1 · Southwest Pass 28.9°N",
@@ -2874,8 +2869,8 @@ export default function DeltaAgentDashboard() {
                     key: "hurricane",
                     label: "STORM TRACK",
                     updatedAgo: null,
-                    value: `${simStormDist}mi`,
-                    source: `NHC · SW Pass · Cat ${simStormCat}${nhcData ? " · LIVE" : ""}`,
+                    value: nhcData ? `${simStormDist}mi` : "NO STORMS",
+                    source: `NHC Atlantic/Gulf · SW Pass reference${nhcData ? ` · Cat ${simStormCat}` : ""}`,
                     consequence: "Port Condition declarations, inbound traffic closure, mooring plan activation",
                     scenario: stormScenario,
                     live: !!nhcData,
@@ -3022,46 +3017,52 @@ export default function DeltaAgentDashboard() {
                       <span style={{ fontFamily: C.mono, fontSize: 11, color: C.label }}>
                         · {sessionSavings.length > 0
                           ? `Last event actioned ${sessionSavings[sessionSavings.length - 1]?.time}. Agents watching for new threshold crossings.`
-                          : "Select a scenario or adjust any simulator to begin."}
+                          : "Adjust any instrument above to simulate a disruption event."}
                       </span>
                     </div>
 
-                    {/* Live agent activity */}
-                    <div className="agent-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    {/* Live agent feed — single column, log style */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
                       {[
                         {
-                          agent: "RW", name: "River Warden", color: C.teal,
-                          activity: `Gauge: ${simGauge.toFixed(1)}ft   Vis: ${simVis.toFixed(1)}nm` + (windData?.wind?.speedKnots != null ? `   Wind: ${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "   Wind: 0.0kt CALM" : ""),
+                          agent: "RW", color: C.teal,
+                          action: "MONITORING: Environmental conditions polled",
+                          detail: `Carrollton Gauge ${simGauge.toFixed(1)}ft · SW Pass ${simVis.toFixed(1)}nm · Wind ${windData?.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : "calm"} · All nominal`,
                         },
                         {
-                          agent: "BM", name: "Berth Master", color: C.tealDim,
-                          activity: (() => {
+                          agent: "BM", color: C.tealDim,
+                          action: "MONITORING: AIS vessel traffic updated",
+                          detail: (() => {
                             const vessels = aisData?.vessels || [];
-                            if (vessels.length === 0) return "AIS feed loading — polling LMR corridor";
-                            // Find most interesting vessel — moving, named, highest SOG
+                            if (vessels.length === 0) return "Polling LMR corridor bounding box — no vessels yet";
                             const moving = vessels.filter(v => v.sog > 0.5 && v.name && !v.name.startsWith("VESSEL"));
-                            const lead = moving.sort((a,b) => b.sog - a.sog)[0] || vessels[0];
+                            const lead = (moving.sort((a,b) => b.sog - a.sog)[0]) || vessels[0];
                             const name = lead?.name || "UNKNOWN";
                             const sog = lead?.sog?.toFixed(1) || "0.0";
-                            const dest = lead?.destination ? ` — ${lead.destination}` : "";
-                            const total = vessels.length;
-                            return `${name} — ${sog}kt${dest}   +${total - 1} vessel${total !== 2 ? "s" : ""} in corridor${aisData?.simulated ? " (sim)" : " — live AIS"}`;
+                            const dest = lead?.destination ? `  ETA ${lead.destination}` : "";
+                            return `${name}   ${sog}kt${dest}   ${vessels.length} vessel${vessels.length !== 1 ? "s" : ""} in corridor${aisData?.simulated ? " (simulated)" : " · live AIS"}`;
                           })(),
                         },
                         {
-                          agent: "IS", name: "Intermodal Sync", color: "#818cf8",
-                          activity: "CN/KCS rail windows confirmed — 14 intermodal cars staged Yard 3",
+                          agent: "IS", color: "#818cf8",
+                          action: "MONITORING: CN/KCS intermodal schedule confirmed",
+                          detail: "14 intermodal cars staged Yard 3 · On schedule · No rail restrictions active",
                         },
-                      ].map(({ agent, name, color, activity }) => (
-                        <div key={agent} style={{ padding: "12px 14px", borderRadius: 6, background: C.panel, border: `1px solid ${C.border}` }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                            <div style={{ width: 24, height: 24, borderRadius: 5, background: `${color}18`, border: `1px solid ${color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, flexShrink: 0 }}>{agent}</div>
-                            <div>
-                              <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color }}>{name}</div>
-                              <div style={{ fontFamily: C.mono, fontSize: 8, color: C.teal }}>● MONITORING</div>
-                            </div>
+                      ].map(({ agent, color, action, detail }, i, arr) => (
+                        <div key={agent} style={{
+                          display: "flex", alignItems: "flex-start", gap: 12,
+                          padding: "10px 16px",
+                          background: i % 2 === 0 ? `${C.muted}04` : "transparent",
+                          borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
+                        }}>
+                          <div style={{ width: 22, height: 22, borderRadius: 4, background: `${color}18`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.mono, fontSize: 8, fontWeight: 700, color, flexShrink: 0, marginTop: 1 }}>{agent}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color, letterSpacing: "0.04em", marginBottom: 2 }}>{action}</div>
+                            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body }}>{detail}</div>
                           </div>
-                          <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body, lineHeight: 1.5 }}>{activity}</div>
+                          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, flexShrink: 0 }}>
+                            {new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" })}
+                          </div>
                         </div>
                       ))}
                     </div>
