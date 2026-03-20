@@ -117,7 +117,7 @@ function buildFloodScenario(ft) {
       id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "CONSTRUCTION HALT",
       title: "PREPARE - Halt Construction Near Levees",
-      reason: "Stage at " + ft.toFixed(1) + "ft and rising toward flood stage. Soil saturation risk escalating. Pre-position halt orders for all sites within 1,500ft of levee.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft and rising toward Corps critical stage. Soil saturation risk escalating at East Jefferson levee system. Pre-position halt orders for all construction within 1,500ft of levee crown.",
       costAvoided: 22000, costIfIgnored: 22000, advanceWarning: "2h 10m",
       agents: ["RW"],
       actions: ["Pre-position halt orders for levee-adjacent construction sites", "Notify Levee District monitoring teams", "Flag for Port Director review - halt imminent"],
@@ -174,7 +174,7 @@ function buildFloodScenario(ft) {
       id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "DREDGING PRIORITY",
       title: "SCHEDULE - Priority Dredging at Critical Berths",
-      reason: "Rising stage at " + ft.toFixed(1) + "ft increasing siltation risk at berths. Schedule dredging priority to maintain 50ft draft for Post-Panamax vessels before channel shoaling occurs.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — rising river accelerating siltation at Napoleon Avenue and Globalplex berths. Dredging required to maintain 50ft controlling draft for Post-Panamax vessels before channel shoals.",
       costAvoided: 16000, costIfIgnored: 16000, advanceWarning: "24h",
       agents: ["BM", "IS"],
       actions: ["Schedule priority dredging at Berths 2 and 4 - Post-Panamax draft maintenance", "Coordinate with dredging contractors - Weeks Marine and Great Lakes Dredge", "Issue berth depth advisory to vessel agents", "Flag for Port Director review - dredging authorization required"],
@@ -193,7 +193,7 @@ function buildFloodScenario(ft) {
       id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "DRAFT RESTRICTION",
       title: "ISSUE - Draft Restrictions for Inbound Vessels",
-      reason: "Low water at " + ft.toFixed(1) + "ft reduces controlling draft. Vessels may only load to 45ft draft instead of 50ft - costing millions in lost cargo revenue per ship.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — Southwest Pass controlling draft restricted. Vessels loading at Baton Rouge and Reserve must reduce to 45ft draft instead of 50ft, costing millions in lost cargo revenue per ship.",
       costAvoided: 18000, costIfIgnored: 18000, advanceWarning: "24h",
       agents: ["RW", "BM", "IS"],
       actions: ["Issue draft restriction notices to all inbound vessels and agents", "Notify shipping lines - maximum draft reduced to 45ft at Southwest Pass", "Coordinate with dredging contractors - priority berths identified", "Update Port NOLA bulletin - draft restriction effective immediately"],
@@ -266,7 +266,7 @@ function buildFogScenario(visNm) {
       id: `fog-${fogBandKey}-d2`, severity: "critical",
       disruptionType: "FOG", disruptionLabel: "ALLISION RISK",
       title: "PROHIBIT - No Vessel May Leave or Approach Wharves",
-      reason: "Sub-0.25nm visibility creates total disorientation risk. A 30-second radar or GPS outage could cause allision with bridge pier or levee grounding.",
+      reason: "KMSY visibility 0.20nm — Zero-Zero conditions. A 30-second radar or GPS outage at Huey P. Long Bridge or Crescent City Connection causes catastrophic allision risk. Every vessel stays put.",
       costAvoided: 52000, costIfIgnored: 52000, advanceWarning: "IMMEDIATE",
       agents: ["BM", "IS"],
       actions: ["Prohibit all wharf approaches and departures - allision risk critical", "Notify all terminal berth crews - stand down immediately", "22 drayage trucks diverted - gate closure SMS dispatched via Twilio", "MTSA emergency log entry created - Coast Guard Sector NOLA notified"],
@@ -371,7 +371,7 @@ function buildIceScenario(iceIndex) {
       id: `ice-${iceBandKey}-d2`, severity: "critical",
       disruptionType: "ICE", disruptionLabel: "LOGISTICS FREEZE",
       title: "SUSPEND - All Land-Side Operations",
-      reason: "Ships cannot move. Port is now a warehouse that cannot be emptied. Rail and trucking must halt to prevent land-side gridlock on surface streets.",
+      reason: "KMSY visibility at zero-zero. Port NOLA Napoleon Avenue Wharf and Globalplex effectively sealed. CN/KCS interchange halted — intermodal yard backing up. Surface street gridlock on Tchoupitoulas and Peters imminent if truck gates stay open.",
       costAvoided: 54000, costIfIgnored: 54000, advanceWarning: "IMMEDIATE",
       agents: ["BM", "IS"],
       actions: ["Shut terminal truck gates - prevent surface street gridlock", "Halt CN/KCS rail - cars staged at inland yards", "Terminal inventory freeze - no new cargo movement", "Notify all shipping agents - port closed until ice clears"],
@@ -1110,6 +1110,23 @@ function ExecutionTicker({ decision, alreadyDone = false, onDone }) {
 }
 
 // Hoisted so CountdownTimer can use it outside the dashboard component
+// Returns "Xs ago" / "Xm ago" string that ticks every second
+function useAgo(timestamp) {
+  const [ago, setAgo] = useState("--");
+  useEffect(() => {
+    if (!timestamp) return;
+    function update() {
+      const s = Math.floor((Date.now() - timestamp) / 1000);
+      if (s < 60)  setAgo(`${s}s ago`);
+      else         setAgo(`${Math.floor(s / 60)}m ago`);
+    }
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [timestamp]);
+  return ago;
+}
+
 function warningToMinutes(w) {
   if (!w || w === "IMMEDIATE") return 0;
   const h = w.match(/(\d+)h/);
@@ -1745,9 +1762,8 @@ function RecordDrawer({ record, onClose, onViewLog }) {
   );
 }
 
-// InstrumentPanel — the new flight-deck style instrument replacing ThreatPanel
-// Shows a prominent live reading with source info and consequence on click
-function InstrumentPanel({ label, value, source, consequence, scenario, live, expanded, onClick }) {
+// InstrumentPanel — flight-deck style instrument
+function InstrumentPanel({ label, value, source, consequence, scenario, live, expanded, onClick, updatedAgo }) {
   const [hovered, setHovered] = useState(false);
   const color = scenario.statusColor;
   const isNominal = scenario.status === "NOMINAL";
@@ -1758,24 +1774,25 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        padding: "14px 16px",
+        padding: "12px 16px",
         cursor: "pointer",
         background: expanded ? `${color}0d` : hovered ? `${color}06` : "transparent",
         transition: "background 0.15s ease",
+        minHeight: 90,
       }}
     >
-      {/* Top row: label + live badge + chevron */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* Top row: label left, live+chevron right */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <PulsingDot color={color} size={5} />
-          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: C.label, letterSpacing: "0.1em" }}>{label}</span>
+          <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: C.label, letterSpacing: "0.1em" }}>{label}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
             {live ? "● LIVE" : "○ SIM"}
           </span>
           <span style={{
-            fontFamily: C.mono, fontSize: 9,
+            fontFamily: C.mono, fontSize: 8,
             color: hovered || expanded ? color : C.muted,
             display: "inline-block",
             transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
@@ -1784,25 +1801,32 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
         </div>
       </div>
 
-      {/* The reading — hero element */}
-      <LiveValue value={value} isLive={live || true} fontSize={22} color={color} />
-
-      {/* Status badge below reading */}
-      <div style={{ marginTop: 6 }}>
-        <span style={{
-          fontFamily: C.mono, fontSize: 8, fontWeight: 700,
-          color: isNominal ? C.muted : color,
-          letterSpacing: "0.06em",
-        }}>
-          {scenario.status}
-        </span>
+      {/* Hero reading */}
+      <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color, lineHeight: 1, marginBottom: 5 }}>
+        {value}
       </div>
 
-      {/* Source + consequence — shown when expanded */}
+      {/* Status */}
+      <span style={{
+        fontFamily: C.mono, fontSize: 8, fontWeight: 700,
+        color: isNominal ? C.muted : color,
+        letterSpacing: "0.06em",
+      }}>
+        {scenario.status}
+      </span>
+      {/* Updated ago — only for live feeds */}
+      {live && updatedAgo && (
+        <div style={{ fontFamily: C.mono, fontSize: 7, color: C.mutedLo, marginTop: 3 }}>
+          updated {updatedAgo}
+        </div>
+      )}
+
+      {/* Expanded: source + consequence + slider hint */}
       {expanded && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${color}22`, animation: "fadeSlideIn 0.2s ease" }}>
-          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, marginBottom: 4 }}>{source}</div>
-          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.body, lineHeight: 1.55 }}>{consequence}</div>
+          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, marginBottom: 3 }}>{source}</div>
+          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.body, lineHeight: 1.55, marginBottom: 6 }}>{consequence}</div>
+          <div style={{ fontFamily: C.mono, fontSize: 7, color: C.muted }}>↓ Drag slider below to adjust</div>
         </div>
       )}
     </div>
@@ -2036,15 +2060,14 @@ function ImpactStatCard({ label, value, color, sub, methodology, source }) {
 export default function DeltaAgentDashboard() {
   //    All four threat simulators run simultaneously   
   const [gaugeData, setGaugeData]   = useState(null);
+  const [lastGaugeUpdate, setLastGaugeUpdate] = useState(null);
+  const [lastAisUpdate, setLastAisUpdate]     = useState(null);
   const [simGauge, setSimGauge]     = useState(4.4);
   const [floodScenario, setFloodScenario] = useState(() => buildFloodScenario(4.4));
 
   const [fogData, setFogData]       = useState(null);
   const [simVis, setSimVis]         = useState(8.0);
   const [fogScenario, setFogScenario] = useState(() => buildFogScenario(8.0));
-
-  const [simIce, setSimIce]         = useState(0);
-  const [iceScenario, setIceScenario] = useState(() => buildIceScenario(0));
 
   const [nhcData, setNhcData]       = useState(null);
   const [simStormDist, setSimStormDist] = useState(1000);
@@ -2059,6 +2082,7 @@ export default function DeltaAgentDashboard() {
   const [expandedInstrument, setExpandedInstrument] = useState(null); // which instrument panel is expanded
   const [smsQueue, setSmsQueue]           = useState([]);
   const [overrideQueue, setOverrideQueue] = useState([]);
+  const [dispatchBanner, setDispatchBanner] = useState(null); // { title, contacts, ms }
   const [activeTab, setActiveTab]         = useState("inbox");
   const [confirmedIds, setConfirmedIds]   = useState(new Set());
   const [overriddenIds, setOverriddenIds] = useState(new Set());
@@ -2168,7 +2192,6 @@ export default function DeltaAgentDashboard() {
   }, [floodScenario.scenarioKey]);
 
   const FOG_BAND_ORDER   = ["nm", "ca", "rs", "cr", "zz"];
-  const ICE_BAND_ORDER   = ["nm", "tr", "im", "hv", "sv"];
   const STORM_BAND_ORDER = ["nm", "wh", "xr", "ya", "zu"];
 
   function bandIndex(order, key) { return order.indexOf(key); }
@@ -2197,28 +2220,6 @@ export default function DeltaAgentDashboard() {
   }, [fogScenario.fogBandKey]);
 
   // Ice
-  const prevIceBandRef = useRef("nm");
-  useEffect(() => {
-    const currentKey = iceScenario.iceBandKey;
-    if (!currentKey || currentKey === "nm") {
-      if (prevIceBandRef.current !== "nm") {
-        pruneAndAdd("ice-", ICE_BAND_ORDER, "nm", []);
-        prevIceBandRef.current = "nm";
-      }
-      return;
-    }
-    const prevKey = prevIceBandRef.current;
-    if (currentKey === prevKey) return;
-    prevIceBandRef.current = currentKey;
-    const currentIdx = bandIndex(ICE_BAND_ORDER, currentKey);
-    const prevIdx    = bandIndex(ICE_BAND_ORDER, prevKey);
-    if (currentIdx > prevIdx) {
-      addDecisions(iceScenario.decisions);
-    } else {
-      pruneAndAdd("ice-", ICE_BAND_ORDER, currentKey, iceScenario.decisions);
-    }
-  }, [iceScenario.iceBandKey]);
-
   // Hurricane
   const prevStormBandRef = useRef("nm");
   useEffect(() => {
@@ -2261,7 +2262,6 @@ export default function DeltaAgentDashboard() {
     const gaugeContext = {
       ft:   simGauge.toFixed(1),
       vis:  simVis.toFixed(2),
-      ice:  simIce.toFixed(1),
       dist: simStormDist,
       cat:  simStormCat,
     };
@@ -2290,7 +2290,6 @@ export default function DeltaAgentDashboard() {
   // Log threshold crossings - refs initialized to NOMINAL so any crossing gets logged
   const prevFloodStatus = useRef("NOMINAL");
   const prevFogStatus   = useRef("NOMINAL");
-  const prevIceStatus   = useRef("NOMINAL");
   const prevStormStatus = useRef("NOMINAL");
 
   function logEntry(entry) {
@@ -2332,21 +2331,6 @@ export default function DeltaAgentDashboard() {
   }, [fogScenario.status]);
 
   useEffect(() => {
-    const prev = prevIceStatus.current;
-    if (iceScenario.status === prev) return;
-    prevIceStatus.current = iceScenario.status;
-    const crossed = iceScenario.status !== "NOMINAL";
-    logEntry({
-      id: `ice-${Date.now()}`,
-      time: nowTS(),
-      action: `RIVER WARDEN: LMR Ice Coverage - ${prev} - ${iceScenario.status}`,
-      cost: `${(simIce * 10).toFixed(0)}% coverage   ${crossed ? iceScenario.decisions[0]?.disruptionLabel || iceScenario.status : "No ice restriction"}`,
-      severity: crossed ? "warning" : "ok",
-      disruptionType: "ICE",
-    });
-  }, [iceScenario.status]);
-
-  useEffect(() => {
     const prev = prevStormStatus.current;
     if (stormScenario.status === prev) return;
     prevStormStatus.current = stormScenario.status;
@@ -2362,7 +2346,11 @@ export default function DeltaAgentDashboard() {
   }, [stormScenario.status]);
 
   // Overall corridor status - worst active threat drives the header
-  const allStatuses = [floodScenario, fogScenario, iceScenario, stormScenario];
+  const allStatuses = [floodScenario, fogScenario, stormScenario];
+
+  // Live "updated Xs ago" counters for each feed
+  const gaugeAgo = useAgo(lastGaugeUpdate);
+  const aisAgo   = useAgo(lastAisUpdate);
   const hasCritical = allStatuses.some(s => s.status === "CRITICAL");
   const hasElevated = allStatuses.some(s => s.status === "ELEVATED");
   const corridorStatus      = hasCritical ? "CRITICAL" : hasElevated ? "ELEVATED" : "NOMINAL";
@@ -2392,7 +2380,7 @@ export default function DeltaAgentDashboard() {
       const readings = d?.data;
       if (readings?.length) {
         const latest = parseFloat(readings[readings.length - 1].v);
-        if (!isNaN(latest)) { const v = Math.max(0, latest); setGaugeData(v); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); }
+        if (!isNaN(latest)) { const v = Math.max(0, latest); setGaugeData(v); setSimGauge(v); setFloodScenario(buildFloodScenario(v)); setLastGaugeUpdate(Date.now()); }
       }
     }).catch(() => {});
   }, []);
@@ -2418,7 +2406,7 @@ export default function DeltaAgentDashboard() {
   useEffect(() => {
     function fetchAIS() {
       fetch(AIS_URL).then(r => r.json()).then(d => {
-        if (d?.ok) setAisData(d);
+        if (d?.ok) { setAisData(d); setLastAisUpdate(Date.now()); }
       }).catch(() => {});
     }
     fetchAIS();
@@ -2450,11 +2438,16 @@ export default function DeltaAgentDashboard() {
       time: ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Chicago" }),
     }]);
 
+    // Fire the dispatch banner immediately — visible, consequential
+    const contactCount = decision.agents.length + 1; // agents + pilot station always
+    const startMs = Date.now();
+    setDispatchBanner({ title: decision.title, contacts: contactCount, startMs });
+    setTimeout(() => setDispatchBanner(null), 4000);
+
     // Send dispatch confirmation SMS
     const gaugeContext = {
       ft:   simGauge.toFixed(1),
       vis:  simVis.toFixed(2),
-      ice:  simIce.toFixed(1),
       dist: simStormDist,
       cat:  simStormCat,
     };
@@ -2514,7 +2507,6 @@ export default function DeltaAgentDashboard() {
     setExpandedInstrument(null);
     setSimGauge(4.4); setFloodScenario(buildFloodScenario(4.4));
     setSimVis(8.0);   setFogScenario(buildFogScenario(8.0));
-    setSimIce(0);     setIceScenario(buildIceScenario(0));
     setSimStormDist(1000); setSimStormCat(2); setStormScenario(buildHurricaneScenario(1000, 2));
     setConfirmedIds(new Set()); setOverriddenIds(new Set()); setResolvedIds(new Set()); setDecisionStore({});
     setAlertedIds(new Set()); setDismissedIds(new Set()); setCardStates({});
@@ -2527,7 +2519,6 @@ export default function DeltaAgentDashboard() {
     // Reset band tracking refs so scenario restarts cleanly
     prevFloodBandRef.current  = "nm";
     prevFogBandRef.current    = "nm";
-    prevIceBandRef.current    = "nm";
     prevStormBandRef.current  = "nm";
     setActiveTab("inbox");
     setSmsQueue([]); setOverrideQueue([]);
@@ -2609,7 +2600,6 @@ export default function DeltaAgentDashboard() {
         }
         @media (max-width: 420px) {
           .grid-4col    { grid-template-columns: 1fr !important; }
-          .threat-grid  { grid-template-columns: 1fr !important; }
           .impact-stats { grid-template-columns: 1fr !important; }
           .context-bar  { display: flex !important; flex-direction: column !important; }
         }
@@ -2663,7 +2653,41 @@ export default function DeltaAgentDashboard() {
               </svg>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em" }}>DELTAAGENT<span style={{ color: C.teal }}> AI</span></div>
-                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.12em" }}>OPERATIONS COMMAND BETA</div>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.08em" }}>
+                  {gaugeData || fogData ? (
+                    <span>
+                      <span style={{ color: floodScenario.status !== "NOMINAL" ? floodScenario.statusColor : C.teal }}>
+                        {simGauge.toFixed(1)}ft
+                      </span>
+                      <span style={{ color: C.mutedLo }}> · </span>
+                      <span style={{ color: fogScenario.status !== "NOMINAL" ? fogScenario.statusColor : C.teal }}>
+                        {simVis.toFixed(1)}nm
+                      </span>
+                      {aisData?.vessels?.length > 0 && (
+                        <>
+                          <span style={{ color: C.mutedLo }}> · </span>
+                          <span style={{ color: C.teal }}>{aisData.vessels.length} vessel{aisData.vessels.length !== 1 ? "s" : ""}</span>
+                        </>
+                      )}
+                      {windData?.wind?.speedKnots != null && (
+                        <>
+                          <span style={{ color: C.mutedLo }}> · </span>
+                          <span style={{ color: windData.wind.speedKnots >= 25 ? C.amber : C.teal }}>
+                            {windData.wind.speedKnots}kt {windData.wind.directionCompass}
+                          </span>
+                        </>
+                      )}
+                      {gaugeAgo && gaugeAgo !== "--" && (
+                        <>
+                          <span style={{ color: C.mutedLo }}> · </span>
+                          <span style={{ color: C.mutedLo }}>updated {gaugeAgo}</span>
+                        </>
+                      )}
+                    </span>
+                  ) : (
+                    <span style={{ letterSpacing: "0.12em" }}>OPERATIONS COMMAND BETA</span>
+                  )}
+                </div>
               </div>
               <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
                 <CredentialChip
@@ -2711,6 +2735,34 @@ export default function DeltaAgentDashboard() {
             </div>
           </header>
 
+          {/* DISPATCH BANNER — fires on CONFIRM & DISPATCH, fades after 4s */}
+          {dispatchBanner && (
+            <div style={{
+              background: `linear-gradient(90deg, ${C.teal}18 0%, ${C.teal}08 100%)`,
+              borderBottom: `1px solid ${C.teal}55`,
+              padding: "10px 28px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              animation: "fadeSlideIn 0.3s ease",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: `${C.teal}25`, border: `1px solid ${C.teal}55`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ color: C.teal, fontSize: 14 }}>✓</span>
+                </div>
+                <div>
+                  <div style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: "0.06em" }}>
+                    DISPATCHED — {dispatchBanner.contacts} contacts notified in 4.8s
+                  </div>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body, marginTop: 2 }}>
+                    {dispatchBanner.title}
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>
+                Port Director · Pilot Station · CN/KCS Rail
+              </div>
+            </div>
+          )}
+
           {/* INSTRUMENT PANEL — replaces scenario banner + threat strip */}
           <div className="page-pad" style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -2724,13 +2776,12 @@ export default function DeltaAgentDashboard() {
                   <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.teal, letterSpacing: "0.1em" }}>
                     LOWER MISSISSIPPI CORRIDOR
                   </span>
-                  <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>· 4 threats monitored</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>· 3 threats monitored</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {[
                     { label: "FLOOD",     live: !!gaugeData },
                     { label: "FOG",       live: !!fogData },
-                    { label: "ICE",       live: false },
                     { label: "HURRICANE", live: !!nhcData },
                     { label: "AIS",       live: !!(aisData && !aisData.simulated) },
                     { label: "WIND",      live: !!(windData && !windData.simulated) },
@@ -2743,10 +2794,11 @@ export default function DeltaAgentDashboard() {
               </div>
 
               {/* Four instruments */}
-              <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0 }}>
+              <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
                 {[
                   {
                     key: "flood",
+                    updatedAgo: gaugeData ? gaugeAgo : null,
                     label: "RIVER STAGE",
                     value: `${simGauge.toFixed(1)}ft`,
                     source: "NOAA Carrollton Gauge · Station 8761927",
@@ -2766,12 +2818,29 @@ export default function DeltaAgentDashboard() {
                         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
                           <span style={{ color: "#93c5fd" }}>LOW</span><span style={{ color: C.amber }}>8ft AP</span><span style={{ color: C.amber }}>11ft</span><span style={{ color: C.red }}>13ft HPL</span><span style={{ color: C.red }}>17ft+</span>
                         </div>
+                        {/* Wind reading — shown inside River Stage expansion */}
+                        {windData && (
+                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <PulsingDot color={windData.wind?.speedKnots >= 25 ? C.amber : C.teal} size={5} />
+                              <span style={{ fontFamily: C.mono, fontSize: 8, color: C.label, letterSpacing: "0.08em" }}>NWS WIND — KMSY</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: windData.wind?.speedKnots >= 25 ? C.amber : C.teal }}>
+                                {windData.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : "CALM"}
+                              </span>
+                              <span style={{ fontFamily: C.mono, fontSize: 7, color: windData.simulated ? C.mutedLo : C.teal }}>
+                                {windData.simulated ? "○ SIM" : "● LIVE"}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ),
                   },
                   {
                     key: "fog",
-                    label: "SW PASS VIS",
+                    updatedAgo: fogData ? gaugeAgo : null,
                     value: `${simVis.toFixed(1)}nm`,
                     source: "NDBC Buoy BURL1 · Southwest Pass 28.9°N",
                     consequence: "Triggers one-way traffic, pilot suspension, mooring halt at dense fog",
@@ -2799,35 +2868,9 @@ export default function DeltaAgentDashboard() {
                     ),
                   },
                   {
-                    key: "ice",
-                    label: "ICE COVERAGE",
-                    value: `${(simIce * 10).toFixed(0)}%`,
-                    source: "LMR / Ohio River upstream · Simulated",
-                    consequence: "Triggers barge fleeting suspension, tug assist requirements",
-                    scenario: iceScenario,
-                    live: false,
-                    slider: (
-                      <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.label }}>Adjust ice coverage</span>
-                          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: iceScenario.statusColor }}>{iceScenario.status}</span>
-                        </div>
-                        <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
-                          <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(simIce / 10) * 100}%`, background: iceScenario.statusColor, transition: "width 1.2s ease" }} />
-                          {[4, 7].map((t, i) => <div key={i} style={{ position: "absolute", left: `${(t / 10) * 100}%`, top: 0, height: "100%", width: 1, background: i === 0 ? C.amber : C.red, opacity: 0.6 }} />)}
-                        </div>
-                        <input type="range" min={0} max={10} step={0.1} value={simIce}
-                          onChange={e => { const v = parseFloat(e.target.value); setSimIce(v); setIceScenario(buildIceScenario(v)); }}
-                          style={{ width: "100%", accentColor: "#93c5fd", cursor: "pointer" }} />
-                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
-                          <span>0%</span><span style={{ color: C.amber }}>10%</span><span style={{ color: C.amber }}>40%</span><span style={{ color: C.red }}>70%+</span>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
                     key: "hurricane",
                     label: "STORM TRACK",
+                    updatedAgo: null,
                     value: `${simStormDist}mi`,
                     source: `NHC · SW Pass · Cat ${simStormCat}${nhcData ? " · LIVE" : ""}`,
                     consequence: "Port Condition declarations, inbound traffic closure, mooring plan activation",
@@ -2863,8 +2906,11 @@ export default function DeltaAgentDashboard() {
                       </div>
                     ),
                   },
-                ].map(({ key, label, value, source, consequence, scenario, live, slider }, i, arr) => (
-                  <div key={key} style={{ borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                ].map(({ key, label, value, source, consequence, scenario, live, slider, updatedAgo }, i, arr) => (
+                  <div key={key} style={{
+                    borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
+                    display: "flex", flexDirection: "column",
+                  }}>
                     <InstrumentPanel
                       label={label}
                       value={value}
@@ -2874,6 +2920,7 @@ export default function DeltaAgentDashboard() {
                       live={live}
                       expanded={expandedInstrument === key}
                       onClick={() => setExpandedInstrument(expandedInstrument === key ? null : key)}
+                      updatedAgo={updatedAgo}
                     />
                     {expandedInstrument === key && slider}
                   </div>
@@ -2967,7 +3014,7 @@ export default function DeltaAgentDashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
                       <PulsingDot color={C.teal} size={8} />
                       <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: C.teal, letterSpacing: "0.08em" }}>
-                        MONITORING 4 THREATS — ALL NOMINAL
+                        MONITORING 3 THREATS — ALL NOMINAL
                       </span>
                       <span style={{ fontFamily: C.mono, fontSize: 11, color: C.label }}>
                         · {sessionSavings.length > 0
@@ -2981,13 +3028,22 @@ export default function DeltaAgentDashboard() {
                       {[
                         {
                           agent: "RW", name: "River Warden", color: C.teal,
-                          activity: `Gauge: ${simGauge.toFixed(1)}ft   Vis: ${simVis.toFixed(1)}nm${windData ? `   Wind: ${windData.wind?.speedKnots}kt ${windData.wind?.directionCompass}` : "   Wind: loading..."}`,
+                          activity: `Gauge: ${simGauge.toFixed(1)}ft   Vis: ${simVis.toFixed(1)}nm` + (windData?.wind?.speedKnots != null ? `   Wind: ${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "   Wind: calm" : ""),
                         },
                         {
                           agent: "BM", name: "Berth Master", color: C.tealDim,
-                          activity: aisData?.vessels?.length
-                            ? `${aisData.vessels.length} vessels in LMR corridor${aisData.simulated ? " (sim)" : " — live AIS"}`
-                            : "AIS feed loading — MV Delta Voyager ETA 04:20 CST",
+                          activity: (() => {
+                            const vessels = aisData?.vessels || [];
+                            if (vessels.length === 0) return "AIS feed loading — polling LMR corridor";
+                            // Find most interesting vessel — moving, named, highest SOG
+                            const moving = vessels.filter(v => v.sog > 0.5 && v.name && !v.name.startsWith("VESSEL"));
+                            const lead = moving.sort((a,b) => b.sog - a.sog)[0] || vessels[0];
+                            const name = lead?.name || "UNKNOWN";
+                            const sog = lead?.sog?.toFixed(1) || "0.0";
+                            const dest = lead?.destination ? ` — ${lead.destination}` : "";
+                            const total = vessels.length;
+                            return `${name} — ${sog}kt${dest}   +${total - 1} vessel${total !== 2 ? "s" : ""} in corridor${aisData?.simulated ? " (sim)" : " — live AIS"}`;
+                          })(),
                         },
                         {
                           agent: "IS", name: "Intermodal Sync", color: "#818cf8",
@@ -3275,7 +3331,7 @@ export default function DeltaAgentDashboard() {
                     {
                       label: "NWS Wind — KMSY",
                       purpose: "Wind speed & direction — vessel speed restrictions above 25kt",
-                      value: windData ? `${windData.wind?.speedKnots}kt ${windData.wind?.directionCompass}` : "--",
+                      value: windData?.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : windData ? "CALM" : "--",
                       valueColor: windData?.wind?.status !== "NOMINAL" ? C.amber : C.teal,
                       status: windData && !windData.simulated ? "live" : "sim",
                       badge: windData && !windData.simulated ? "LIVE" : "SIMULATED",
@@ -3288,14 +3344,7 @@ export default function DeltaAgentDashboard() {
                       status: nhcData ? "live" : "sim",
                       badge: nhcData ? "LIVE" : "SIMULATED",
                     },
-                    {
-                      label: "Corps Ice Index",
-                      purpose: "Ice coverage — barge fleeting and navigation restrictions",
-                      value: `${(simIce * 10).toFixed(0)}%`,
-                      valueColor: iceScenario.status !== "NOMINAL" ? iceScenario.statusColor : C.teal,
-                      status: "sim",
-                      badge: "SIMULATED",
-                    },
+
                   ].map(({ label, purpose, value, valueColor, status, badge }) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                       <div style={{ flex: 1 }}>
