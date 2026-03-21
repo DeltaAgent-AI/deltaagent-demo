@@ -47,6 +47,23 @@ const DISRUPTION_TYPES = [
 // Below 4ft  = LOW WATER - saltwater wedge, draft restrictions
 // 4 - 8ft    = NOMINAL operational range
 // 8ft        = ALGIERS POINT restriction triggers - vessel size limits at bend
+// ── VESSEL DRAFT LOOKUP ─────────────────────────────────────────────
+// Southwest Pass controlling depth and berth restrictions by gauge reading
+// Source: Corps of Engineers LMR charts + Port NOLA terminal specs
+const DRAFT_TABLE = [
+  { minFt: 17,  maxFt: 99,  swPassDraft: 38, restriction: "Emergency — all deep-draft suspended",       affectedClass: "All vessels over 38ft draft" },
+  { minFt: 15,  maxFt: 17,  swPassDraft: 42, restriction: "Deep-draft restricted — tug assist mandatory", affectedClass: "Post-Panamax (42ft+) suspended" },
+  { minFt: 13,  maxFt: 15,  swPassDraft: 45, restriction: "Huey P. Long Bridge air draft restricted",    affectedClass: "Vessels >170ft air draft re-routed" },
+  { minFt: 11,  maxFt: 13,  swPassDraft: 47, restriction: "High Water — daylight mooring only",          affectedClass: "All deep-draft daylight windows only" },
+  { minFt: 8,   maxFt: 11,  swPassDraft: 50, restriction: "Algiers Point — size limit active",           affectedClass: "Vessels >600ft LOA require tug assist" },
+  { minFt: 4,   maxFt: 8,   swPassDraft: 50, restriction: "Normal operations",                           affectedClass: "All vessel classes unrestricted" },
+  { minFt: -99, maxFt: 4,   swPassDraft: 45, restriction: "Low water — draft restricted to 45ft",        affectedClass: "Post-Panamax must load to 45ft max" },
+];
+
+function getDraftInfo(ft) {
+  return DRAFT_TABLE.find(r => ft >= r.minFt && ft < r.maxFt) || DRAFT_TABLE[5];
+}
+
 // 8 - 11ft   = ELEVATED - Algiers Point restrictions active
 // 11ft       = HIGH WATER PROCLAMATION - daylight mooring, barge fleeting
 // 11 - 13ft  = ELEVATED+ - High Water Proclamation active
@@ -108,7 +125,7 @@ function buildFloodScenario(ft) {
       id: `flood-${scenarioKey}-d1`, severity: "critical",
       disruptionType: "FLOOD", disruptionLabel: "HIGH WATER",
       title: "MANDATE - Standby Tugs at All Berths",
-      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft. Extreme river currents at Algiers Point and Carrollton Bend. Coast Guard mandate requires standby assist tugs for all deep-draft vessels.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft. SW Pass controlling draft " + getDraftInfo(ft).swPassDraft + "ft. " + getDraftInfo(ft).affectedClass + ". Extreme river currents at Algiers Point and Carrollton Bend. Coast Guard mandate requires standby assist tugs for all deep-draft vessels.",
       costAvoided: 48000, costIfIgnored: 48000, advanceWarning: "3h 45m",
       agents: ["RW", "BM", "IS"],
       actions: ["Deploy standby tugs to Berths 1-4 via Crescent Towing", "Notify all deep-draft vessel masters - tug assist mandatory at Algiers Point", "Restrict barge fleeting - breakaway prevention protocol activated", "SMS dispatch to Port Director + Coast Guard Sector NOLA"],
@@ -146,38 +163,38 @@ function buildFloodScenario(ft) {
       id: `flood-${scenarioKey}-d1`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "HIGH WATER PROCLAMATION",
       title: "ACTIVATE - High Water Proclamation",
-      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - above 11ft threshold. High Water Proclamation required. Switch to daylight-only mooring for all deep-draft vessels. Huey P. Long Bridge restriction approaching.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — above 11ft threshold. High Water Proclamation required. SW Pass controlling draft now " + getDraftInfo(ft).swPassDraft + "ft. " + getDraftInfo(ft).affectedClass + ". Switch to daylight-only mooring. Huey P. Long Bridge restriction approaching at 13ft.",
       costAvoided: 28000, costIfIgnored: 28000, advanceWarning: "2h 30m",
       agents: ["RW", "BM", "IS"],
       actions: ["Issue High Water Proclamation - daylight-only mooring for deep-draft vessels", "Restrict barge fleeting - single-cut tows only above Carrollton", "Notify all vessel masters and agents via SMS + VHF Ch 16", "Monitor Huey P. Long Bridge clearance - restriction threshold at 13ft", "CN/KCS rail windows adjusted for potential cargo delays"],
     },
     {
       id: `flood-${scenarioKey}-d2`, severity: "warning",
-      disruptionType: "FLOOD", disruptionLabel: "BARGE RESTRICTION",
-      title: "RESTRICT - Barge Fleeting at Carrollton Bend",
-      reason: "Current speed increasing at Carrollton Bend above 11ft. Restrict large barge tows to prevent breakaways that could impact bridges and vessels.",
+      disruptionType: "FLOOD", disruptionLabel: "DRAFT WINDOW",
+      title: "RESTRICT - Deep-Draft Vessel Scheduling Window",
+      reason: "At " + ft.toFixed(1) + "ft, SW Pass controlling draft " + getDraftInfo(ft).swPassDraft + "ft. " + getDraftInfo(ft).affectedClass + ". Vessels requiring >47ft draft must reschedule or await gauge drop below 11ft.",
       costAvoided: 14200, costIfIgnored: 14200, advanceWarning: "1h 45m",
       agents: ["RW", "BM"],
-      actions: ["Restrict barge tow size at Carrollton Bend - single-cut only", "Notify all fleeting areas upstream", "Alert Huey P. Long and Greater New Orleans Bridge tenders - increased debris"],
+      actions: ["Restrict barge tow size at Carrollton Bend - single-cut only", "Issue draft window notice — vessels >47ft draft daylight hours only", "Notify all fleeting areas upstream", "Alert Huey P. Long and Greater New Orleans Bridge tenders — increased debris"],
     },
   ] : algiers ? [
     {
       id: `flood-${scenarioKey}-d1`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "ALGIERS POINT",
       title: "RESTRICT - Algiers Point Vessel Size Limit",
-      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft - Algiers Point restriction threshold reached. River current at the bend now limits deep-draft vessel maneuverability. Vessel size restrictions now active.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — Algiers Point restriction threshold reached. SW Pass controlling draft " + getDraftInfo(ft).swPassDraft + "ft. " + getDraftInfo(ft).affectedClass + ". River current at the bend limits deep-draft maneuverability.",
       costAvoided: 22000, costIfIgnored: 22000, advanceWarning: "2h 15m",
       agents: ["RW", "BM", "IS"],
       actions: ["Activate Algiers Point vessel size restriction protocol", "Notify Crescent River Port Pilots - current advisory for the bend", "Restrict deep-draft inbound vessels - tug assist required at Algiers Point", "Re-sequence vessel queue - smaller drafts prioritized through the bend", "SMS dispatch to all vessel agents with Algiers Point restriction notice"],
     },
     {
       id: `flood-${scenarioKey}-d2`, severity: "warning",
-      disruptionType: "FLOOD", disruptionLabel: "DREDGING PRIORITY",
-      title: "SCHEDULE - Priority Dredging at Critical Berths",
-      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — rising river accelerating siltation at Napoleon Avenue and Globalplex berths. Dredging required to maintain 50ft controlling draft for Post-Panamax vessels before channel shoals.",
+      disruptionType: "FLOOD", disruptionLabel: "DRAFT ADVISORY",
+      title: "NOTIFY - Vessel Draft Advisory for Inbound Traffic",
+      reason: "At " + ft.toFixed(1) + "ft, SW Pass controlling draft is " + getDraftInfo(ft).swPassDraft + "ft. " + getDraftInfo(ft).affectedClass + ". Vessels loading upstream at Baton Rouge or Reserve must adjust load plans before departure.",
       costAvoided: 16000, costIfIgnored: 16000, advanceWarning: "24h",
       agents: ["BM", "IS"],
-      actions: ["Schedule priority dredging at Berths 2 and 4 - Post-Panamax draft maintenance", "Coordinate with dredging contractors - Weeks Marine and Great Lakes Dredge", "Issue berth depth advisory to vessel agents", "Flag for Port Director review - dredging authorization required"],
+      actions: ["Issue draft advisory to all inbound vessels via ship agents", "Notify grain terminals upstream — load plans may need adjustment", "Update Port NOLA bulletin — SW Pass controlling draft " + getDraftInfo(ft).swPassDraft + "ft", "Flag vessel agents with Post-Panamax inbound — earliest safe window assessment required"],
     },
   ] : lowWater ? [
     {
@@ -193,10 +210,10 @@ function buildFloodScenario(ft) {
       id: `flood-${scenarioKey}-d2`, severity: "warning",
       disruptionType: "FLOOD", disruptionLabel: "DRAFT RESTRICTION",
       title: "ISSUE - Draft Restrictions for Inbound Vessels",
-      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — Southwest Pass controlling draft restricted. Vessels loading at Baton Rouge and Reserve must reduce to 45ft draft instead of 50ft, costing millions in lost cargo revenue per ship.",
+      reason: "Carrollton Gauge at " + ft.toFixed(1) + "ft — SW Pass controlling draft restricted to " + getDraftInfo(ft).swPassDraft + "ft. " + getDraftInfo(ft).affectedClass + ". Vessels loading at Baton Rouge, Reserve, and Geismar must reduce load plans before departure — each foot of lost draft costs shippers approximately $400,000 in lost cargo per Panamax voyage.",
       costAvoided: 18000, costIfIgnored: 18000, advanceWarning: "24h",
       agents: ["RW", "BM", "IS"],
-      actions: ["Issue draft restriction notices to all inbound vessels and agents", "Notify shipping lines - maximum draft reduced to 45ft at Southwest Pass", "Coordinate with dredging contractors - priority berths identified", "Update Port NOLA bulletin - draft restriction effective immediately"],
+      actions: ["Issue draft restriction notices to all inbound vessels and agents", "Notify shipping lines - maximum draft reduced to " + getDraftInfo(ft).swPassDraft + "ft at Southwest Pass", "Alert grain terminals upstream - load plans must be adjusted", "Coordinate with dredging contractors - priority berths identified", "Update Port NOLA bulletin - draft restriction effective immediately"],
     },
   ] : [];
 
@@ -2940,16 +2957,18 @@ export default function DeltaAgentDashboard() {
                           headline: (() => {
                             const ft = simGauge.toFixed(1);
                             const nm = simVis.toFixed(1);
+                            const draft = getDraftInfo(simGauge);
                             if (floodScenario.status !== "NOMINAL") return `River Stage ${ft}ft — ${floodScenario.status}`;
                             if (fogScenario.status !== "NOMINAL") return `SW Pass ${nm}nm — ${fogScenario.status}`;
-                            return "All conditions nominal";
+                            return `All nominal · SW Pass controlling draft ${draft.swPassDraft}ft`;
                           })(),
                           detail: (() => {
                             const ft = simGauge.toFixed(1);
                             const nm = simVis.toFixed(1);
-                            return `Carrollton ${ft}ft — within normal range. SW Pass ${nm}nm — full visibility, no restrictions. No threshold crossings in past 2hr.`;
+                            const draft = getDraftInfo(simGauge);
+                            return `Carrollton ${ft}ft — ${draft.restriction}. SW Pass controlling draft ${draft.swPassDraft}ft — ${draft.affectedClass}. Vis ${nm}nm, no restrictions.`;
                           })(),
-                          feeds: [`NOAA ${simGauge.toFixed(1)}ft`, `NDBC ${simVis.toFixed(1)}nm`, nhcData ? "NHC ACTIVE" : "NHC clear"],
+                          feeds: [`NOAA ${simGauge.toFixed(1)}ft`, `Draft ${getDraftInfo(simGauge).swPassDraft}ft`, `NDBC ${simVis.toFixed(1)}nm`, nhcData ? "NHC ACTIVE" : "NHC clear"],
                         },
                         {
                           code: "BM",
