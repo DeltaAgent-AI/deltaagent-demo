@@ -2716,11 +2716,11 @@ export default function DeltaAgentDashboard() {
             </div>
           )}
 
-          {/* INSTRUMENT PANEL */}
-          <div className="page-pad" style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* UNIFIED PANEL — instruments + decisions in one card */}
+          <div style={{ margin: "10px 16px 0", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
 
             {/* Live corridor instruments */}
-            <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+            <div>
 
               {/* Instrument header bar */}
               <div style={{ padding: "8px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2849,14 +2849,12 @@ export default function DeltaAgentDashboard() {
                   </div>
                 ))}
               </div>
-            </div>{/* end instrument panel outer */}
-          </div>{/* end page-pad - instruments section */}
+            </div>{/* end instrument panel inner */}
 
-          {/* Slim context bar + tabs wrapper */}
-          <div className="page-pad" style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Slim context bar + tabs wrapper — same card, no separate wrapper */}
 
             {/* Slim context bar — decisions + corridor status */}
-            <div className="context-bar" style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+            <div className="context-bar" style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
                 {/* Left: pending count */}
                 <div
                   onClick={() => pendingCount > 0 && navigateToTab("inbox")}
@@ -2930,7 +2928,7 @@ export default function DeltaAgentDashboard() {
 
             {/*    INBOX - unified across all threat types    */}
             {activeTab === "inbox" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "0 16px 16px" }}>
                 {sortedDecisions.length === 0 && (
                   <div style={{ padding: "32px 0 16px" }}>
                     {/* Status line */}
@@ -3128,7 +3126,7 @@ export default function DeltaAgentDashboard() {
 
             {/*    AGENT LOG    */}
             {activeTab === "log" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 16px 16px" }}>
                 {/* Filter chips */}
                 <AgentLogWithFilter agentLog={agentLog} autoExpandLogId={autoExpandLogId} />
               </div>
@@ -3136,7 +3134,7 @@ export default function DeltaAgentDashboard() {
 
             {/*    IMPACT    */}
             {activeTab === "impact" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 16px 16px" }}>
 
                 {/* Stat cards with expandable methodology */}
                 <div className="impact-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
@@ -3406,11 +3404,12 @@ export default function DeltaAgentDashboard() {
             )}
 
             {/*    FOOTER    */}
-            <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>© 2026 DeltaAgent AI, LLC · deltaagent.ai · New Orleans, LA</div>
               <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo }}>BETA · Operations Command</div>
             </div>
-          </div>
+          </div>{/* end unified panel */}
+          <div style={{ height: 24 }} />{/* bottom breathing room */}
         </div>
     </>
   );
