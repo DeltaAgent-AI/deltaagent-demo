@@ -1762,7 +1762,7 @@ function RecordDrawer({ record, onClose, onViewLog }) {
   );
 }
 
-// InstrumentPanel — flight-deck style instrument
+// InstrumentPanel — compact single-row strip, expands to reveal slider
 function InstrumentPanel({ label, value, source, consequence, scenario, live, expanded, onClick, updatedAgo }) {
   const [hovered, setHovered] = useState(false);
   const color = scenario.statusColor;
@@ -1774,59 +1774,38 @@ function InstrumentPanel({ label, value, source, consequence, scenario, live, ex
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        padding: "12px 16px",
         cursor: "pointer",
-        background: expanded ? `${color}0d` : hovered ? `${color}06` : "transparent",
+        background: expanded ? `${color}0d` : hovered ? `${color}05` : "transparent",
         transition: "background 0.15s ease",
-        minHeight: 120,
       }}
     >
-      {/* Top row: label left, live+chevron right */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <PulsingDot color={color} size={isNominal ? 5 : 7} />
-          <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: isNominal ? C.label : color, letterSpacing: "0.1em" }}>{label}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ fontFamily: C.mono, fontSize: 8, color: live ? C.teal : C.mutedLo }}>
-            {live ? "● LIVE" : "○ SIM"}
-          </span>
-          <span style={{
-            fontFamily: C.mono, fontSize: 8,
-            color: hovered || expanded ? color : C.muted,
-            display: "inline-block",
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s ease, color 0.15s ease",
-          }}>∨</span>
-        </div>
+      {/* Compact single row */}
+      <div style={{ display: "flex", alignItems: "center", padding: "10px 18px", gap: 10 }}>
+        <PulsingDot color={color} size={isNominal ? 5 : 7} />
+        <span style={{ fontFamily: C.mono, fontSize: 9, fontWeight: 700, color: isNominal ? C.label : color, letterSpacing: "0.09em", minWidth: 90 }}>{label}</span>
+        <span style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, color, lineHeight: 1, flex: 1 }}>{value}</span>
+        <span style={{ fontFamily: C.mono, fontSize: 8, fontWeight: 700, color: isNominal ? C.mutedLo : color, letterSpacing: "0.06em" }}>{scenario.status}</span>
+        {live && updatedAgo && (
+          <span style={{ fontFamily: C.mono, fontSize: 7, color: C.mutedLo }}>{updatedAgo}</span>
+        )}
+        <span style={{ fontFamily: C.mono, fontSize: 8, color: live ? C.teal : C.mutedLo, marginLeft: 4 }}>
+          {live ? "● LIVE" : "○ SIM"}
+        </span>
+        <span style={{
+          fontFamily: C.mono, fontSize: 9,
+          color: hovered || expanded ? color : C.muted,
+          display: "inline-block",
+          transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 0.2s ease, color 0.15s ease",
+          marginLeft: 2,
+        }}>∨</span>
       </div>
 
-      {/* Hero reading */}
-      <div style={{ fontFamily: C.mono, fontSize: 30, fontWeight: 700, color, lineHeight: 1, marginBottom: 6 }}>
-        {value}
-      </div>
-
-      {/* Status */}
-      <span style={{
-        fontFamily: C.mono, fontSize: 9, fontWeight: 700,
-        color: isNominal ? C.muted : color,
-        letterSpacing: "0.06em",
-      }}>
-        {scenario.status}
-      </span>
-      {/* Updated ago — only for live feeds */}
-      {live && updatedAgo && (
-        <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, marginTop: 3 }}>
-          updated {updatedAgo}
-        </div>
-      )}
-
-      {/* Expanded: source + consequence + slider hint */}
+      {/* Expanded: source + consequence */}
       {expanded && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${color}22`, animation: "fadeSlideIn 0.2s ease" }}>
+        <div style={{ padding: "0 18px 10px", animation: "fadeSlideIn 0.2s ease" }}>
           <div style={{ fontFamily: C.mono, fontSize: 8, color: C.teal, marginBottom: 3 }}>{source}</div>
-          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.body, lineHeight: 1.55, marginBottom: 6 }}>{consequence}</div>
-          <div style={{ fontFamily: C.mono, fontSize: 7, color: C.muted }}>↓ Drag slider below to adjust</div>
+          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.body, lineHeight: 1.55 }}>{consequence}</div>
         </div>
       )}
     </div>
@@ -2080,7 +2059,7 @@ export default function DeltaAgentDashboard() {
 
   //    shared UI state   
   const [time, setTime]                   = useState(new Date());
-  const [expandedInstrument, setExpandedInstrument] = useState(null); // which instrument panel is expanded
+  const [expandedInstruments, setExpandedInstruments] = useState(new Set()); // which instrument panels are expanded
   const [smsQueue, setSmsQueue]           = useState([]);
   const [overrideQueue, setOverrideQueue] = useState([]);
   const [dispatchBanner, setDispatchBanner] = useState(null); // { title, contacts, ms }
@@ -2099,7 +2078,7 @@ export default function DeltaAgentDashboard() {
   const [autoExpandLogId, setAutoExpandLogId] = useState(null);
   const [sessionSavings, setSessionSavings]   = useState([]);
   const [drawerRecord, setDrawerRecord]       = useState(null);
-  // expandedInstrument tracked above with showBanner replacement
+  // expandedInstruments: Set of open drawer keys
   const tabsRef = useRef(null);
 
   function navigateToTab(tabId, logId) {
@@ -2647,7 +2626,7 @@ export default function DeltaAgentDashboard() {
 
         <div style={{ position: "relative", zIndex: 2, paddingBottom: 40, maxWidth: 1400, margin: "0 auto" }}>
           {/*    HEADER    */}
-          <header className="header-pad" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 28px", borderBottom: `1px solid ${C.border}`, background: `${C.panel}f0`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
+          <header className="header-pad" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: `1px solid ${C.border}`, background: `${C.panel}f0`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
                 <polygon points="16,3 30,28 2,28" fill="none" stroke={C.teal} strokeWidth="2" strokeLinejoin="round"/>
@@ -2692,38 +2671,12 @@ export default function DeltaAgentDashboard() {
             </div>
           </header>
 
-          {/* LIVE CORRIDOR STATUS STRIP */}
-          {(gaugeData || fogData) && (
-            <div style={{ borderBottom: `1px solid ${C.border}`, background: `${C.panel}cc`, padding: "5px 28px", display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <PulsingDot color={C.teal} size={5} />
-                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: "0.08em" }}>LMR CORRIDOR</span>
-              </div>
-              {[
-                { label: "Carrollton", value: `${simGauge.toFixed(1)}ft`, color: floodScenario.status !== "NOMINAL" ? floodScenario.statusColor : C.teal },
-                { label: "SW Pass", value: `${simVis.toFixed(1)}nm`, color: fogScenario.status !== "NOMINAL" ? fogScenario.statusColor : C.teal },
-                aisData?.vessels?.length > 0 && { label: "Vessels", value: `${aisData.vessels.length} tracked`, color: C.teal },
-                windData?.wind?.speedKnots != null && { label: "Wind", value: `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}`, color: windData.wind.speedKnots >= 25 ? C.amber : C.teal },
-              ].filter(Boolean).map(({ label, value, color }) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ fontFamily: C.mono, fontSize: 9, color: C.muted }}>{label}</span>
-                  <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color }}>{value}</span>
-                </div>
-              ))}
-              {gaugeAgo && gaugeAgo !== "--" && (
-                <span style={{ fontFamily: C.mono, fontSize: 9, color: C.mutedLo, marginLeft: "auto" }}>
-                  updated {gaugeAgo}
-                </span>
-              )}
-            </div>
-          )}
-
           {/* DISPATCH BANNER — fires on CONFIRM & DISPATCH, fades after 4s */}
           {dispatchBanner && (
             <div style={{
               background: `linear-gradient(90deg, ${C.teal}18 0%, ${C.teal}08 100%)`,
               borderBottom: `1px solid ${C.teal}55`,
-              padding: "10px 28px",
+              padding: "8px 16px",
               display: "flex", alignItems: "center", justifyContent: "space-between",
               animation: "fadeSlideIn 0.3s ease",
             }}>
@@ -2746,14 +2699,14 @@ export default function DeltaAgentDashboard() {
             </div>
           )}
 
-          {/* INSTRUMENT PANEL — replaces scenario banner + threat strip */}
-          <div className="page-pad" style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* INSTRUMENT PANEL */}
+          <div className="page-pad" style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
 
             {/* Live corridor instruments */}
             <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
 
               {/* Instrument header bar */}
-              <div style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ padding: "8px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <PulsingDot color={C.teal} size={6} />
                   <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.teal, letterSpacing: "0.1em" }}>
@@ -2767,7 +2720,6 @@ export default function DeltaAgentDashboard() {
                     { label: "FOG",       live: !!fogData },
                     { label: "HURRICANE", live: !!nhcData },
                     { label: "AIS",       live: !!(aisData && !aisData.simulated) },
-                    { label: "WIND",      live: !!(windData && !windData.simulated) },
                   ].map(({ label, live }) => (
                     <span key={label} style={{ fontFamily: C.mono, fontSize: 7, color: live ? C.teal : C.mutedLo }}>
                       {label} {live ? "● LIVE" : "○ SIM"}
@@ -2776,18 +2728,15 @@ export default function DeltaAgentDashboard() {
                 </div>
               </div>
 
-              {/* Four instruments */}
-              <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
+              {/* Instruments — 3-column grid, each expands its own slider below */}
+              <div className="threat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
                 {[
                   {
-                    key: "flood",
-                    updatedAgo: gaugeData ? gaugeAgo : null,
-                    label: "RIVER STAGE",
+                    key: "flood", label: "RIVER STAGE",
                     value: `${simGauge.toFixed(1)}ft`,
                     source: "NOAA Carrollton Gauge · Station 8761927",
                     consequence: "Triggers barge restriction, High Water Proclamation, levee protocols",
-                    scenario: floodScenario,
-                    live: !!gaugeData,
+                    scenario: floodScenario, live: !!gaugeData, updatedAgo: gaugeData ? gaugeAgo : null,
                     slider: (
                       <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -2801,35 +2750,15 @@ export default function DeltaAgentDashboard() {
                         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 8, color: C.muted, marginTop: 3 }}>
                           <span style={{ color: "#93c5fd" }}>LOW</span><span style={{ color: C.amber }}>8ft AP</span><span style={{ color: C.amber }}>11ft</span><span style={{ color: C.red }}>13ft HPL</span><span style={{ color: C.red }}>17ft+</span>
                         </div>
-                        {/* Wind reading — shown inside River Stage expansion */}
-                        {windData && (
-                          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <PulsingDot color={windData.wind?.speedKnots >= 25 ? C.amber : C.teal} size={5} />
-                              <span style={{ fontFamily: C.mono, fontSize: 8, color: C.label, letterSpacing: "0.08em" }}>NWS WIND — KMSY</span>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <span style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: windData.wind?.speedKnots >= 25 ? C.amber : C.teal }}>
-                                {windData.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : "0.0kt CALM"}
-                              </span>
-                              <span style={{ fontFamily: C.mono, fontSize: 7, color: windData.simulated ? C.mutedLo : C.teal }}>
-                                {windData.simulated ? "○ SIM" : "● LIVE"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ),
                   },
                   {
-                    key: "fog",
-                    label: "SW PASS VIS",
-                    updatedAgo: fogData ? fogAgo : null,
+                    key: "fog", label: "SW PASS VIS",
                     value: `${simVis.toFixed(1)}nm`,
                     source: "NDBC Buoy BURL1 · Southwest Pass 28.9°N",
                     consequence: "Triggers one-way traffic, pilot suspension, mooring halt at dense fog",
-                    scenario: fogScenario,
-                    live: !!fogData,
+                    scenario: fogScenario, live: !!fogData, updatedAgo: fogData ? fogAgo : null,
                     slider: (
                       <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -2838,8 +2767,8 @@ export default function DeltaAgentDashboard() {
                         </div>
                         <div style={{ width: "100%", height: 4, background: C.mutedLo, borderRadius: 2, overflow: "hidden", position: "relative", marginBottom: 6 }}>
                           <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(((10 - simVis) / 9.95) * 100, 100)}%`, background: fogScenario.statusColor, transition: "width 0.3s ease" }} />
-                          {[2.0, 1.0, 0.5, 0.25].map((t, i) => (
-                            <div key={i} style={{ position: "absolute", left: `${((10 - t) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: i < 2 ? C.amber : C.red, opacity: 0.6 }} />
+                          {[2.0, 1.0, 0.5, 0.25].map((t, idx) => (
+                            <div key={idx} style={{ position: "absolute", left: `${((10 - t) / 9.95) * 100}%`, top: 0, height: "100%", width: 1, background: idx < 2 ? C.amber : C.red, opacity: 0.6 }} />
                           ))}
                         </div>
                         <input type="range" min={0.05} max={10} step={0.05} value={10 - simVis + 0.05}
@@ -2852,14 +2781,11 @@ export default function DeltaAgentDashboard() {
                     ),
                   },
                   {
-                    key: "hurricane",
-                    label: "STORM TRACK",
-                    updatedAgo: null,
+                    key: "hurricane", label: "STORM TRACK",
                     value: nhcData ? `${simStormDist}mi` : "NO STORMS",
                     source: `NHC Atlantic/Gulf · SW Pass reference${nhcData ? ` · Cat ${simStormCat}` : ""}`,
                     consequence: "Port Condition declarations, inbound traffic closure, mooring plan activation",
-                    scenario: stormScenario,
-                    live: !!nhcData,
+                    scenario: stormScenario, live: !!nhcData, updatedAgo: null,
                     slider: (
                       <div style={{ padding: "14px 18px 16px", borderTop: `1px solid ${C.border}`, background: `${C.bg}88` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -2890,23 +2816,19 @@ export default function DeltaAgentDashboard() {
                       </div>
                     ),
                   },
-                ].map(({ key, label, value, source, consequence, scenario, live, slider, updatedAgo }, i, arr) => (
-                  <div key={key} style={{
-                    borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
-                    display: "flex", flexDirection: "column",
-                  }}>
+                ].map(({ key, label, value, source, consequence, scenario, live, updatedAgo, slider }, i, arr) => (
+                  <div key={key} style={{ borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none", display: "flex", flexDirection: "column" }}>
                     <InstrumentPanel
-                      label={label}
-                      value={value}
-                      source={source}
-                      consequence={consequence}
-                      scenario={scenario}
-                      live={live}
-                      expanded={expandedInstrument === key}
-                      onClick={() => setExpandedInstrument(expandedInstrument === key ? null : key)}
-                      updatedAgo={updatedAgo}
+                      label={label} value={value} source={source} consequence={consequence}
+                      scenario={scenario} live={live} updatedAgo={updatedAgo}
+                      expanded={expandedInstruments.has(key)}
+                      onClick={() => setExpandedInstruments(prev => {
+                        const next = new Set(prev);
+                        next.has(key) ? next.delete(key) : next.add(key);
+                        return next;
+                      })}
                     />
-                    {expandedInstrument === key && slider}
+                    {expandedInstruments.has(key) && slider}
                   </div>
                 ))}
               </div>
@@ -2914,7 +2836,7 @@ export default function DeltaAgentDashboard() {
           </div>{/* end page-pad - instruments section */}
 
           {/* Slim context bar + tabs wrapper */}
-          <div className="page-pad" style={{ padding: "0 28px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="page-pad" style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 8 }}>
 
             {/* Slim context bar — decisions + corridor status */}
             <div className="context-bar" style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 0, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
@@ -3007,47 +2929,93 @@ export default function DeltaAgentDashboard() {
                       </span>
                     </div>
 
-                    {/* Live agent feed — single column, log style */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 1, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+                    {/* Agent status cards — 3-col mirroring instrument layout */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                       {[
                         {
-                          agent: "RW", color: C.teal,
-                          action: "MONITORING: Environmental conditions polled",
-                          detail: `Carrollton Gauge ${simGauge.toFixed(1)}ft · SW Pass ${simVis.toFixed(1)}nm · Wind ${windData?.wind?.speedKnots != null ? `${windData.wind.speedKnots}kt ${windData.wind.directionCompass}` : "calm"} · All nominal`,
+                          code: "RW",
+                          name: "River Warden",
+                          color: C.teal,
+                          status: "NOMINAL",
+                          headline: (() => {
+                            const ft = simGauge.toFixed(1);
+                            const nm = simVis.toFixed(1);
+                            if (floodScenario.status !== "NOMINAL") return `River Stage ${ft}ft — ${floodScenario.status}`;
+                            if (fogScenario.status !== "NOMINAL") return `SW Pass ${nm}nm — ${fogScenario.status}`;
+                            return "All conditions nominal";
+                          })(),
+                          detail: (() => {
+                            const ft = simGauge.toFixed(1);
+                            const nm = simVis.toFixed(1);
+                            return `Carrollton ${ft}ft — within normal range. SW Pass ${nm}nm — full visibility, no restrictions. No threshold crossings in past 2hr.`;
+                          })(),
+                          feeds: [`NOAA ${simGauge.toFixed(1)}ft`, `NDBC ${simVis.toFixed(1)}nm`, nhcData ? "NHC ACTIVE" : "NHC clear"],
                         },
                         {
-                          agent: "BM", color: C.tealDim,
-                          action: "MONITORING: AIS vessel traffic updated",
+                          code: "BM",
+                          name: "Berth Master",
+                          color: C.tealDim,
+                          status: aisData?.vessels?.length > 0 ? "TRACKING" : "POLLING",
+                          headline: (() => {
+                            const vessels = aisData?.vessels || [];
+                            if (vessels.length === 0) return "Polling LMR corridor";
+                            const moving = vessels.filter(v => v.sog > 0.5 && v.name && !v.name.startsWith("VESSEL"));
+                            const lead = moving.sort((a,b) => b.sog - a.sog)[0] || vessels[0];
+                            return `${lead?.name || "Unknown"} — ${lead?.sog?.toFixed(1) || "0.0"}kt inbound`;
+                          })(),
                           detail: (() => {
                             const vessels = aisData?.vessels || [];
-                            if (vessels.length === 0) return "Polling LMR corridor bounding box — no vessels yet";
+                            if (vessels.length === 0) return "AIS bounding box active. Awaiting vessel positions in Lower Mississippi corridor.";
                             const moving = vessels.filter(v => v.sog > 0.5 && v.name && !v.name.startsWith("VESSEL"));
-                            const lead = (moving.sort((a,b) => b.sog - a.sog)[0]) || vessels[0];
-                            const name = lead?.name || "UNKNOWN";
-                            const sog = lead?.sog?.toFixed(1) || "0.0";
-                            const dest = lead?.destination ? `  ETA ${lead.destination}` : "";
-                            return `${name}   ${sog}kt${dest}   ${vessels.length} vessel${vessels.length !== 1 ? "s" : ""} in corridor${aisData?.simulated ? " (simulated)" : " · live AIS"}`;
+                            const lead = moving.sort((a,b) => b.sog - a.sog)[0] || vessels[0];
+                            const dest = lead?.destination ? ` · ETA ${lead.destination}` : "";
+                            return `${vessels.length} vessel${vessels.length !== 1 ? "s" : ""} tracked in corridor${dest}. No berth conflicts at Napoleon Avenue at current gauge.`;
                           })(),
+                          feeds: [
+                            aisData?.vessels?.length > 0 ? `${aisData.vessels.length} AIS vessel${aisData.vessels.length !== 1 ? "s" : ""}` : "AIS polling",
+                            `Gauge ${simGauge.toFixed(1)}ft`,
+                            "Napoleon Wharf",
+                          ],
                         },
                         {
-                          agent: "IS", color: "#818cf8",
-                          action: "MONITORING: CN/KCS intermodal schedule confirmed",
-                          detail: "14 intermodal cars staged Yard 3 · On schedule · No rail restrictions active",
+                          code: "IS",
+                          name: "Intermodal Sync",
+                          color: "#818cf8",
+                          status: "CONFIRMED",
+                          headline: "CN/KCS windows on schedule",
+                          detail: "14 intermodal cars staged Yard 3. Rail interchange windows confirmed. No drayage restrictions at current gauge. Gate queues normal.",
+                          feeds: ["CN/KCS clear", "14 cars Yard 3", "Gates open"],
                         },
-                      ].map(({ agent, color, action, detail }, i, arr) => (
-                        <div key={agent} style={{
-                          display: "flex", alignItems: "flex-start", gap: 12,
-                          padding: "10px 16px",
-                          background: i % 2 === 0 ? `${C.muted}04` : "transparent",
-                          borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
+                      ].map(({ code, name, color, status, headline, detail, feeds }) => (
+                        <div key={code} style={{
+                          background: C.panel,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          display: "flex",
+                          flexDirection: "column",
                         }}>
-                          <AgentBadge code={agent} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, letterSpacing: "0.04em", marginBottom: 3 }}>{action}</div>
-                            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.body }}>{detail}</div>
+                          {/* Card header */}
+                          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+                            <AgentBadge code={code} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color }}>{name}</div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <PulsingDot color={color} size={5} />
+                              <span style={{ fontFamily: C.mono, fontSize: 7, fontWeight: 700, color, letterSpacing: "0.08em" }}>{status}</span>
+                            </div>
                           </div>
-                          <div style={{ fontFamily: C.mono, fontSize: 8, color: C.mutedLo, flexShrink: 0 }}>
-                            {new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "America/Chicago" })}
+                          {/* Headline interpretation */}
+                          <div style={{ padding: "10px 14px 6px" }}>
+                            <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color, marginBottom: 6 }}>{headline}</div>
+                            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.body, lineHeight: 1.6 }}>{detail}</div>
+                          </div>
+                          {/* Live feed pills */}
+                          <div style={{ padding: "8px 14px 10px", display: "flex", gap: 5, flexWrap: "wrap", marginTop: "auto" }}>
+                            {feeds.map(f => (
+                              <span key={f} style={{ fontFamily: C.mono, fontSize: 7, color: C.muted, background: `${C.muted}0a`, border: `1px solid ${C.border}`, borderRadius: 3, padding: "2px 6px" }}>{f}</span>
+                            ))}
                           </div>
                         </div>
                       ))}
@@ -3152,7 +3120,7 @@ export default function DeltaAgentDashboard() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
                 {/* Stat cards with expandable methodology */}
-                <div className="impact-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+                <div className="impact-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                   {[
                     {
                       label: "SESSION TOTAL AVOIDED",
